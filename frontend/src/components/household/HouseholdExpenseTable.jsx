@@ -1,0 +1,55 @@
+import { formatDate } from '../../utils/formatDate'
+import { formatCurrency } from '../../utils/formatCurrency'
+import { HOUSEHOLD_CATEGORIES } from '../../utils/constants'
+import Table from '../common/Table'
+import Badge from '../common/Badge'
+import Button from '../common/Button'
+
+export default function HouseholdExpenseTable({ items, loading, onEdit, onDelete }) {
+  const getCat = (key) => HOUSEHOLD_CATEGORIES.find(c => c.value === key) || { label: key, icon: '📦' }
+
+  const columns = [
+    {
+      key: 'date', label: 'Fecha',
+      render: (e) => <span className="text-stone-600 text-sm">{formatDate(e.date)}</span>,
+    },
+    {
+      key: 'category', label: 'Categoría',
+      render: (e) => {
+        const cat = getCat(e.category)
+        return (
+          <div className="flex items-center gap-1.5">
+            <span>{cat.icon}</span>
+            <span className="text-sm font-medium text-stone-700">{cat.label}</span>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'description', label: 'Descripción',
+      render: (e) => <span className="text-sm text-stone-700 line-clamp-1">{e.description}</span>,
+    },
+    {
+      key: 'amount', label: 'Valor',
+      render: (e) => <span className="text-sm font-bold text-accent-700">{formatCurrency(e.amount)}</span>,
+    },
+    {
+      key: 'paymentMethod', label: 'Pago',
+      render: (e) => <Badge color="gray">{e.paymentMethod}</Badge>,
+    },
+    {
+      key: 'actions', label: '',
+      render: (e) => (
+        <div className="flex gap-1 justify-end">
+          <Button size="sm" variant="ghost" onClick={() => onEdit(e)}>✏️</Button>
+          <Button size="sm" variant="ghost" onClick={() => onDelete(e)}>🗑️</Button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <Table columns={columns} data={items} loading={loading}
+      emptyMessage="No hay gastos del hogar registrados" emptyIcon="🏠" />
+  )
+}
