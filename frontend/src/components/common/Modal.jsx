@@ -1,12 +1,7 @@
 import { useEffect } from 'react'
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
-  const sizes = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-  }
+  const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden'
@@ -25,21 +20,21 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-primary-900/30 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      <div
-        className={`relative bg-white/90 backdrop-blur-2xl rounded-3xl shadow-elevated border border-white/60
-          w-full ${sizes[size]} max-h-[90vh] flex flex-col animate-[modalIn_0.25s_cubic-bezier(0.4,0,0.2,1)]`}
+      <div className={`relative w-full ${sizes[size]} max-h-[90vh] flex flex-col
+        animate-scale-in rounded-3xl overflow-hidden
+        bg-[rgba(12,32,18,0.85)] backdrop-blur-[48px] border border-white/14
+        shadow-[0_24px_80px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.12)]`}
       >
-        <div className="flex items-center justify-between px-7 py-5 border-b border-stone-100 flex-shrink-0">
-          <h2 className="text-[18px] font-bold text-stone-900 tracking-tight font-display">{title}</h2>
+        <div className="flex items-center justify-between px-7 py-5 border-b border-white/08 flex-shrink-0">
+          <h2 className="text-[17px] font-bold text-white tracking-tight font-display">{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
-            className="p-1.5 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors duration-150"
+            className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
           >
-            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

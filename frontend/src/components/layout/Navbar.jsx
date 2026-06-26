@@ -13,11 +13,10 @@ export default function Navbar({ onMenuClick }) {
   }
 
   return (
-    <header className="h-16 bg-white/50 backdrop-blur-2xl border-b border-white/60 flex items-center justify-between px-4 md:px-8 flex-shrink-0">
+    <header className="h-16 navbar-glass flex items-center justify-between px-4 md:px-8 flex-shrink-0">
       <button
         onClick={onMenuClick}
-        aria-label="Abrir menú"
-        className="lg:hidden p-2 -ml-2 rounded-full text-stone-500 hover:bg-white/70 transition-colors duration-150"
+        className="lg:hidden p-2 -ml-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all duration-150"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -28,13 +27,13 @@ export default function Navbar({ onMenuClick }) {
 
       <div className="flex items-center gap-4">
         <div className="text-right hidden sm:block">
-          <p className="text-[13px] font-bold text-stone-900 leading-tight">{user?.name}</p>
-          <p className="text-[12px] text-stone-400 leading-tight">{user?.farmName}</p>
+          <p className="text-[13px] font-bold text-white/90 leading-tight">{user?.name}</p>
+          <p className="text-[11px] text-white/40 leading-tight">{user?.farmName}</p>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-stone-500 hover:text-accent-600
-            transition-colors duration-150 px-4 py-2 rounded-full hover:bg-white/70"
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 hover:text-white/90
+            transition-colors duration-150 px-4 py-2 rounded-full hover:bg-white/10"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round"

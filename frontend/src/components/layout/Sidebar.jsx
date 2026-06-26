@@ -15,58 +15,59 @@ export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth()
 
   const linkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-semibold transition-all duration-200 ease-smooth
+    `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200
     ${isActive
-      ? 'bg-primary-600 text-white shadow-soft'
-      : 'text-stone-600 hover:bg-white/70 hover:text-primary-700'
+      ? 'bg-gradient-to-r from-primary-500/90 to-primary-600/90 text-white shadow-[0_2px_12px_rgba(37,138,78,0.4)] border border-primary-400/30'
+      : 'text-white/65 hover:text-white hover:bg-white/10 border border-transparent'
     }`
 
   return (
-    <aside
-      className={`
-        fixed lg:static inset-y-0 left-0 z-30
-        w-[270px] bg-white/60 backdrop-blur-2xl border-r border-white/60
-        flex flex-col transition-transform duration-300 ease-smooth
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}
-    >
+    <aside className={`
+      fixed lg:static inset-y-0 left-0 z-30
+      w-[268px] sidebar-glass flex flex-col
+      transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+    `}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6">
-        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center text-white text-lg shadow-soft">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg shadow-[0_4px_16px_rgba(37,138,78,0.5)]">
           🌾
         </div>
         <div>
-          <p className="font-bold text-stone-900 text-[16px] leading-none font-display tracking-tight">AgroFinanzas</p>
-          <p className="text-[12px] text-stone-400 mt-1">{user?.farmName || 'Mi Finca'}</p>
+          <p className="font-bold text-white text-[16px] leading-none font-display tracking-tight">AgroFinanzas</p>
+          <p className="text-[11px] text-white/45 mt-1">{user?.farmName || 'Mi Finca'}</p>
         </div>
       </div>
 
-      {/* Navegación */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        <p className="text-[11px] font-bold text-stone-400 uppercase tracking-wider px-3.5 mb-2 mt-2">Navegación</p>
+      {/* Separador */}
+      <div className="h-px bg-white/08 mx-4 mb-3" />
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
-            <span className="text-lg">{item.icon}</span>
+            <span className="text-[17px] w-5 text-center">{item.icon}</span>
             {item.label}
           </NavLink>
         ))}
 
-        <p className="text-[11px] font-bold text-stone-400 uppercase tracking-wider px-3.5 mb-2 mt-5">Cuenta</p>
+        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
-          <span className="text-lg">⚙️</span>
+          <span className="text-[17px] w-5 text-center">⚙️</span>
           Configuración
         </NavLink>
       </nav>
 
-      {/* Usuario actual */}
-      <div className="px-4 py-4 mx-3 mb-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/60 shadow-soft">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-soft">
+      {/* Usuario */}
+      <div className="px-3 pb-4">
+        <div className="px-3.5 py-3 rounded-2xl bg-white/07 border border-white/10 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
             {user?.name?.[0]?.toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-bold text-stone-900 truncate">{user?.name}</p>
-            <p className="text-[12px] text-stone-400 truncate">{user?.email}</p>
+            <p className="text-[13px] font-bold text-white/90 truncate">{user?.name}</p>
+            <p className="text-[11px] text-white/40 truncate">{user?.email}</p>
           </div>
         </div>
       </div>
