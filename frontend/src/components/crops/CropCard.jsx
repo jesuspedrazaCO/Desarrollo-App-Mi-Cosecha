@@ -10,62 +10,76 @@ export default function CropCard({ crop, onEdit, onDelete }) {
   const isProfit = crop.netProfit >= 0
 
   return (
-    <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60 p-5
-      hover:shadow-elevated hover:-translate-y-1 transition-all duration-300 ease-smooth group">
+    <div className="rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+      style={{
+        background: 'rgba(255,255,255,0.13)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.20)',
+        boxShadow: '0 4px 24px -4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.20)',
+      }}>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between p-5 pb-3">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center text-2xl shadow-soft">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #258a4e, #1a6e3c)', boxShadow: '0 4px 12px rgba(37,138,78,0.45)' }}>
             🌾
           </div>
           <div>
-            <h3 className="font-bold text-stone-900 font-display text-[16px] leading-tight">{crop.name}</h3>
-            <p className="text-xs text-stone-400 mt-0.5">{crop.type}</p>
+            <h3 className="font-bold text-white font-display text-[15px] leading-tight">{crop.name}</h3>
+            <p className="text-[12px] text-white/60 mt-0.5">{crop.type}</p>
           </div>
         </div>
         <Badge color={status.color}>{status.label}</Badge>
       </div>
 
-      {/* Info */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-stone-50/70 rounded-2xl px-3 py-2">
-          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Inicio</p>
-          <p className="text-sm font-semibold text-stone-700 mt-0.5">{formatDate(crop.startDate)}</p>
-        </div>
-        <div className="bg-stone-50/70 rounded-2xl px-3 py-2">
-          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Cosecha est.</p>
-          <p className="text-sm font-semibold text-stone-700 mt-0.5">
-            {crop.estimatedHarvestDate ? formatDate(crop.estimatedHarvestDate) : '—'}
-          </p>
-        </div>
-        <div className="bg-stone-50/70 rounded-2xl px-3 py-2">
-          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Invertido</p>
-          <p className="text-sm font-semibold text-accent-700 mt-0.5">{formatCurrencyCompact(crop.totalInvested)}</p>
-        </div>
-        <div className="bg-stone-50/70 rounded-2xl px-3 py-2">
-          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Vendido</p>
-          <p className="text-sm font-semibold text-primary-700 mt-0.5">{formatCurrencyCompact(crop.totalSold)}</p>
-        </div>
+      {/* Info grid */}
+      <div className="grid grid-cols-2 gap-2 px-5 pb-3">
+        {[
+          { label: 'INICIO', value: formatDate(crop.startDate) },
+          { label: 'COSECHA EST.', value: crop.estimatedHarvestDate ? formatDate(crop.estimatedHarvestDate) : '—' },
+          { label: 'INVERTIDO', value: formatCurrencyCompact(crop.totalInvested), accent: 'orange' },
+          { label: 'VENDIDO', value: formatCurrencyCompact(crop.totalSold), accent: 'green' },
+        ].map((item) => (
+          <div key={item.label} className="rounded-2xl px-3 py-2"
+            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider">{item.label}</p>
+            <p className={`text-[13px] font-bold mt-0.5 ${
+              item.accent === 'orange' ? 'text-orange-300' :
+              item.accent === 'green' ? 'text-emerald-300' : 'text-white/90'
+            }`}>{item.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Ganancia */}
-      <div className={`rounded-2xl px-4 py-3 mb-4 ${isProfit ? 'bg-primary-50' : 'bg-red-50'}`}>
+      <div className="mx-5 mb-4 rounded-2xl px-4 py-3"
+        style={{
+          background: isProfit ? 'rgba(22,163,74,0.18)' : 'rgba(220,38,38,0.18)',
+          border: `1px solid ${isProfit ? 'rgba(74,222,128,0.30)' : 'rgba(248,113,113,0.30)'}`,
+        }}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Ganancia neta</span>
-          <span className={`text-lg font-bold font-display ${isProfit ? 'text-primary-700' : 'text-red-600'}`}>
+          <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">Ganancia neta</span>
+          <span className={`text-[17px] font-bold font-display ${isProfit ? 'text-emerald-300' : 'text-red-400'}`}>
             {formatCurrency(crop.netProfit)}
           </span>
         </div>
       </div>
 
       {/* Acciones */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 px-5 pb-5">
         <Link to={`/crops/${crop._id}`} className="flex-1">
           <Button variant="secondary" className="w-full" size="sm">Ver detalle</Button>
         </Link>
-        <Button size="sm" variant="ghost" onClick={() => onEdit(crop)}>✏️</Button>
-        <Button size="sm" variant="ghost" onClick={() => onDelete(crop)}>🗑️</Button>
+        <button onClick={() => onEdit(crop)}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-all duration-150">
+          ✏️
+        </button>
+        <button onClick={() => onDelete(crop)}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-red-400 hover:bg-red-400/15 transition-all duration-150">
+          🗑️
+        </button>
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
+const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
+
 const navItems = [
   { to: '/', label: 'Inicio', icon: '🏡', exact: true },
   { to: '/crops', label: 'Cultivos', icon: '🌱' },
@@ -28,9 +30,9 @@ export default function Sidebar({ isOpen, onClose }) {
       transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
       ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
     `}>
-      {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg shadow-[0_4px_16px_rgba(37,138,78,0.5)]">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg"
+          style={{ boxShadow: '0 4px 16px rgba(37,138,78,0.5)' }}>
           🌾
         </div>
         <div>
@@ -39,10 +41,8 @@ export default function Sidebar({ isOpen, onClose }) {
         </div>
       </div>
 
-      {/* Separador */}
-      <div className="h-px bg-white/08 mx-4 mb-3" />
+      <div className="h-px mx-4 mb-3" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
         {navItems.map((item) => (
@@ -51,7 +51,6 @@ export default function Sidebar({ isOpen, onClose }) {
             {item.label}
           </NavLink>
         ))}
-
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
           <span className="text-[17px] w-5 text-center">⚙️</span>
@@ -59,12 +58,19 @@ export default function Sidebar({ isOpen, onClose }) {
         </NavLink>
       </nav>
 
-      {/* Usuario */}
       <div className="px-3 pb-4">
-        <div className="px-3.5 py-3 rounded-2xl bg-white/07 border border-white/10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {user?.name?.[0]?.toUpperCase()}
-          </div>
+        <div className="px-3.5 py-3 rounded-2xl flex items-center gap-3"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}>
+          {user?.avatar ? (
+            <img src={`${UPLOADS_URL}/uploads/${user.avatar}`} alt={user.name}
+              className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+              style={{ border: '2px solid rgba(74,222,128,0.35)' }} />
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #258a4e, #1a6e3c)' }}>
+              {user?.name?.[0]?.toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-[13px] font-bold text-white/90 truncate">{user?.name}</p>
             <p className="text-[11px] text-white/40 truncate">{user?.email}</p>
