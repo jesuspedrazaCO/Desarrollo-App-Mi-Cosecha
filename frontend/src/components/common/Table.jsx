@@ -6,15 +6,16 @@ export default function Table({ columns, data, loading, emptyMessage = 'No hay d
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-stone-100">
+          <tr className="border-b border-white/10">
             {columns.map((col) => (
-              <th key={col.key} className={`px-5 py-3.5 text-left text-[11px] font-bold text-stone-400 uppercase tracking-wider ${col.className || ''}`}>
+              <th key={col.key}
+                className={`px-5 py-3.5 text-left text-[10px] font-bold text-white/50 uppercase tracking-widest ${col.className || ''}`}>
                 {col.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-stone-50">
+        <tbody className="divide-y divide-white/06">
           {loading ? (
             <tr><td colSpan={columns.length} className="py-14"><Spinner className="py-4" /></td></tr>
           ) : data.length === 0 ? (
@@ -25,10 +26,13 @@ export default function Table({ columns, data, loading, emptyMessage = 'No hay d
             </tr>
           ) : (
             data.map((row, i) => (
-              <tr key={row._id || i} className="hover:bg-primary-50/40 transition-colors duration-150">
+              <tr key={row._id || i}
+                className="hover:bg-white/06 transition-colors duration-150 group">
                 {columns.map((col) => (
                   <td key={col.key} className={`px-5 py-3.5 ${col.className || ''}`}>
-                    {col.render ? col.render(row) : row[col.key]}
+                    {col.render ? col.render(row) : (
+                      <span className="text-white/85 font-medium">{row[col.key]}</span>
+                    )}
                   </td>
                 ))}
               </tr>

@@ -1,0 +1,38 @@
+/* ── PATCH: texto legible en inputs/selects nativos dentro de modales y formularios ── */
+
+/* Cualquier select nativo que use bg-white/80 */
+select.bg-white\/80,
+select[class*="bg-white"] {
+  color: #1c1917 !important;
+  background-color: rgba(255,255,255,0.82) !important;
+}
+
+select.bg-white\/80 option,
+select[class*="bg-white"] option {
+  background-color: #ffffff;
+  color: #1c1917;
+}
+
+/* Inputs de fecha nativos */
+input[type="date"],
+input[type="time"] {
+  color-scheme: light;
+}
+
+/* Texto en filas de tabla */
+.table-cell-text {
+  color: rgba(255,255,255,0.88);
+  font-weight: 500;
+}
+
+/* Cards con fondo claro dentro del tema oscuro */
+.card-light {
+  background: rgba(255,255,255,0.82) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.50);
+  color: #1c1917;
+}
+
+.card-light * {
+  color: inherit;
+}

@@ -25,13 +25,9 @@ html, body, #root {
     letter-spacing: -0.01em;
   }
 
-  /* Scrollbar elegante oscura */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.15);
-    border-radius: 99px;
-  }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 
   *:focus-visible {
@@ -39,10 +35,16 @@ html, body, #root {
     outline-offset: 2px;
     border-radius: 6px;
   }
+
+  /* Inputs y selects con fondo claro → texto oscuro */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    color-scheme: light;
+  }
 }
 
 @layer components {
-  /* ── Glassmorphism oscuro (sobre el fondo de campo) ── */
   .glass {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px) saturate(180%);
@@ -72,7 +74,6 @@ html, body, #root {
     box-shadow: 0 8px 32px -8px rgba(0,0,0,0.40);
   }
 
-  /* Card = glass por defecto en tema oscuro */
   .card {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px) saturate(180%);
@@ -82,12 +83,11 @@ html, body, #root {
     @apply rounded-3xl;
   }
 
-  /* ── Botones ── */
   .btn-primary {
     background: linear-gradient(135deg, #258a4e 0%, #1a6e3c 100%);
     @apply text-white font-semibold px-5 py-2.5 rounded-full
            transition-all duration-200 shadow-glow-green
-           hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(74,222,128,0.4),0_12px_40px_-8px_rgba(37,138,78,0.6)]
+           hover:-translate-y-0.5
            active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-secondary {
@@ -95,14 +95,12 @@ html, body, #root {
     backdrop-filter: blur(12px);
     @apply text-white/90 font-semibold px-5 py-2.5 rounded-full
            border border-white/20 transition-all duration-200
-           hover:bg-white/16 hover:-translate-y-0.5
-           active:translate-y-0;
+           hover:bg-white/16 hover:-translate-y-0.5 active:translate-y-0;
   }
   .btn-accent {
     background: linear-gradient(135deg, #e37038 0%, #c8541e 100%);
     @apply text-white font-semibold px-5 py-2.5 rounded-full
-           transition-all duration-200
-           hover:-translate-y-0.5 active:translate-y-0;
+           transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
   }
   .btn-danger {
     @apply bg-red-500/80 hover:bg-red-500 text-white font-semibold
@@ -113,17 +111,14 @@ html, body, #root {
            font-semibold px-4 py-2 rounded-full transition-all duration-200;
   }
 
-  /* ── Inputs ── */
   .input-field {
-    background: rgba(255,255,255,0.07);
-    backdrop-filter: blur(12px);
-    @apply w-full border border-white/15 rounded-2xl px-4 py-2.5 text-sm
-           text-white placeholder-white/35
-           focus:outline-none focus:ring-2 focus:ring-mint-400/40 focus:border-mint-400/50
+    background: rgba(255,255,255,0.82);
+    @apply w-full border border-white/40 rounded-2xl px-4 py-2.5 text-sm font-medium
+           text-stone-800 placeholder-stone-400
+           focus:outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400/60
            transition-all duration-200;
   }
 
-  /* ── Tipografía ── */
   .page-title {
     @apply text-[28px] leading-tight font-bold tracking-tight font-display;
     color: rgba(255,255,255,0.97);
@@ -137,7 +132,6 @@ html, body, #root {
     color: rgba(255,255,255,0.60);
   }
 
-  /* ── Sidebar oscuro ── */
   .sidebar-glass {
     background: rgba(8,22,13,0.85);
     backdrop-filter: blur(40px) saturate(160%);
@@ -145,7 +139,6 @@ html, body, #root {
     border-right: 1px solid rgba(255,255,255,0.08);
   }
 
-  /* ── Navbar oscuro ── */
   .navbar-glass {
     background: rgba(10,28,16,0.70);
     backdrop-filter: blur(32px) saturate(180%);
@@ -153,7 +146,7 @@ html, body, #root {
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
 
-  /* ── Badge ── */
+  /* Badges con colores neon sutiles */
   .badge-green  { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide; background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
   .badge-amber  { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
   .badge-red    { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide; background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
@@ -163,7 +156,18 @@ html, body, #root {
   .badge-purple { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide; background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
 }
 
-/* ── react-big-calendar overrides (tema oscuro) ── */
+/* ── Selects nativos inline (los que no usan el componente Select) ── */
+select {
+  background-color: rgba(255,255,255,0.82) !important;
+  color: #1c1917 !important;
+  border-color: rgba(255,255,255,0.40) !important;
+}
+select option {
+  background-color: #ffffff;
+  color: #1c1917;
+}
+
+/* ── react-big-calendar overrides ── */
 .rbc-calendar { @apply font-sans; color: rgba(255,255,255,0.85); background: transparent; }
 .rbc-month-view, .rbc-time-view { background: transparent; border-color: rgba(255,255,255,0.08) !important; border-radius: 16px; overflow: hidden; }
 .rbc-header { background: rgba(255,255,255,0.05) !important; color: rgba(255,255,255,0.50) !important; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 12px 8px !important; border-color: rgba(255,255,255,0.08) !important; }
@@ -171,21 +175,21 @@ html, body, #root {
 .rbc-date-cell.rbc-now { color: #4ade80; font-weight: 800; }
 .rbc-today { background: rgba(74,222,128,0.06) !important; }
 .rbc-off-range-bg { background: rgba(0,0,0,0.15) !important; }
-.rbc-event { background: linear-gradient(135deg, #258a4e, #1a6e3c) !important; border: none !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important; }
+.rbc-event { background: linear-gradient(135deg, #258a4e, #1a6e3c) !important; border: none !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 600 !important; }
 .rbc-show-more { color: #4ade80; font-weight: 700; font-size: 11px; }
 .rbc-toolbar { margin-bottom: 16px; }
-.rbc-toolbar button { background: rgba(255,255,255,0.07) !important; color: rgba(255,255,255,0.75) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 99px !important; font-size: 13px !important; font-weight: 600 !important; padding: 6px 16px !important; transition: all 0.15s !important; }
+.rbc-toolbar button { background: rgba(255,255,255,0.07) !important; color: rgba(255,255,255,0.75) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 99px !important; font-size: 13px !important; font-weight: 600 !important; padding: 6px 16px !important; }
 .rbc-toolbar button:hover { background: rgba(255,255,255,0.14) !important; color: white !important; }
-.rbc-toolbar button.rbc-active { background: linear-gradient(135deg, #258a4e, #1a6e3c) !important; color: white !important; border-color: transparent !important; box-shadow: 0 2px 12px rgba(37,138,78,0.45) !important; }
+.rbc-toolbar button.rbc-active { background: linear-gradient(135deg, #258a4e, #1a6e3c) !important; color: white !important; border-color: transparent !important; }
 .rbc-day-bg + .rbc-day-bg { border-color: rgba(255,255,255,0.06) !important; }
 .rbc-month-row + .rbc-month-row { border-color: rgba(255,255,255,0.06) !important; }
 
-@keyframes floatUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes scaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes floatUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn   { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
 @keyframes pulseSoft { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
 
-.animate-float-up { animation: floatUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
-.animate-fade-in  { animation: fadeIn  0.3s ease-out forwards; }
-.animate-scale-in { animation: scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.animate-float-up   { animation: floatUp  0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+.animate-fade-in    { animation: fadeIn   0.3s ease-out forwards; }
+.animate-scale-in   { animation: scaleIn  0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 .animate-pulse-soft { animation: pulseSoft 3s ease-in-out infinite; }

@@ -4,19 +4,18 @@ const Select = forwardRef(function Select({ label, error, required, options = []
   return (
     <div className={className}>
       {label && (
-        <label className="block text-[12px] font-bold text-white/55 uppercase tracking-wider mb-1.5">
+        <label className="block text-[12px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
           {label} {required && <span className="text-accent-400">*</span>}
         </label>
       )}
       <select
         ref={ref}
-        className={`w-full rounded-2xl px-4 py-2.5 text-sm text-white appearance-none
-          transition-all duration-200 focus:outline-none focus:ring-2 backdrop-blur-sm
+        className={`w-full rounded-2xl px-4 py-2.5 text-sm font-medium appearance-none
+          transition-all duration-200 focus:outline-none focus:ring-2
           ${error
-            ? 'bg-red-500/10 border border-red-400/40 focus:ring-red-400/30'
-            : 'bg-white/07 border border-white/13 focus:ring-mint-400/35 focus:border-mint-400/50'
+            ? 'bg-red-50/90 border border-red-300 text-red-900 focus:ring-red-400/30'
+            : 'bg-white/80 border border-white/40 text-stone-800 focus:ring-primary-400/40 focus:border-primary-400/60'
           }`}
-        style={{ colorScheme: 'dark' }}
         {...props}
       >
         {placeholder && <option value="">{placeholder}</option>}
