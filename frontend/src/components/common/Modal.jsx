@@ -18,17 +18,24 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 bg-black/65 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      <div className={`relative w-full ${sizes[size]} max-h-[90vh] flex flex-col
-        animate-scale-in rounded-3xl overflow-hidden
-        bg-[rgba(12,32,18,0.85)] backdrop-blur-[48px] border border-white/14
-        shadow-[0_24px_80px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.12)]`}
+      <div className={`relative w-full ${sizes[size]} my-auto animate-scale-in`}
+        style={{
+          background: 'rgba(12,32,18,0.92)',
+          backdropFilter: 'blur(48px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+          border: '1px solid rgba(255,255,255,0.14)',
+          boxShadow: '0 24px 80px -12px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
+          borderRadius: '24px',
+        }}
       >
-        <div className="flex items-center justify-between px-7 py-5 border-b border-white/08 flex-shrink-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-7 py-5 flex-shrink-0"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <h2 className="text-[17px] font-bold text-white tracking-tight font-display">{title}</h2>
           <button
             onClick={onClose}
@@ -39,7 +46,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
             </svg>
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-7 py-5">
+        {/* Body — scrollable si el contenido es largo */}
+        <div className="px-7 py-5 overflow-y-auto" style={{ maxHeight: '75vh' }}>
           {children}
         </div>
       </div>
