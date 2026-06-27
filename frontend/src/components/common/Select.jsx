@@ -1,29 +1,50 @@
 import { forwardRef } from 'react'
 
 const Select = forwardRef(function Select({ label, error, required, options = [], placeholder, className = '', ...props }, ref) {
+  const style = {
+    backgroundColor: error ? '#fef2f2' : 'rgba(255,255,255,0.88)',
+    color: error ? '#991b1b' : '#1c1917',
+    border: error ? '1px solid #fca5a5' : '1px solid rgba(200,200,200,0.55)',
+    borderRadius: '14px',
+    padding: '10px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    width: '100%',
+    outline: 'none',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    transition: 'all 0.2s',
+    cursor: 'pointer',
+  }
+
   return (
-    <div className={className}>
+    <div className={className} style={{ position: 'relative' }}>
       {label && (
-        <label className="block text-[12px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
-          {label} {required && <span className="text-accent-400">*</span>}
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+          {label} {required && <span style={{ color: '#fb923c' }}>*</span>}
         </label>
       )}
-      <select
-        ref={ref}
-        className={`w-full rounded-2xl px-4 py-2.5 text-sm font-medium appearance-none
-          transition-all duration-200 focus:outline-none focus:ring-2
-          ${error
-            ? 'bg-red-50/90 border border-red-300 text-red-900 focus:ring-red-400/30'
-            : 'bg-white/80 border border-white/40 text-stone-800 focus:ring-primary-400/40 focus:border-primary-400/60'
-          }`}
-        {...props}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-      {error && <p className="mt-1.5 text-[11px] text-red-400">{error}</p>}
+      <div style={{ position: 'relative' }}>
+        <select
+          ref={ref}
+          style={style}
+          onFocus={e => { e.target.style.border = '1px solid rgba(37,138,78,0.7)'; e.target.style.boxShadow = '0 0 0 3px rgba(37,138,78,0.18)' }}
+          onBlur={e => { e.target.style.border = error ? '1px solid #fca5a5' : '1px solid rgba(200,200,200,0.55)'; e.target.style.boxShadow = 'none' }}
+          {...props}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+          {props.children}
+        </select>
+        {/* Chevron */}
+        <svg style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#6b7280', pointerEvents: 'none' }}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      {error && <p style={{ marginTop: '6px', fontSize: '11px', color: '#f87171' }}>{error}</p>}
     </div>
   )
 })

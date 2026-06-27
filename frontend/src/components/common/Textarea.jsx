@@ -1,25 +1,37 @@
 import { forwardRef } from 'react'
 
 const Textarea = forwardRef(function Textarea({ label, error, required, rows = 3, className = '', ...props }, ref) {
+  const style = {
+    backgroundColor: error ? '#fef2f2' : 'rgba(255,255,255,0.88)',
+    color: error ? '#991b1b' : '#1c1917',
+    border: error ? '1px solid #fca5a5' : '1px solid rgba(200,200,200,0.55)',
+    borderRadius: '14px',
+    padding: '10px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    width: '100%',
+    outline: 'none',
+    resize: 'none',
+    transition: 'all 0.2s',
+    fontFamily: 'inherit',
+  }
+
   return (
     <div className={className}>
       {label && (
-        <label className="block text-[12px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
-          {label} {required && <span className="text-accent-400">*</span>}
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+          {label} {required && <span style={{ color: '#fb923c' }}>*</span>}
         </label>
       )}
       <textarea
         ref={ref}
         rows={rows}
-        className={`w-full rounded-2xl px-4 py-2.5 text-sm font-medium resize-none
-          transition-all duration-200 focus:outline-none focus:ring-2
-          ${error
-            ? 'bg-red-50/90 border border-red-300 text-red-900 placeholder-red-300 focus:ring-red-400/30'
-            : 'bg-white/80 border border-white/40 text-stone-800 placeholder-stone-400 focus:ring-primary-400/40 focus:border-primary-400/60'
-          }`}
+        style={style}
+        onFocus={e => { e.target.style.border = '1px solid rgba(37,138,78,0.7)'; e.target.style.boxShadow = '0 0 0 3px rgba(37,138,78,0.18)' }}
+        onBlur={e => { e.target.style.border = error ? '1px solid #fca5a5' : '1px solid rgba(200,200,200,0.55)'; e.target.style.boxShadow = 'none' }}
         {...props}
       />
-      {error && <p className="mt-1.5 text-[11px] text-red-400">{error}</p>}
+      {error && <p style={{ marginTop: '6px', fontSize: '11px', color: '#f87171' }}>{error}</p>}
     </div>
   )
 })

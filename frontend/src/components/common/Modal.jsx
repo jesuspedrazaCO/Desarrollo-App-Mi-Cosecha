@@ -18,36 +18,48 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/65 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+        style={{ animation: 'fadeIn 0.2s ease-out' }}
         onClick={onClose}
       />
-      <div className={`relative w-full ${sizes[size]} my-auto animate-scale-in`}
+
+      {/* Modal box */}
+      <div
+        className={`relative w-full ${sizes[size]} flex flex-col`}
         style={{
-          background: 'rgba(12,32,18,0.92)',
+          maxHeight: '88vh',
+          background: 'rgba(12,32,18,0.94)',
           backdropFilter: 'blur(48px) saturate(180%)',
           WebkitBackdropFilter: 'blur(48px) saturate(180%)',
-          border: '1px solid rgba(255,255,255,0.14)',
+          border: '1px solid rgba(255,255,255,0.15)',
           boxShadow: '0 24px 80px -12px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
           borderRadius: '24px',
+          animation: 'scaleIn 0.22s cubic-bezier(0.34,1.56,0.64,1)',
         }}
       >
-        {/* Header */}
+        {/* Header fijo */}
         <div className="flex items-center justify-between px-7 py-5 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
           <h2 className="text-[17px] font-bold text-white tracking-tight font-display">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-white/40 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
+            className="p-1.5 rounded-full transition-all duration-150"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        {/* Body — scrollable si el contenido es largo */}
-        <div className="px-7 py-5 overflow-y-auto" style={{ maxHeight: '75vh' }}>
+
+        {/* Body con scroll */}
+        <div className="px-7 py-5 overflow-y-auto flex-1"
+          style={{ overflowY: 'auto' }}>
           {children}
         </div>
       </div>
