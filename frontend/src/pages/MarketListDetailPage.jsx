@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getMarketListById, addMarketItem, updateMarketItem, deleteMarketItem, updateMarketList } from '../services/marketService'
-import MarketItemRow from '../components/market/MarketItemRow'
+import {
+  getMarketListById, addMarketItem, updateMarketItem,
+  deleteMarketItem, updateMarketList
+} from '../services/marketService'
 import MarketItemForm from '../components/market/MarketItemForm'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
@@ -49,7 +51,7 @@ export default function MarketListDetailPage() {
       }
       setShowItemForm(false)
       setEditingItem(null)
-      fetchData()
+      await fetchData()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al guardar')
     } finally {
@@ -63,18 +65,19 @@ export default function MarketListDetailPage() {
       await deleteMarketItem(deletingItem._id)
       toast.success('Producto eliminado')
       setDeletingItem(null)
-      fetchData()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al eliminar')
+      await fetchData()
+    } catch {
+      toast.error('Error al eliminar')
     } finally {
       setFormLoading(false)
     }
   }
 
+  // Toggle comprado — llama fetchData() después para refrescar UI
   const handleToggle = async (itemId, purchased) => {
     try {
       await updateMarketItem(itemId, { purchased })
-      fetchData()
+      await fetchData() // <-- CRÍTICO: refresca la lista completa
     } catch {
       toast.error('Error al actualizar')
     }
@@ -84,7 +87,7 @@ export default function MarketListDetailPage() {
     try {
       await updateMarketList(id, { status: 'completada' })
       toast.success('Lista marcada como completada')
-      fetchData()
+      await fetchData()
     } catch {
       toast.error('Error al actualizar la lista')
     }
@@ -97,31 +100,42 @@ export default function MarketListDetailPage() {
   const pct = items.length > 0 ? Math.round((purchasedCount / items.length) * 100) : 0
   const totalPurchased = items
     .filter(i => i.purchased)
-    .reduce((sum, i) => sum + (i.quantity * i.estimatedPrice), 0)
+    .reduce((sum, i) => sum + (i.quantity * (i.estimatedPrice || 0)), 0)
+
+  // Pendientes primero, comprados al final
+  const sortedItems = [
+    ...items.filter(i => !i.purchased),
+    ...items.filter(i => i.purchased),
+  ]
 
   return (
     <div className="space-y-5 animate-float-up max-w-3xl">
-      {/* Volver */}
       <button onClick={() => navigate('/market')}
-        className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-primary-600 transition-colors">
+        className="flex items-center gap-1.5 text-sm font-medium transition-colors"
+        style={{ color: 'rgba(255,255,255,0.55)' }}
+        onMouseEnter={e => e.currentTarget.style.color = '#4ade80'}
+        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+      >
         ← Volver a mis listas
       </button>
 
-      {/* Header de la lista */}
-      <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60 p-6">
+      {/* Header */}
+      <div className="rounded-3xl p-6"
+        style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-2xl shadow-soft w-14 h-14">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)', boxShadow: '0 4px 16px rgba(234,88,12,0.4)' }}>
               🛒
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="page-title !text-[20px]">{list?.name}</h1>
+                <h1 className="text-[20px] font-bold text-white font-display">{list?.name}</h1>
                 <Badge color={list?.status === 'completada' ? 'green' : 'amber'}>
                   {list?.status === 'completada' ? '✅ Completada' : '⏳ Pendiente'}
                 </Badge>
               </div>
-              <p className="text-xs text-stone-400 mt-1">{formatDate(list?.date)}</p>
+              <p className="text-xs text-white/45 mt-1">{formatDate(list?.date)}</p>
             </div>
           </div>
           {list?.status !== 'completada' && (
@@ -134,36 +148,45 @@ export default function MarketListDetailPage() {
         {/* Progreso */}
         {items.length > 0 && (
           <div className="mt-4">
-            <div className="flex justify-between text-xs text-stone-500 mb-2">
+            <div className="flex justify-between text-xs mb-2" style={{ color: 'rgba(255,255,255,0.55)' }}>
               <span>{purchasedCount} de {items.length} productos comprados</span>
-              <span className="font-bold">{pct}%</span>
+              <span className="font-bold" style={{ color: pct === 100 ? '#4ade80' : 'rgba(255,255,255,0.75)' }}>{pct}%</span>
             </div>
-            <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)' }}>
               <div
-                className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${pct}%`,
+                  background: pct === 100
+                    ? 'linear-gradient(90deg, #16a34a, #4ade80)'
+                    : 'linear-gradient(90deg, #258a4e, #4ade80)',
+                }}
               />
             </div>
           </div>
         )}
 
-        {/* Totales */}
+        {/* Totales — texto oscuro sobre fondo claro */}
         <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-stone-50/70 rounded-2xl px-4 py-3">
-            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Total estimado</p>
-            <p className="text-lg font-bold text-accent-700 font-display">{formatCurrency(totalEstimated)}</p>
+          <div className="rounded-2xl px-4 py-3"
+            style={{ background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.5)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#6b7280' }}>Total estimado</p>
+            <p className="text-lg font-bold font-display" style={{ color: '#b45309' }}>{formatCurrency(totalEstimated || 0)}</p>
           </div>
-          <div className="bg-primary-50/70 rounded-2xl px-4 py-3">
-            <p className="text-[10px] text-primary-500 font-bold uppercase tracking-wider">Ya comprado</p>
-            <p className="text-lg font-bold text-primary-700 font-display">{formatCurrency(totalPurchased)}</p>
+          <div className="rounded-2xl px-4 py-3"
+            style={{ background: 'rgba(220,252,231,0.90)', border: '1px solid rgba(74,222,128,0.35)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#15803d' }}>Ya comprado</p>
+            <p className="text-lg font-bold font-display" style={{ color: '#166534' }}>{formatCurrency(totalPurchased)}</p>
           </div>
         </div>
       </div>
 
       {/* Lista de productos */}
-      <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-          <h3 className="section-title">Productos ({items.length})</h3>
+      <div className="rounded-3xl overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
+        <div className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
+          <h3 className="text-[15px] font-bold text-white">Productos ({items.length})</h3>
           <Button size="sm" onClick={() => { setEditingItem(null); setShowItemForm(true) }}>
             + Agregar
           </Button>
@@ -178,36 +201,75 @@ export default function MarketListDetailPage() {
           />
         ) : (
           <div>
-            {/* Pendientes primero */}
-            {items.filter(i => !i.purchased).map(item => (
-              <MarketItemRow
+            {sortedItems.map(item => (
+              <div
                 key={item._id}
-                item={item}
-                onEdit={(i) => { setEditingItem(i); setShowItemForm(true) }}
-                onDelete={(i) => setDeletingItem(i)}
-                onToggle={handleToggle}
-              />
-            ))}
-            {/* Comprados al final */}
-            {items.filter(i => i.purchased).map(item => (
-              <MarketItemRow
-                key={item._id}
-                item={item}
-                onEdit={(i) => { setEditingItem(i); setShowItemForm(true) }}
-                onDelete={(i) => setDeletingItem(i)}
-                onToggle={handleToggle}
-              />
+                className="flex items-center gap-3 px-5 py-3.5 transition-all duration-200"
+                style={{
+                  borderBottom: '1px solid rgba(255,255,255,0.07)',
+                  opacity: item.purchased ? 0.6 : 1,
+                }}
+              >
+                {/* Checkbox */}
+                <button
+                  onClick={() => handleToggle(item._id, !item.purchased)}
+                  className="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200"
+                  style={{
+                    borderColor: item.purchased ? '#16a34a' : 'rgba(255,255,255,0.40)',
+                    background: item.purchased ? '#16a34a' : 'transparent',
+                  }}
+                >
+                  {item.purchased && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Nombre */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold"
+                    style={{
+                      color: item.purchased ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.90)',
+                      textDecoration: item.purchased ? 'line-through' : 'none',
+                    }}>
+                    {item.name}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.40)' }}>
+                    {item.quantity} {item.unit}
+                    {item.estimatedPrice > 0 && ` · ${formatCurrency(item.estimatedPrice)} c/u`}
+                  </p>
+                </div>
+
+                {/* Subtotal */}
+                {item.estimatedPrice > 0 && (
+                  <span className="text-sm font-bold flex-shrink-0"
+                    style={{ color: item.purchased ? '#4ade80' : 'rgba(255,255,255,0.85)' }}>
+                    {formatCurrency(item.quantity * item.estimatedPrice)}
+                  </span>
+                )}
+
+                {/* Acciones */}
+                <div className="flex gap-1">
+                  <button onClick={() => { setEditingItem(item); setShowItemForm(true) }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all"
+                    style={{ color: 'rgba(255,255,255,0.50)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>✏️</button>
+                  <button onClick={() => setDeletingItem(item)}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all"
+                    style={{ color: 'rgba(255,255,255,0.50)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,113,113,0.15)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>🗑️</button>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal item */}
-      <Modal
-        isOpen={showItemForm}
-        onClose={() => { setShowItemForm(false); setEditingItem(null) }}
-        title={editingItem ? 'Editar producto' : 'Agregar producto'}
-      >
+      <Modal isOpen={showItemForm} onClose={() => { setShowItemForm(false); setEditingItem(null) }}
+        title={editingItem ? 'Editar producto' : 'Agregar producto'}>
         <MarketItemForm
           defaultValues={editingItem}
           onSubmit={handleAddItem}
@@ -216,14 +278,9 @@ export default function MarketListDetailPage() {
         />
       </Modal>
 
-      <ConfirmDialog
-        isOpen={!!deletingItem}
-        onClose={() => setDeletingItem(null)}
-        onConfirm={handleDeleteItem}
-        title="Eliminar producto"
-        message={`¿Eliminar "${deletingItem?.name}" de la lista?`}
-        loading={formLoading}
-      />
+      <ConfirmDialog isOpen={!!deletingItem} onClose={() => setDeletingItem(null)}
+        onConfirm={handleDeleteItem} title="Eliminar producto"
+        message={`¿Eliminar "${deletingItem?.name}" de la lista?`} loading={formLoading} />
     </div>
   )
 }
