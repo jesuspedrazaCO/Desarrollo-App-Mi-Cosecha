@@ -3,14 +3,14 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: [true, 'El nombre es obligatorio'], trim: true, minlength: 2, maxlength: 80 },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Correo inválido'] },
+    name:     { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
+    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6, select: false },
     farmName: { type: String, trim: true, default: 'Mi Finca', maxlength: 100 },
     location: { type: String, trim: true, default: '' },
-    phone: { type: String, trim: true, default: '' },
-    avatar: { type: String, default: '' }, // nombre del archivo en /uploads
-    active: { type: Boolean, default: true },
+    phone:    { type: String, trim: true, default: '' },
+    avatar:   { type: String, default: '' },
+    active:   { type: Boolean, default: true },
   },
   { timestamps: true }
 );

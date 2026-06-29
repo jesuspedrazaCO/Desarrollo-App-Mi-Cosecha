@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
-const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
-
 const navItems = [
   { to: '/', label: 'Inicio', icon: '🏡', exact: true },
   { to: '/crops', label: 'Cultivos', icon: '🌱' },
@@ -61,8 +59,9 @@ export default function Sidebar({ isOpen, onClose }) {
       <div className="px-3 pb-4">
         <div className="px-3.5 py-3 rounded-2xl flex items-center gap-3"
           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}>
+          {/* Avatar — usa URL directa de Cloudinary */}
           {user?.avatar ? (
-            <img src={`${UPLOADS_URL}/uploads/${user.avatar}`} alt={user.name}
+            <img src={user.avatar} alt={user.name}
               className="w-9 h-9 rounded-full object-cover flex-shrink-0"
               style={{ border: '2px solid rgba(74,222,128,0.35)' }} />
           ) : (
