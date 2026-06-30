@@ -25,7 +25,36 @@ const formatDate = (d) => {
   return dt.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-// ── Header decorativo ──
+// ── Dibuja un ícono de hoja/planta vectorial (reemplaza el emoji 🌾) ──
+const drawLeafIcon = (doc, cx, cy, scale = 1) => {
+  doc.setFillColor(...C.green)
+
+  // Tallo central
+  doc.setDrawColor(...C.green)
+  doc.setLineWidth(0.8 * scale)
+  doc.line(cx, cy + 4 * scale, cx, cy - 5 * scale)
+
+  // Hojas (triángulos curvos simples a cada lado)
+  doc.setFillColor(...C.green)
+  // Hoja izquierda
+  doc.triangle(
+    cx, cy - 1 * scale,
+    cx - 4 * scale, cy - 3 * scale,
+    cx, cy - 4 * scale,
+    'F'
+  )
+  // Hoja derecha
+  doc.triangle(
+    cx, cy - 1 * scale,
+    cx + 4 * scale, cy - 3 * scale,
+    cx, cy - 4 * scale,
+    'F'
+  )
+  // Punta superior
+  doc.circle(cx, cy - 5.5 * scale, 1 * scale, 'F')
+}
+
+// ── Header decorativo (logo vectorial, no emoji) ──
 const drawHeader = (doc, title, subtitle, user) => {
   const pw = doc.internal.pageSize.width
 
@@ -33,11 +62,10 @@ const drawHeader = (doc, title, subtitle, user) => {
   doc.setFillColor(...C.green)
   doc.rect(0, 0, pw, 32, 'F')
 
-  // Ícono (círculo blanco con emoji)
+  // Círculo blanco con ícono vectorial dentro
   doc.setFillColor(...C.white)
-  doc.circle(20, 16, 10, 'F')
-  doc.setFontSize(12)
-  doc.text('🌾', 15.5, 19.5)
+  doc.circle(20, 16, 9, 'F')
+  drawLeafIcon(doc, 20, 17, 1)
 
   // Título
   doc.setFontSize(18)
@@ -62,7 +90,7 @@ const drawHeader = (doc, title, subtitle, user) => {
   doc.setLineWidth(0.5)
   doc.line(14, 36, pw - 14, 36)
 
-  return 44 // y inicial después del header
+  return 44
 }
 
 // ── Footer ──
@@ -79,9 +107,9 @@ const drawFooter = (doc) => {
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...C.gray)
-    doc.text('AgroFinanzas — Gestión financiera para tu finca', 14, ph - 10)
+    doc.text('AgroFinanzas - Gestion financiera para tu finca', 14, ph - 10)
     doc.text(
-      `Generado el ${new Date().toLocaleDateString('es-CO')} · Pág. ${i} de ${pages}`,
+      `Generado el ${new Date().toLocaleDateString('es-CO')} - Pag. ${i} de ${pages}`,
       pw - 14, ph - 10, { align: 'right' }
     )
   }
@@ -115,17 +143,18 @@ const drawKPICards = (doc, cards, y) => {
   return y + 30
 }
 
+// Reemplaza checks/cruces unicode por texto ASCII simple para evitar glifos rotos
+const cleanText = (str) => String(str).replace(/✓/g, 'OK').replace(/✗/g, 'X')
+
 // ══════════════════════════════════════════════
 // REPORTE 1: Resumen General
 // ══════════════════════════════════════════════
 export const exportResumenGeneral = (data, user) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const pw = doc.internal.pageSize.width
   const today = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long' })
 
   let y = drawHeader(doc, 'Resumen General', today, user)
 
-  // Título de sección
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...C.dark)
@@ -134,7 +163,6 @@ export const exportResumenGeneral = (data, user) => {
 
   const { summary, cropsSummary = [] } = data
 
-  // KPIs principales
   y = drawKPICards(doc, [
     { label: 'Total invertido',    value: formatCOP(summary?.totalInvested),      negative: false },
     { label: 'Total vendido',      value: formatCOP(summary?.totalIncome),         negative: false },
@@ -142,7 +170,6 @@ export const exportResumenGeneral = (data, user) => {
     { label: 'Gastos del hogar',   value: formatCOP(summary?.householdTotalMonth), negative: false },
   ], y)
 
-  // Tabla de cultivos
   if (cropsSummary.length > 0) {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
@@ -159,7 +186,7 @@ export const exportResumenGeneral = (data, user) => {
         formatCOP(c.totalInvested),
         formatCOP(c.totalSold),
         formatCOP(c.netProfit),
-        c.netProfit >= 0 ? '✓ Ganancia' : '✗ Pérdida',
+        c.netProfit >= 0 ? 'Ganancia' : 'Perdida',
       ]),
       headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 8, textColor: C.dark },
@@ -168,15 +195,11 @@ export const exportResumenGeneral = (data, user) => {
         2: { halign: 'right' },
         3: { halign: 'right' },
         4: { halign: 'right' },
-        5: {
-          halign: 'center',
-          fontStyle: 'bold',
-        },
+        5: { halign: 'center', fontStyle: 'bold' },
       },
       didParseCell: (data) => {
         if (data.column.index === 5 && data.section === 'body') {
-          const val = data.cell.raw
-          data.cell.styles.textColor = val.includes('✓') ? C.green : C.red
+          data.cell.styles.textColor = data.cell.raw === 'Ganancia' ? C.green : C.red
         }
       },
       margin: { left: 14, right: 14 },
@@ -199,7 +222,6 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
 
   let y = drawHeader(doc, 'Reporte de Cultivo', crop.name, user)
 
-  // Info del cultivo
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...C.dark)
@@ -208,11 +230,10 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...C.gray)
-  doc.text(`${crop.type || '—'} · ${crop.location || '—'} · Estado: ${crop.status}`, 14, y + 6)
-  doc.text(`Inicio: ${formatDate(crop.startDate)}  ·  Cosecha est.: ${formatDate(crop.estimatedHarvestDate)}`, 14, y + 12)
+  doc.text(`${crop.type || '—'} - ${crop.location || '—'} - Estado: ${crop.status}`, 14, y + 6)
+  doc.text(`Inicio: ${formatDate(crop.startDate)}   Cosecha est.: ${formatDate(crop.estimatedHarvestDate)}`, 14, y + 12)
   y += 20
 
-  // KPIs del cultivo
   y = drawKPICards(doc, [
     { label: 'Total invertido', value: formatCOP(summary?.totalInvested), negative: false },
     { label: 'Total vendido',   value: formatCOP(summary?.totalSold),     negative: false },
@@ -220,7 +241,6 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
     { label: 'Rentabilidad',    value: `${summary?.profitability || 0}%`, negative: (summary?.netProfit || 0) < 0 },
   ], y)
 
-  // Tabla de gastos
   if (expenses.length > 0) {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
@@ -230,13 +250,9 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
 
     doc.autoTable({
       startY: y,
-      head: [['Fecha', 'Categoría', 'Descripción', 'Valor', 'Pago']],
+      head: [['Fecha', 'Categoria', 'Descripcion', 'Valor', 'Pago']],
       body: expenses.map(e => [
-        formatDate(e.date),
-        e.category || '—',
-        e.description || '—',
-        formatCOP(e.amount),
-        e.paymentMethod || '—',
+        formatDate(e.date), e.category || '—', e.description || '—', formatCOP(e.amount), e.paymentMethod || '—',
       ]),
       headStyles: { fillColor: C.orange, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 8, textColor: C.dark },
@@ -254,9 +270,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
     y = doc.lastAutoTable.finalY + 10
   }
 
-  // Tabla de ingresos
   if (incomes.length > 0) {
-    // Nueva página si no hay espacio
     if (y > 220) { doc.addPage(); y = 20 }
 
     doc.setFontSize(11)
@@ -269,9 +283,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       startY: y,
       head: [['Fecha', 'Tipo', 'Cliente', 'Cantidad', 'Total']],
       body: incomes.map(i => [
-        formatDate(i.date),
-        i.type || '—',
-        i.client || '—',
+        formatDate(i.date), i.type || '—', i.client || '—',
         i.quantitySold > 0 ? `${i.quantitySold} ${i.unit}` : '—',
         formatCOP(i.totalAmount),
       ]),
@@ -301,22 +313,16 @@ export const exportHouseholdReport = (items, totalAmount, user, period = '') => 
 
   let y = drawHeader(doc, 'Gastos del Hogar', period || new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }), user)
 
-  // Total
   y = drawKPICards(doc, [
     { label: 'Total gastos del hogar', value: formatCOP(totalAmount), negative: false },
-    { label: 'Registros',              value: String(items.length),   negative: false, isCurrency: false },
+    { label: 'Registros',              value: String(items.length),   negative: false },
   ], y)
 
-  // Tabla
   doc.autoTable({
     startY: y,
-    head: [['Fecha', 'Categoría', 'Descripción', 'Valor', 'Pago']],
+    head: [['Fecha', 'Categoria', 'Descripcion', 'Valor', 'Pago']],
     body: items.map(e => [
-      formatDate(e.date),
-      e.category || '—',
-      e.description || '—',
-      formatCOP(e.amount),
-      e.paymentMethod || '—',
+      formatDate(e.date), e.category || '—', e.description || '—', formatCOP(e.amount), e.paymentMethod || '—',
     ]),
     headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
     bodyStyles: { fontSize: 8, textColor: C.dark },
