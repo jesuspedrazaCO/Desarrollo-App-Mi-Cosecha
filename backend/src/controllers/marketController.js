@@ -1,55 +1,90 @@
-const MarketPrice = require('../models/MarketPrice');
+const MarketList = require('../models/MarketList');
+const MarketItem = require('../models/MarketItem');
 
-// @desc    Listar precios de mercado (con búsqueda y filtro por categoría)
-// @route   GET /api/market-prices
-const getMarketPrices = async (req, res, next) => {
+const getLists = async (req, res, next) => {
   try {
-    const { search, category, limit = 100 } = req.query;
-    const query = {};
-
-    if (category) query.category = category;
-    if (search) query.product = { $regex: search, $options: 'i' };
-
-    const prices = await MarketPrice.find(query)
-      .sort({ product: 1 })
-      .limit(Number(limit));
-
-    const lastUpdated = await MarketPrice.findOne().sort({ lastUpdated: -1 }).select('lastUpdated');
-
-    res.json({
-      prices,
-      total: prices.length,
-      lastUpdated: lastUpdated?.lastUpdated || null,
-    });
+    const { status } = req.query;
+    const query = { owner: req.user._id };
+    if (status) query.status = status;
+    const lists = await MarketList.find(query).sort({ date: -1 });
+    const listsWithTotals = await Promise.all(
+      lists.map(async (list) => {
+        const items = await MarketItem.find({ list: list._id });
+        const totalEstimated = items.reduce((sum, i) => sum + i.quantity * i.estimatedPrice, 0);
+        const totalItems = items.length;
+        const purchasedItems = items.filter((i) => i.purchased).length;
+        return { ...list.toObject(), totalEstimated, totalItems, purchasedItems };
+      })
+    );
+    res.json(listsWithTotals);
   } catch (error) { next(error); }
 };
 
-// @desc    Resumen rápido para el Dashboard (los que más subieron/bajaron)
-// @route   GET /api/market-prices/summary
-const getMarketPriceSummary = async (req, res, next) => {
+const getListById = async (req, res, next) => {
   try {
-    const trending = await MarketPrice.find({ trend: { $in: ['subio', 'bajo'] } })
-      .sort({ variationPct: -1 })
-      .limit(6);
-
-    const total = await MarketPrice.countDocuments();
-    const lastUpdated = await MarketPrice.findOne().sort({ lastUpdated: -1 }).select('lastUpdated');
-
-    res.json({
-      trending,
-      total,
-      lastUpdated: lastUpdated?.lastUpdated || null,
-    });
+    const list = await MarketList.findOne({ _id: req.params.id, owner: req.user._id });
+    if (!list) return res.status(404).json({ message: 'Lista no encontrada.' });
+    const items = await MarketItem.find({ list: list._id }).sort({ createdAt: 1 });
+    const totalEstimated = items.reduce((sum, i) => sum + i.quantity * i.estimatedPrice, 0);
+    res.json({ list, items, totalEstimated });
   } catch (error) { next(error); }
 };
 
-// @desc    Categorías disponibles
-// @route   GET /api/market-prices/categories
-const getCategories = async (req, res, next) => {
+const createList = async (req, res, next) => {
   try {
-    const categories = await MarketPrice.distinct('category');
-    res.json(categories);
+    const list = await MarketList.create({ ...req.body, owner: req.user._id });
+    res.status(201).json(list);
   } catch (error) { next(error); }
 };
 
-module.exports = { getMarketPrices, getMarketPriceSummary, getCategories };
+const updateList = async (req, res, next) => {
+  try {
+    const list = await MarketList.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id },
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!list) return res.status(404).json({ message: 'Lista no encontrada.' });
+    res.json(list);
+  } catch (error) { next(error); }
+};
+
+const deleteList = async (req, res, next) => {
+  try {
+    const list = await MarketList.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+    if (!list) return res.status(404).json({ message: 'Lista no encontrada.' });
+    await MarketItem.deleteMany({ list: list._id });
+    res.json({ message: 'Lista eliminada correctamente.' });
+  } catch (error) { next(error); }
+};
+
+const addItem = async (req, res, next) => {
+  try {
+    const list = await MarketList.findOne({ _id: req.params.listId, owner: req.user._id });
+    if (!list) return res.status(404).json({ message: 'Lista no encontrada.' });
+    const item = await MarketItem.create({ ...req.body, list: list._id, owner: req.user._id });
+    res.status(201).json(item);
+  } catch (error) { next(error); }
+};
+
+const updateItem = async (req, res, next) => {
+  try {
+    const item = await MarketItem.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id },
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!item) return res.status(404).json({ message: 'Producto no encontrado.' });
+    res.json(item);
+  } catch (error) { next(error); }
+};
+
+const deleteItem = async (req, res, next) => {
+  try {
+    const item = await MarketItem.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+    if (!item) return res.status(404).json({ message: 'Producto no encontrado.' });
+    res.json({ message: 'Producto eliminado correctamente.' });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getLists, getListById, createList, updateList, deleteList, addItem, updateItem, deleteItem };
