@@ -14,6 +14,7 @@ import ReceiptsPage from './pages/ReceiptsPage'
 import CalendarPage from './pages/CalendarPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import MarketPricesPage from './pages/MarketPricesPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
@@ -21,10 +22,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-sand-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1c10' }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-stone-500 text-sm">Cargando AgroFinanzas...</p>
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/50 text-sm">Cargando AgroFinanzas...</p>
         </div>
       </div>
     )
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/market-prices" element={<MarketPricesPage />} />
         </Route>
       </Route>
 

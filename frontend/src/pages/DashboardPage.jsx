@@ -4,6 +4,7 @@ import AlertsPanel from '../components/dashboard/AlertsPanel'
 import CropsSummary from '../components/dashboard/CropsSummary'
 import UpcomingEvents from '../components/dashboard/UpcomingEvents'
 import QuickChart from '../components/dashboard/QuickChart'
+import MarketPricesCard from '../components/dashboard/MarketPricesCard'
 import Spinner from '../components/common/Spinner'
 import { formatDateLong } from '../utils/formatDate'
 import { useAuth } from '../hooks/useAuth'
@@ -21,7 +22,7 @@ export default function DashboardPage() {
       {/* Encabezado */}
       <div>
         <h1 className="page-title">Hola, {user?.name?.split(' ')[0]} 👋</h1>
-        <p className="text-stone-500 text-sm mt-1 capitalize">{formatDateLong(new Date())}</p>
+        <p className="text-white/45 text-sm mt-1 capitalize">{formatDateLong(new Date())}</p>
       </div>
 
       {/* Estadísticas */}
@@ -61,6 +62,9 @@ export default function DashboardPage() {
         <QuickChart crops={cropsSummary} />
         <CropsSummary crops={cropsSummary} />
       </div>
+
+      {/* Precios de mercado — ocupa todo el ancho */}
+      <MarketPricesCard />
 
       {/* Eventos y alertas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
