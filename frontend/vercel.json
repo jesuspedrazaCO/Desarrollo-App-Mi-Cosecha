@@ -3,6 +3,10 @@
     {
       "source": "/api/scrape-prices/:path*",
       "destination": "/api/scrape-prices"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "functions": {
