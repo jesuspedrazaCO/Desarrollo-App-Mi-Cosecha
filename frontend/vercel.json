@@ -1,5 +1,13 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/api/scrape-prices/:path*",
+      "destination": "/api/scrape-prices"
+    }
+  ],
+  "functions": {
+    "api/scrape-prices.js": {
+      "maxDuration": 60
+    }
+  }
 }

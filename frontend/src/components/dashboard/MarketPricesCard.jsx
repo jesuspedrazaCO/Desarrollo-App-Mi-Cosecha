@@ -1,37 +1,51 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMarketPriceSummary } from '../../hooks/useMarketPrices'
+import { fetchRealtimePrices } from '../../services/marketPriceService'
 import { formatDate } from '../../utils/formatDate'
+import toast from 'react-hot-toast'
 
 const formatCOP = (val) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0)
 
-const TrendBadge = ({ trend, variation }) => {
-  if (trend === 'subio') return (
-    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: 'rgba(185,28,28,0.20)', color: '#f87171', border: '1px solid rgba(248,113,113,0.30)' }}>
-      ↑ {variation}%
-    </span>
-  )
-  if (trend === 'bajo') return (
-    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: 'rgba(21,128,61,0.20)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.30)' }}>
-      ↓ {variation}%
-    </span>
-  )
-  return null
-}
-
 export default function MarketPricesCard() {
   const { data, loading } = useMarketPriceSummary()
+  const [realtimeItems, setRealtimeItems] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  const trending = data?.trending || []
+  const trending = realtimeItems || data?.trending || []
   const visible = expanded ? trending : trending.slice(0, 4)
+  const isRealtime = !!realtimeItems
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    const toastId = toast.loading('Consultando Centroabastos...')
+    try {
+      // Scrapea solo la página 1 para el card del dashboard (rápido)
+      const result = await fetchRealtimePrices(1)
+      if (result.success && result.products.length > 0) {
+        const withVariation = result.products.filter(p => p.trend !== 'igual').slice(0, 8)
+        setRealtimeItems(withVariation.length > 0 ? withVariation : result.products.slice(0, 6))
+        toast.success('Precios actualizados', { id: toastId })
+      } else {
+        toast.error('No se pudo conectar', { id: toastId })
+      }
+    } catch {
+      toast.error('Error al actualizar', { id: toastId })
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   return (
     <div className="rounded-3xl overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 4px 24px -4px rgba(0,0,0,0.22)' }}>
+      style={{
+        background: 'rgba(255,255,255,0.09)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.14)',
+        boxShadow: '0 4px 24px -4px rgba(0,0,0,0.22)',
+      }}>
 
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4"
@@ -43,20 +57,40 @@ export default function MarketPricesCard() {
           </div>
           <div>
             <h3 className="text-[14px] font-bold text-white/90">Precios Centroabastos BGA</h3>
-            {data?.lastUpdated && (
-              <p className="text-[10px] text-white/35">
-                Actualizado: {formatDate(data.lastUpdated)}
-              </p>
-            )}
+            <p className="text-[10px]" style={{ color: isRealtime ? '#4ade80' : 'rgba(255,255,255,0.30)' }}>
+              {isRealtime ? '🟢 Tiempo real' : data?.lastUpdated ? `Actualizado: ${formatDate(data.lastUpdated)}` : 'Datos del seed'}
+            </p>
           </div>
         </div>
-        <Link to="/market-prices"
-          className="text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all"
-          style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#4ade80'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.70)'}>
-          Ver todos →
-        </Link>
+
+        <div className="flex items-center gap-2">
+          {/* Botón actualizar */}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              color: refreshing ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.65)',
+              cursor: refreshing ? 'wait' : 'pointer',
+            }}
+            title="Actualizar precios en tiempo real"
+            onMouseEnter={e => !refreshing && (e.currentTarget.style.background = 'rgba(255,255,255,0.16)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+          >
+            <span className={refreshing ? 'animate-spin inline-block' : ''} style={{ fontSize: '14px' }}>
+              🔄
+            </span>
+          </button>
+
+          <Link to="/market-prices"
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all"
+            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.60)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#4ade80'; e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.60)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}>
+            Ver todos →
+          </Link>
+        </div>
       </div>
 
       {/* Contenido */}
@@ -66,44 +100,62 @@ export default function MarketPricesCard() {
         </div>
       ) : trending.length === 0 ? (
         <div className="px-5 py-6 text-center">
-          <p className="text-white/40 text-sm">No hay datos de precios disponibles</p>
-          <p className="text-white/25 text-xs mt-1">Ejecuta el seed de precios en el backend</p>
+          <p className="text-white/40 text-sm">Sin datos de precios</p>
+          <button onClick={handleRefresh}
+            className="mt-2 text-emerald-400 text-xs font-semibold hover:text-emerald-300 transition-colors">
+            → Actualizar ahora
+          </button>
         </div>
       ) : (
         <>
-          {/* Subtítulo */}
           <div className="px-5 pt-3 pb-1">
-            <p className="text-[11px] text-white/35 uppercase tracking-wider font-bold">
-              Variaciones recientes
+            <p className="text-[10px] text-white/30 uppercase tracking-wider font-bold">
+              {isRealtime ? 'Precios actuales con variación' : 'Variaciones recientes'}
             </p>
           </div>
 
-          {/* Lista de productos con variación */}
           <div>
             {visible.map((item, i) => (
-              <div key={item._id} className="flex items-center justify-between px-5 py-2.5 transition-colors"
-                style={{ borderBottom: i < visible.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
+              <div key={i}
+                className="flex items-center justify-between px-5 py-2.5 transition-colors"
+                style={{
+                  borderBottom: i < visible.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                  borderLeft: item.trend === 'subio'
+                    ? '3px solid rgba(248,113,113,0.50)'
+                    : item.trend === 'bajo'
+                    ? '3px solid rgba(74,222,128,0.50)'
+                    : '3px solid transparent',
+                }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold text-white/88 truncate">{item.product}</p>
-                  <p className="text-[10px] text-white/38 truncate">{item.presentation}</p>
+                  <p className="text-[10px] text-white/35 truncate">{item.presentation}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                   <div className="text-right">
-                    <p className="text-[13px] font-bold text-white/90">{formatCOP(item.pricePerKg)}<span className="text-[10px] text-white/35">/kg</span></p>
+                    <p className="text-[13px] font-bold"
+                      style={{ color: item.trend === 'subio' ? '#fca5a5' : item.trend === 'bajo' ? '#86efac' : 'rgba(255,255,255,0.88)' }}>
+                      {formatCOP(item.pricePerKg > 0 ? item.pricePerKg : item.currentPrice)}
+                      <span className="text-[10px] text-white/30">/kg</span>
+                    </p>
                   </div>
-                  <TrendBadge trend={item.trend} variation={item.variationPct} />
+                  {item.trend !== 'igual' && (
+                    <div className="text-center w-9"
+                      style={{ color: item.trend === 'subio' ? '#f87171' : '#4ade80' }}>
+                      <div className="text-[15px] leading-none">{item.trend === 'subio' ? '↑' : '↓'}</div>
+                      <div className="text-[10px] font-bold">{item.variationPct}%</div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Ver más / menos */}
           {trending.length > 4 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="w-full py-2.5 text-[11px] font-semibold text-white/40 hover:text-white/70 transition-colors"
+            <button onClick={() => setExpanded(!expanded)}
+              className="w-full py-2.5 text-[11px] font-semibold text-white/35 hover:text-white/60 transition-colors"
               style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               {expanded ? '▲ Ver menos' : `▼ Ver ${trending.length - 4} más`}
             </button>
@@ -111,12 +163,12 @@ export default function MarketPricesCard() {
         </>
       )}
 
-      {/* Footer: total de productos */}
+      {/* Footer */}
       {data?.total > 0 && (
-        <div className="px-5 py-3 flex items-center justify-between"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.03)' }}>
-          <span className="text-[10px] text-white/30">{data.total} productos monitoreados</span>
-          <span className="text-[10px] text-white/30">Fuente: preciosnub.centroabastos.com</span>
+        <div className="px-5 py-2.5 flex items-center justify-between"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+          <span className="text-[10px] text-white/25">{data.total} productos en base de datos</span>
+          <span className="text-[10px] text-white/20">preciosnub.centroabastos.com</span>
         </div>
       )}
     </div>
