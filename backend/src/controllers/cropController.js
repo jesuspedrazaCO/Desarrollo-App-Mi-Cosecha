@@ -34,12 +34,20 @@ const getCrops = async (req, res, next) => {
 
         const totalInvested = expenses[0]?.total || 0;
         const totalSold = incomes[0]?.total || 0;
+        const netProfit = totalSold - totalInvested;
+        
+        // CORRECCIÓN: Evitar 0% si no hay inversión inicial en el listado general
+        const profitability = totalInvested > 0 
+          ? (netProfit / totalInvested) * 100 
+          : (totalSold > 0 ? 100 : 0);
 
         return {
           ...crop.toObject(),
           totalInvested,
           totalSold,
-          netProfit: totalSold - totalInvested,
+          netProfit,
+          profitability: Math.round(profitability * 100) / 100,
+          isProfit: netProfit >= 0,
         };
       })
     );
@@ -50,20 +58,25 @@ const getCrops = async (req, res, next) => {
   }
 };
 
-// @desc    Obtener un cultivo por ID con resumen financiero completo
+// @desc    Obtener un cultivo por ID (con su detalle financiero)
 // @route   GET /api/crops/:id
 const getCropById = async (req, res, next) => {
   try {
     const crop = await Crop.findOne({ _id: req.params.id, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
+    // Obtener todos los gastos e ingresos de este cultivo
     const expenses = await Expense.find({ crop: crop._id }).sort({ date: -1 });
     const incomes = await Income.find({ crop: crop._id }).sort({ date: -1 });
 
     const totalInvested = expenses.reduce((sum, e) => sum + e.amount, 0);
     const totalSold = incomes.reduce((sum, i) => sum + i.totalAmount, 0);
     const netProfit = totalSold - totalInvested;
-    const profitability = totalInvested > 0 ? (netProfit / totalInvested) * 100 : 0;
+
+    // CORRECCIÓN: Evitar el 0% cuando la inversión es 0 pero hay ventas reales
+    const profitability = totalInvested > 0 
+      ? (netProfit / totalInvested) * 100 
+      : (totalSold > 0 ? 100 : 0);
 
     res.json({
       crop,
@@ -116,13 +129,20 @@ const deleteCrop = async (req, res, next) => {
     const crop = await Crop.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
+    // Limpieza en cascada de colecciones vinculadas
     await Expense.deleteMany({ crop: crop._id });
     await Income.deleteMany({ crop: crop._id });
 
-    res.json({ message: 'Cultivo eliminado correctamente.' });
+    res.json({ message: 'Cultivo y datos financieros asociados eliminados.' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { getCrops, getCropById, createCrop, updateCrop, deleteCrop };
+module.exports = {
+  getCrops,
+  getCropById,
+  createCrop,
+  updateCrop,
+  deleteCrop,
+};

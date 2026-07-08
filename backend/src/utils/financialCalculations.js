@@ -5,7 +5,11 @@
  */
 const calculateCropSummary = (totalInvested = 0, totalSold = 0) => {
   const netProfit = totalSold - totalInvested;
-  const profitability = totalInvested > 0 ? (netProfit / totalInvested) * 100 : 0;
+  
+  // CORRECCIÓN: Si no hay inversión pero sí hay ventas, la rentabilidad es del 100%
+  const profitability = totalInvested > 0 
+    ? (netProfit / totalInvested) * 100 
+    : (totalSold > 0 ? 100 : 0);
 
   return {
     totalInvested,
@@ -18,7 +22,7 @@ const calculateCropSummary = (totalInvested = 0, totalSold = 0) => {
 
 /**
  * Agrupa un arreglo de documentos con campo `date` y un campo numérico
- * por mes (YYYY-MM), sumando los valores.
+ * por mes (YYYY-MM), sumando los valores overseas.
  */
 const groupByMonth = (items, amountField) => {
   const groups = {};
@@ -36,14 +40,18 @@ const groupByMonth = (items, amountField) => {
 /**
  * Agrupa un arreglo de documentos por categoría, sumando un campo numérico.
  */
-const groupByCategory = (items, categoryField, amountField) => {
+const groupByCategory = (items, amountField) => {
   const groups = {};
   items.forEach((item) => {
-    const key = item[categoryField] || 'otros';
+    const key = item.category || 'Otros';
     if (!groups[key]) groups[key] = 0;
     groups[key] += item[amountField] || 0;
   });
   return Object.entries(groups).map(([category, total]) => ({ category, total }));
 };
 
-module.exports = { calculateCropSummary, groupByMonth, groupByCategory };
+module.exports = {
+  calculateCropSummary,
+  groupByMonth,
+  groupByCategory,
+};
