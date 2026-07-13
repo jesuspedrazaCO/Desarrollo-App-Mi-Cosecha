@@ -1,3 +1,4 @@
+import aiRoutes from "./routes/aiRoutes.js";
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -65,5 +66,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor
 
 app.use(notFound);
 app.use(errorHandler);
+app.use("/api/ai", aiRoutes);
+
 
 module.exports = app;
