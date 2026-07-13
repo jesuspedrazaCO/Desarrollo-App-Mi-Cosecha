@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { getConversation, postMessage, startNewConversation } from "../controllers/aiChatController.js";
-import { protect } from "../middlewares/authMiddlewares.js";
-// ⚠️ Si tu middleware de auth no se llama "protect" ni está en esa ruta, ajusta este import
+import { protect } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
