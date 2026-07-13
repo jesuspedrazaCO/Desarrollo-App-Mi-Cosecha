@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { getConversation, postMessage, startNewConversation } from "../controllers/aiChatController.js";
-import { protect } from "../middlewares/auth.js";
-
+import { protect } from "../middlewares/authMiddleware.js";
 const router = Router();
 
 router.get("/conversation", protect, getConversation);
