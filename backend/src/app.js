@@ -69,12 +69,12 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/market-prices', marketPriceRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor funcionando correctamente' }));
 
 app.use(notFound);
 app.use(errorHandler);
-app.use("/api/ai", aiRoutes);
 
 // Exportación moderna en lugar de module.exports
 export default app;
