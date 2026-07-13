@@ -6,27 +6,48 @@ import AIConversation from "../models/AIConversation.js";
 import { sendChatMessage } from "../services/aiChatService.js";
 
 const buildFinancialSummary = ({ crops, expenses, incomes, householdExpenses }) => {
-  const cropsSummary = crops.map((c) => ({
-    nombre: c.name,
-    estado: c.status,
-    inversionTotal: c.totalExpenses ?? 0,
-    ventasTotal: c.totalIncome ?? 0,
-    rentabilidad: (c.totalIncome ?? 0) - (c.totalExpenses ?? 0),
-  }));
+  // Calculamos inversión y ventas por cultivo sumando sus gastos e ingresos asociados
+  const cropsSummary = crops.map((c) => {
+    const cropExpenses = expenses.filter((e) => String(e.crop) === String(c._id));
+    const cropIncomes = incomes.filter((i) => String(i.crop) === String(c._id));
+
+    const inversionTotal = cropExpenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+    const ventasTotal = cropIncomes.reduce((sum, i) => sum + (i.totalAmount ?? 0), 0);
+
+    return {
+      nombre: c.name,
+      tipo: c.type,
+      estado: c.status,
+      inversionTotal,
+      ventasTotal,
+      rentabilidad: ventasTotal - inversionTotal,
+    };
+  });
 
   const gastosPorCategoria = expenses.reduce((acc, e) => {
     acc[e.category] = (acc[e.category] ?? 0) + (e.amount ?? 0);
     return acc;
   }, {});
 
+  const gastosHogarPorCategoria = householdExpenses.reduce((acc, h) => {
+    acc[h.category] = (acc[h.category] ?? 0) + (h.amount ?? 0);
+    return acc;
+  }, {});
+
+  const totalGastosAgricolas = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+  const totalIngresos = incomes.reduce((sum, i) => sum + (i.totalAmount ?? 0), 0);
+  const totalGastosHogar = householdExpenses.reduce((sum, h) => sum + (h.amount ?? 0), 0);
+
   return {
     cultivos: cropsSummary,
     totales: {
-      gastosAgricolas: expenses.reduce((s, e) => s + (e.amount ?? 0), 0),
-      ingresos: incomes.reduce((s, i) => s + (i.total ?? 0), 0),
-      gastosHogar: householdExpenses.reduce((s, h) => s + (h.amount ?? 0), 0),
+      gastosAgricolas: totalGastosAgricolas,
+      ingresos: totalIngresos,
+      gastosHogar: totalGastosHogar,
+      balanceNeto: totalIngresos - totalGastosAgricolas - totalGastosHogar,
     },
     gastosPorCategoria,
+    gastosHogarPorCategoria,
   };
 };
 
@@ -55,14 +76,18 @@ export const postMessage = async (req, res, next) => {
     }
 
     const userId = req.user.id;
+
+    // ⚠️ Los modelos Crop/Expense/Income/HouseholdExpense usan "owner", no "user"
     const [crops, expenses, incomes, householdExpenses] = await Promise.all([
-      Crop.find({ user: userId }),
-      Expense.find({ user: userId }).sort({ date: -1 }).limit(150),
-      Income.find({ user: userId }).sort({ date: -1 }).limit(150),
-      HouseholdExpense.find({ user: userId }).sort({ date: -1 }).limit(150),
+      Crop.find({ owner: userId }),
+      Expense.find({ owner: userId }).sort({ date: -1 }).limit(150),
+      Income.find({ owner: userId }).sort({ date: -1 }).limit(150),
+      HouseholdExpense.find({ owner: userId }).sort({ date: -1 }).limit(150),
     ]);
 
     const financialData = buildFinancialSummary({ crops, expenses, incomes, householdExpenses });
+
+    // Limitamos historial a los últimos 20 mensajes para no pasarnos de contexto
     const recentHistory = conversation.messages.slice(-20);
 
     const reply = await sendChatMessage({
