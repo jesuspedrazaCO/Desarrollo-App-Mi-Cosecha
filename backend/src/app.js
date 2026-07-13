@@ -1,23 +1,31 @@
-import aiRoutes from "./routes/aiRoutes.js";
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const authRoutes = require('./routes/authRoutes');
-const cropRoutes = require('./routes/cropRoutes');
-const expenseRoutes = require('./routes/expenseRoutes');
-const incomeRoutes = require('./routes/incomeRoutes');
-const householdRoutes = require('./routes/householdRoutes');
-const marketRoutes = require('./routes/marketRoutes');
-const receiptRoutes = require('./routes/receiptRoutes');
-const calendarRoutes = require('./routes/calendarRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const reportRoutes = require('./routes/reportRoutes');
-const marketPriceRoutes = require('./routes/marketPriceRoutes');
-const { errorHandler, notFound } = require('./middlewares/errorMiddleware');
+// Rutas locales (Es obligatorio que terminen en .js)
+import aiRoutes from "./routes/aiRoutes.js";
+import authRoutes from './routes/authRoutes.js';
+import cropRoutes from './routes/cropRoutes.js';
+import expenseRoutes from './routes/expenseRoutes.js';
+import incomeRoutes from './routes/incomeRoutes.js';
+import householdRoutes from './routes/householdRoutes.js';
+import marketRoutes from './routes/marketRoutes.js';
+import receiptRoutes from './routes/receiptRoutes.js';
+import calendarRoutes from './routes/calendarRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import marketPriceRoutes from './routes/marketPriceRoutes.js';
+
+// Middlewares locales (También con .js)
+import { errorHandler, notFound } from './middlewares/errorMiddleware.js';
+
+// Configuración para simular __dirname en ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -68,5 +76,5 @@ app.use(notFound);
 app.use(errorHandler);
 app.use("/api/ai", aiRoutes);
 
-
-module.exports = app;
+// Exportación moderna en lugar de module.exports
+export default app;
