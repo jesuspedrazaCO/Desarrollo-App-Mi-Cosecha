@@ -16,7 +16,6 @@ Reglas:
 - No inventes cifras que no estén en los datos.
 `;
 
-// Gemini usa role "model" en vez de "assistant" — convertimos aquí
 const toGeminiHistory = (history) =>
   history.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",

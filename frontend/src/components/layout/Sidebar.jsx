@@ -11,6 +11,7 @@ const navItems = [
   { to: '/receipts', label: 'Comprobantes', icon: '🧾' },
   { to: '/calendar', label: 'Calendario', icon: '🗓️' },
   { to: '/reports', label: 'Reportes', icon: '📊' },
+  { to: '/asesor', label: 'Asesor IA', icon: '🤖' },
   { to: '/market-prices', label: 'Precios Mercado', icon: '📈' },
 ]
 

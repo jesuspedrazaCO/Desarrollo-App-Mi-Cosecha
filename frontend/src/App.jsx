@@ -16,6 +16,7 @@ import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
 import MarketPricesPage from './pages/MarketPricesPage'
 import NotFoundPage from './pages/NotFoundPage'
+import Asesor from "./pages/Asesor";
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -35,6 +36,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" replace />} />
       <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" replace />} />
+      <Route path="/asesor" element={<Asesor />} />
+
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>

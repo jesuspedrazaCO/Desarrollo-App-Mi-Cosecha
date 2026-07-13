@@ -63,8 +63,6 @@ export const postMessage = async (req, res, next) => {
     ]);
 
     const financialData = buildFinancialSummary({ crops, expenses, incomes, householdExpenses });
-
-    // Limitamos historial a los últimos 20 mensajes para no pasarnos de contexto
     const recentHistory = conversation.messages.slice(-20);
 
     const reply = await sendChatMessage({
