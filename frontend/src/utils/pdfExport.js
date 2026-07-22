@@ -261,9 +261,9 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       margin: { left: 14, right: 14 },
       styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
       foot: [[
-        { content: 'TOTAL GASTOS', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.orangeLight } },
+        { content: 'TOTAL GASTOS', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.orangeLight, textColor: C.dark } },
         { content: formatCOP(expenses.reduce((s, e) => s + e.amount, 0)), styles: { fontStyle: 'bold', halign: 'right', textColor: C.orange, fillColor: C.orangeLight } },
-        { content: '', styles: { fillColor: C.orangeLight } },
+        { content: '', styles: { fillColor: C.orangeLight, textColor: C.dark } },
       ]],
       showFoot: 'lastPage',
     })
@@ -294,7 +294,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       margin: { left: 14, right: 14 },
       styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
       foot: [[
-        { content: 'TOTAL INGRESOS', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight } },
+        { content: 'TOTAL INGRESOS', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight, textColor: C.dark } },
         { content: formatCOP(incomes.reduce((s, i) => s + i.totalAmount, 0)), styles: { fontStyle: 'bold', halign: 'right', textColor: C.greenDark, fillColor: C.greenLight } },
       ]],
       showFoot: 'lastPage',
@@ -331,9 +331,9 @@ export const exportHouseholdReport = (items, totalAmount, user, period = '') => 
     margin: { left: 14, right: 14 },
     styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
     foot: [[
-      { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight } },
+      { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight, textColor: C.dark } },
       { content: formatCOP(totalAmount), styles: { fontStyle: 'bold', halign: 'right', textColor: C.greenDark, fillColor: C.greenLight } },
-      { content: '', styles: { fillColor: C.greenLight } },
+      { content: '', styles: { fillColor: C.greenLight, textColor: C.dark } },
     ]],
     showFoot: 'lastPage',
   })
