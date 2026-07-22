@@ -6,16 +6,16 @@ export default function Table({ columns, data, loading, emptyMessage = 'No hay d
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/10">
+          <tr className="border-b border-white/10" style={{ background: 'rgba(0,0,0,0.18)' }}>
             {columns.map((col) => (
               <th key={col.key}
-                className={`px-5 py-3.5 text-left text-[10px] font-bold text-white/50 uppercase tracking-widest ${col.className || ''}`}>
+                className={`px-5 py-3.5 text-left text-[10px] font-bold text-white/70 uppercase tracking-widest ${col.className || ''}`}>
                 {col.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/06">
+        <tbody className="divide-y divide-white/10">
           {loading ? (
             <tr><td colSpan={columns.length} className="py-14"><Spinner className="py-4" /></td></tr>
           ) : data.length === 0 ? (

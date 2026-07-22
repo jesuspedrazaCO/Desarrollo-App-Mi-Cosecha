@@ -41,7 +41,7 @@ export default function MarketListCard({ list, onEdit, onDelete }) {
         </div>
         <div className="bg-stone-50/70 rounded-2xl px-3 py-2 text-center">
           <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Est. total</p>
-          <p className="text-sm font-bold text-accent-700">{formatCurrency(list.totalEstimated)}</p>
+          <p className="text-sm font-bold text-accent-600">{formatCurrency(list.totalEstimated)}</p>
         </div>
       </div>
 

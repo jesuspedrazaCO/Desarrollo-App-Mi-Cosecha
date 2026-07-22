@@ -12,7 +12,7 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
   const columns = [
     {
       key: 'date', label: 'Fecha',
-      render: (e) => <span className="text-stone-600 text-sm">{formatDate(e.date)}</span>,
+      render: (e) => <span className="text-white/65 text-sm">{formatDate(e.date)}</span>,
     },
     {
       key: 'category', label: 'Categoría',
@@ -21,18 +21,18 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
         return (
           <div className="flex items-center gap-1.5">
             <span>{cat.icon}</span>
-            <span className="text-sm font-medium text-stone-700">{cat.label}</span>
+            <span className="text-sm font-medium text-white/80">{cat.label}</span>
           </div>
         )
       },
     },
     {
       key: 'description', label: 'Descripción',
-      render: (e) => <span className="text-sm text-stone-700 line-clamp-1">{e.description}</span>,
+      render: (e) => <span className="text-sm text-white/80 line-clamp-1">{e.description}</span>,
     },
     {
       key: 'amount', label: 'Valor',
-      render: (e) => <span className="text-sm font-bold text-accent-700">{formatCurrency(e.amount)}</span>,
+      render: (e) => <span className="text-sm font-bold text-orange-300">{formatCurrency(e.amount)}</span>,
     },
     {
       key: 'paymentMethod', label: 'Pago',
