@@ -1,18 +1,22 @@
 import { NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard, Sprout, Home, ShoppingCart, Receipt,
+  CalendarDays, BarChart3, Sparkles, TrendingUp, Settings, Wheat,
+} from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
 
 const navItems = [
-  { to: '/', label: 'Inicio', icon: '🏡', exact: true },
-  { to: '/crops', label: 'Cultivos', icon: '🌱' },
-  { to: '/household', label: 'Gastos del Hogar', icon: '🏠' },
-  { to: '/market', label: 'Lista de Mercado', icon: '🛒' },
-  { to: '/receipts', label: 'Comprobantes', icon: '🧾' },
-  { to: '/calendar', label: 'Calendario', icon: '🗓️' },
-  { to: '/reports', label: 'Reportes', icon: '📊' },
-  { to: '/asesor', label: 'Asesor IA', icon: '🤖' },
-  { to: '/market-prices', label: 'Precios Mercado', icon: '📈' },
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+  { to: '/crops', label: 'Cultivos', icon: Sprout },
+  { to: '/household', label: 'Gastos del Hogar', icon: Home },
+  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
+  { to: '/receipts', label: 'Comprobantes', icon: Receipt },
+  { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+  { to: '/reports', label: 'Reportes', icon: BarChart3 },
+  { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
+  { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -33,9 +37,9 @@ export default function Sidebar({ isOpen, onClose }) {
       ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
     `}>
       <div className="flex items-center gap-3 px-6 py-6">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg"
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white"
           style={{ boxShadow: '0 4px 16px rgba(37,138,78,0.5)' }}>
-          🌾
+          <Wheat size={20} strokeWidth={2.2} />
         </div>
         <div>
           <p className="font-bold text-white text-[16px] leading-none font-display tracking-tight">AgroFinanzas</p>
@@ -49,13 +53,13 @@ export default function Sidebar({ isOpen, onClose }) {
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
-            <span className="text-[17px] w-5 text-center">{item.icon}</span>
+            <item.icon size={17} className="flex-shrink-0" strokeWidth={2} />
             {item.label}
           </NavLink>
         ))}
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
-          <span className="text-[17px] w-5 text-center">⚙️</span>
+          <Settings size={17} className="flex-shrink-0" strokeWidth={2} />
           Configuración
         </NavLink>
       </nav>

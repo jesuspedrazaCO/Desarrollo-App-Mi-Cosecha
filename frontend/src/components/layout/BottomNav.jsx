@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
+import { LayoutDashboard, Sprout, Sparkles, BarChart3, Menu } from 'lucide-react'
 
 const tabs = [
-  { to: '/', label: 'Inicio', icon: '🏡', exact: true },
-  { to: '/crops', label: 'Cultivos', icon: '🌱' },
-  { to: '/asesor', label: 'Asesor IA', icon: '🤖' },
-  { to: '/reports', label: 'Reportes', icon: '📊' },
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+  { to: '/crops', label: 'Cultivos', icon: Sprout },
+  { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
+  { to: '/reports', label: 'Reportes', icon: BarChart3 },
 ]
 
 export default function BottomNav({ onMoreClick, isMoreActive }) {
   const tabClass = ({ isActive }) =>
-    `flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-semibold transition-colors duration-150
+    `flex flex-col items-center justify-center gap-1 flex-1 h-full text-[10px] font-semibold transition-colors duration-150
     ${isActive ? 'text-primary-400' : 'text-white/50'}`
 
   return (
@@ -26,17 +27,17 @@ export default function BottomNav({ onMoreClick, isMoreActive }) {
     >
       {tabs.map((tab) => (
         <NavLink key={tab.to} to={tab.to} end={tab.exact} className={tabClass}>
-          <span className="text-[19px] leading-none">{tab.icon}</span>
+          <tab.icon size={20} strokeWidth={2} />
           {tab.label}
         </NavLink>
       ))}
 
       <button
         onClick={onMoreClick}
-        className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-semibold transition-colors duration-150
+        className={`flex flex-col items-center justify-center gap-1 flex-1 h-full text-[10px] font-semibold transition-colors duration-150
           ${isMoreActive ? 'text-primary-400' : 'text-white/50'}`}
       >
-        <span className="text-[19px] leading-none">☰</span>
+        <Menu size={20} strokeWidth={2} />
         Más
       </button>
     </nav>

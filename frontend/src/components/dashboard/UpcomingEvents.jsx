@@ -1,3 +1,4 @@
+import { CalendarDays, Calendar } from 'lucide-react'
 import { formatDate } from '../../utils/formatDate'
 import { EVENT_TYPES } from '../../utils/constants'
 import Badge from '../common/Badge'
@@ -7,12 +8,12 @@ export default function UpcomingEvents({ events = [] }) {
   return (
     <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60">
       <div className="px-5 py-4 border-b border-stone-100 flex items-center gap-2">
-        <span className="text-lg">🗓️</span>
+        <CalendarDays size={18} className="text-stone-500" strokeWidth={2} />
         <h3 className="section-title">Próximos eventos (30 días)</h3>
       </div>
       <div className="divide-y divide-stone-50">
         {events.length === 0 ? (
-          <EmptyState icon="📅" title="Sin eventos próximos" description="Agrega siembras, cosechas o pagos en tu calendario" />
+          <EmptyState icon={<Calendar size={32} strokeWidth={1.75} />} title="Sin eventos próximos" description="Agrega siembras, cosechas o pagos en tu calendario" />
         ) : (
           events.map((event) => {
             const type = EVENT_TYPES[event.type] || EVENT_TYPES.otro
@@ -26,7 +27,10 @@ export default function UpcomingEvents({ events = [] }) {
                   <p className="text-sm font-semibold text-stone-800 truncate">{event.title}</p>
                   {event.crop && <p className="text-xs text-stone-400">{event.crop.name}</p>}
                 </div>
-                <Badge color={type.color}>{type.icon} {type.label}</Badge>
+                <Badge color={type.color}>
+                  <type.icon size={11} strokeWidth={2.5} className="inline -mt-0.5 mr-1" />
+                  {type.label}
+                </Badge>
               </div>
             )
           })

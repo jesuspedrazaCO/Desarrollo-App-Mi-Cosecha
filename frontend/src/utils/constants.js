@@ -1,3 +1,5 @@
+import { Sprout, Wheat, DollarSign, Home, Tractor, Pin } from 'lucide-react'
+
 export const EXPENSE_CATEGORIES = [
   { value: 'semillas', label: 'Semillas', icon: '🌰' },
   { value: 'fertilizantes', label: 'Fertilizantes', icon: '🧪' },
@@ -50,13 +52,15 @@ export const INCOME_TYPES = [
   { value: 'otro', label: 'Otro ingreso' },
 ]
 
+// Estos íconos se renderizan dentro de <Badge> (JSX normal), por eso sí
+// pueden ser componentes de lucide-react en vez de emoji.
 export const EVENT_TYPES = {
-  siembra: { label: 'Siembra', icon: '🌱', color: 'green' },
-  cosecha: { label: 'Cosecha', icon: '🌾', color: 'accent' },
-  pago_pendiente: { label: 'Pago pendiente', icon: '💸', color: 'red' },
-  servicio_hogar: { label: 'Servicio del hogar', icon: '🏠', color: 'blue' },
-  actividad_agricola: { label: 'Actividad agrícola', icon: '🚜', color: 'green' },
-  otro: { label: 'Otro', icon: '📌', color: 'gray' },
+  siembra: { label: 'Siembra', icon: Sprout, color: 'green' },
+  cosecha: { label: 'Cosecha', icon: Wheat, color: 'accent' },
+  pago_pendiente: { label: 'Pago pendiente', icon: DollarSign, color: 'red' },
+  servicio_hogar: { label: 'Servicio del hogar', icon: Home, color: 'blue' },
+  actividad_agricola: { label: 'Actividad agrícola', icon: Tractor, color: 'green' },
+  otro: { label: 'Otro', icon: Pin, color: 'gray' },
 }
 
 export const LAND_SIZE_UNITS = [

@@ -1,3 +1,4 @@
+import { Wallet, TrendingUp, CheckCircle2, AlertTriangle, Home } from 'lucide-react'
 import { useDashboard } from '../hooks/useDashboard'
 import StatsCard from '../components/dashboard/StatsCard'
 import StatsCarousel from '../components/dashboard/StatsCarousel'
@@ -17,33 +18,34 @@ export default function DashboardPage() {
   if (loading) return <Spinner size="lg" className="mt-20" />
 
   const { summary, cropsSummary, upcomingEvents, alerts } = data || {}
+  const isProfit = summary?.totalProfit >= 0
 
   const statsCards = [
     <StatsCard
       title="Total invertido"
       value={summary?.totalInvested}
-      icon="💰"
+      icon={<Wallet size={20} strokeWidth={2} />}
       color="accent"
       subtitle="En todos tus cultivos"
     />,
     <StatsCard
       title="Total vendido"
       value={summary?.totalIncome}
-      icon="📈"
+      icon={<TrendingUp size={20} strokeWidth={2} />}
       color="green"
       subtitle="Ingresos por ventas"
     />,
     <StatsCard
       title="Ganancia neta"
       value={summary?.totalProfit}
-      icon={summary?.totalProfit >= 0 ? '✅' : '⚠️'}
-      color={summary?.totalProfit >= 0 ? 'green' : 'red'}
+      icon={isProfit ? <CheckCircle2 size={20} strokeWidth={2} /> : <AlertTriangle size={20} strokeWidth={2} />}
+      color={isProfit ? 'green' : 'red'}
       subtitle="Inversión vs. ventas"
     />,
     <StatsCard
       title="Gastos del hogar"
       value={summary?.householdTotalMonth}
-      icon="🏠"
+      icon={<Home size={20} strokeWidth={2} />}
       color="blue"
       subtitle="Este mes"
     />,

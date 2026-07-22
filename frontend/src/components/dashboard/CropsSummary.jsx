@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Sprout, Wheat } from 'lucide-react'
 import { formatCurrencyCompact } from '../../utils/formatCurrency'
 import Badge from '../common/Badge'
 import EmptyState from '../common/EmptyState'
@@ -9,7 +10,7 @@ export default function CropsSummary({ crops = [] }) {
     <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60">
       <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🌱</span>
+          <Sprout size={18} className="text-stone-500" strokeWidth={2} />
           <h3 className="section-title">Mis cultivos activos</h3>
         </div>
         <Link to="/crops">
@@ -19,7 +20,7 @@ export default function CropsSummary({ crops = [] }) {
       <div className="divide-y divide-stone-50">
         {crops.length === 0 ? (
           <EmptyState
-            icon="🌱"
+            icon={<Sprout size={32} strokeWidth={1.75} />}
             title="Aún no tienes cultivos"
             description="Registra tu primer cultivo para empezar"
             action={<Link to="/crops"><Button size="sm">+ Registrar cultivo</Button></Link>}
@@ -32,8 +33,8 @@ export default function CropsSummary({ crops = [] }) {
               className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-primary-50/40 transition-colors duration-150"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-lg flex-shrink-0 shadow-soft">
-                  🌾
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-soft text-white">
+                  <Wheat size={18} strokeWidth={2} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-stone-800 truncate">{crop.name}</p>

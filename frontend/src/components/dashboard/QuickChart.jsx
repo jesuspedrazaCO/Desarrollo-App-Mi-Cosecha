@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { formatCurrencyCompact, formatCurrency } from '../../utils/formatCurrency'
 import EmptyState from '../common/EmptyState'
@@ -20,10 +21,10 @@ export default function QuickChart({ crops = [] }) {
     return (
       <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60">
         <div className="px-5 py-4 border-b border-stone-100 flex items-center gap-2">
-          <span className="text-lg">📊</span>
+          <BarChart3 size={18} className="text-stone-500" strokeWidth={2} />
           <h3 className="section-title">Inversión vs. Ventas por cultivo</h3>
         </div>
-        <EmptyState icon="📊" title="Sin datos suficientes" description="Registra gastos e ingresos para ver este gráfico" />
+        <EmptyState icon={<BarChart3 size={32} strokeWidth={1.75} />} title="Sin datos suficientes" description="Registra gastos e ingresos para ver este gráfico" />
       </div>
     )
   }
@@ -31,7 +32,7 @@ export default function QuickChart({ crops = [] }) {
   return (
     <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-card border border-white/60 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-lg">📊</span>
+        <BarChart3 size={18} className="text-stone-500" strokeWidth={2} />
         <h3 className="section-title">Inversión vs. Ventas por cultivo</h3>
       </div>
       <ResponsiveContainer width="100%" height={260}>

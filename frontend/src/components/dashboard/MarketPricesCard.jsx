@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { TrendingUp, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react'
 import { useMarketPriceSummary } from '../../hooks/useMarketPrices'
 import { fetchRealtimePrices } from '../../services/marketPriceService'
 import { formatDate } from '../../utils/formatDate'
@@ -51,14 +52,14 @@ export default function MarketPricesCard() {
       <div className="flex items-center justify-between px-5 py-4"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
             style={{ background: 'linear-gradient(135deg,#258a4e,#1a6e3c)' }}>
-            📈
+            <TrendingUp size={16} strokeWidth={2.2} />
           </div>
           <div>
             <h3 className="text-[14px] font-bold text-white/90">Precios Centroabastos BGA</h3>
             <p className="text-[10px]" style={{ color: isRealtime ? '#4ade80' : 'rgba(255,255,255,0.30)' }}>
-              {isRealtime ? '🟢 Tiempo real' : data?.lastUpdated ? `Actualizado: ${formatDate(data.lastUpdated)}` : 'Datos del seed'}
+              {isRealtime ? '● Tiempo real' : data?.lastUpdated ? `Actualizado: ${formatDate(data.lastUpdated)}` : 'Datos del seed'}
             </p>
           </div>
         </div>
@@ -78,9 +79,7 @@ export default function MarketPricesCard() {
             onMouseEnter={e => !refreshing && (e.currentTarget.style.background = 'rgba(255,255,255,0.16)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
           >
-            <span className={refreshing ? 'animate-spin inline-block' : ''} style={{ fontSize: '14px' }}>
-              🔄
-            </span>
+            <RefreshCw size={13} strokeWidth={2.2} className={refreshing ? 'animate-spin' : ''} />
           </button>
 
           <Link to="/market-prices"
@@ -142,9 +141,11 @@ export default function MarketPricesCard() {
                     </p>
                   </div>
                   {item.trend !== 'igual' && (
-                    <div className="text-center w-9"
+                    <div className="flex flex-col items-center w-9"
                       style={{ color: item.trend === 'subio' ? '#f87171' : '#4ade80' }}>
-                      <div className="text-[15px] leading-none">{item.trend === 'subio' ? '↑' : '↓'}</div>
+                      {item.trend === 'subio'
+                        ? <ArrowUp size={13} strokeWidth={2.5} />
+                        : <ArrowDown size={13} strokeWidth={2.5} />}
                       <div className="text-[10px] font-bold">{item.variationPct}%</div>
                     </div>
                   )}
