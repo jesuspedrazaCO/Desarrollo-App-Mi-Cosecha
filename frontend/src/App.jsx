@@ -17,6 +17,7 @@ import SettingsPage from './pages/SettingsPage'
 import MarketPricesPage from './pages/MarketPricesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import Asesor from "./pages/Asesor";
+import PlantingCalculatorPage from './pages/PlantingCalculatorPage'
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/market-prices" element={<MarketPricesPage />} />
+          <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
         </Route>
       </Route>
 

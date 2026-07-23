@@ -19,6 +19,7 @@ import calendarRoutes from './routes/calendarRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import marketPriceRoutes from './routes/marketPriceRoutes.js';
+import plantingPlotRoutes from './routes/plantingPlotRoutes.js'
 
 // Middlewares locales (También con .js)
 import { errorHandler, notFound } from './middlewares/errorMiddleware.js';
@@ -73,6 +74,7 @@ app.use('/api/ai', aiRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor funcionando correctamente' }));
 
+app.use('/api/planting-plots', plantingPlotRoutes)
 app.use(notFound);
 app.use(errorHandler);
 
