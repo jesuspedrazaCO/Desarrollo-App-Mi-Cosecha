@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polygon, Marker, useMapEvents, useMap } from '
 import L from 'leaflet'
 import * as turf from '@turf/turf'
 import { Search, LocateFixed, Satellite, Map as MapIcon2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import 'leaflet/dist/leaflet.css'
 
 // Ícono personalizado (círculo verde) — evita el bug clásico de los íconos
@@ -55,12 +56,23 @@ export const calculateAreaM2 = (points) => {
   }
 }
 
+// Arma un nombre corto y legible a partir de los datos estructurados de Nominatim,
+// en vez del display_name completo (que en zonas rurales de Colombia suele traer
+// vereda + corregimiento + departamento + región + país, todo junto).
+const buildShortLabel = (result) => {
+  const a = result.address || {}
+  const place = a.village || a.town || a.city || a.hamlet || a.municipality || a.county || result.name || ''
+  const region = a.state || ''
+  return [place, region].filter(Boolean).join(', ') || result.display_name
+}
+
 export default function PlantingMap({ points, onPointsChange, center = [7.1193, -73.1227], zoom = 15 }) {
   const [layerType, setLayerType] = useState('satellite')
   const [flyTarget, setFlyTarget] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
+  const [locating, setLocating] = useState(false)
   const debounceRef = useRef(null)
 
   const handleClick = (point) => onPointsChange([...points, point])
@@ -85,11 +97,12 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
       setSearching(true)
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=co&limit=5&q=${encodeURIComponent(value)}`
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=es&countrycodes=co&limit=6&q=${encodeURIComponent(value)}`
         )
         const data = await res.json()
         setSearchResults(data)
       } catch {
+        toast.error('No se pudo buscar — revisa tu conexión')
         setSearchResults([])
       } finally {
         setSearching(false)
@@ -99,18 +112,32 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
 
   const selectSearchResult = (result) => {
     setFlyTarget({ center: [parseFloat(result.lat), parseFloat(result.lon)], zoom: 15 })
-    setSearchQuery(result.display_name)
+    setSearchQuery(buildShortLabel(result))
     setSearchResults([])
   }
 
   const useCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) return
+    if (!('geolocation' in navigator)) {
+      toast.error('Tu navegador no soporta geolocalización')
+      return
+    }
+    setLocating(true)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setFlyTarget({ center: [pos.coords.latitude, pos.coords.longitude], zoom: 17 })
+        setLocating(false)
       },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 }
+      (err) => {
+        setLocating(false)
+        if (err.code === err.PERMISSION_DENIED) {
+          toast.error('Permiso de ubicación denegado. Actívalo en la configuración del navegador/sitio.')
+        } else if (err.code === err.TIMEOUT) {
+          toast.error('Tardó demasiado en obtener tu ubicación. Intenta de nuevo.')
+        } else {
+          toast.error('No se pudo obtener tu ubicación (revisa que el GPS esté activo).')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
   }, [])
 
@@ -142,18 +169,21 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
                   key={i} type="button" onClick={() => selectSearchResult(r)}
                   className="w-full text-left px-3.5 py-2.5 text-xs text-white/80 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
                 >
-                  {r.display_name}
+                  {buildShortLabel(r)}
                 </button>
               ))}
             </div>
           )}
         </div>
         <button
-          type="button" onClick={useCurrentLocation}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold text-white/80 hover:text-white transition-colors flex-shrink-0"
+          type="button" onClick={useCurrentLocation} disabled={locating}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold text-white/80 hover:text-white transition-colors flex-shrink-0 disabled:opacity-50"
           style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.15)' }}
         >
-          <LocateFixed size={15} /> Mi ubicación
+          {locating
+            ? <div className="w-3.5 h-3.5 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+            : <LocateFixed size={15} />}
+          {locating ? 'Ubicando...' : 'Mi ubicación'}
         </button>
       </div>
 
