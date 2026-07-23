@@ -122,23 +122,57 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
       return
     }
     setLocating(true)
-    navigator.geolocation.getCurrentPosition(
+    let watchId = null
+    let bestPosition = null
+    let finished = false
+
+    const finish = () => {
+      if (finished) return
+      finished = true
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+      setLocating(false)
+
+      if (!bestPosition) {
+        toast.error('No se pudo obtener tu ubicación.')
+        return
+      }
+
+      const { latitude, longitude, accuracy } = bestPosition.coords
+      setFlyTarget({ center: [latitude, longitude], zoom: accuracy < 50 ? 18 : 15 })
+
+      if (accuracy > 500) {
+        toast(
+          `Ubicación aproximada (margen de error: ±${Math.round(accuracy)}m). En computadora esto puede fallar por WiFi/VPN — si no es tu finca, búscala manualmente o ajusta los puntos a mano.`,
+          { icon: '📍', duration: 7000 }
+        )
+      } else {
+        toast.success(`Ubicación encontrada (margen de error: ±${Math.round(accuracy)}m)`)
+      }
+    }
+
+    watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setFlyTarget({ center: [pos.coords.latitude, pos.coords.longitude], zoom: 17 })
-        setLocating(false)
+        if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+          bestPosition = pos
+        }
+        // Si ya es bastante precisa, no hace falta seguir esperando
+        if (pos.coords.accuracy < 30) finish()
       },
       (err) => {
         setLocating(false)
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+        finished = true
         if (err.code === err.PERMISSION_DENIED) {
           toast.error('Permiso de ubicación denegado. Actívalo en la configuración del navegador/sitio.')
-        } else if (err.code === err.TIMEOUT) {
-          toast.error('Tardó demasiado en obtener tu ubicación. Intenta de nuevo.')
         } else {
-          toast.error('No se pudo obtener tu ubicación (revisa que el GPS esté activo).')
+          toast.error('No se pudo obtener tu ubicación (revisa que el GPS/ubicación esté activo).')
         }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
+
+    // Espera máximo 8s recolectando lecturas, y se queda con la mejor obtenida
+    setTimeout(finish, 8000)
   }, [])
 
   const areaM2 = calculateAreaM2(points)
