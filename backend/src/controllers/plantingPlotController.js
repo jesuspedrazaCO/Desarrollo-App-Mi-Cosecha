@@ -2,7 +2,12 @@ import PlantingPlot from '../models/PlantingPlot.js'
 
 export const createPlantingPlot = async (req, res, next) => {
   try {
-    const { name, cropType, crop, geometry, areaM2, areaHectares, rowSpacing, plantSpacing, estimatedPlants } = req.body
+    const {
+      name, cropType, crop, geometry, areaM2, areaHectares,
+      orientation, patternMode, rowSpacing, rowsPerGroup,
+      intraGroupSpacing, interGroupSpacing, plantSpacing,
+      totalRows, plantsPerRow, estimatedPlants,
+    } = req.body
 
     if (!geometry || geometry.length < 3) {
       return res.status(400).json({ success: false, message: 'El lote necesita al menos 3 puntos' })
@@ -16,8 +21,15 @@ export const createPlantingPlot = async (req, res, next) => {
       geometry,
       areaM2,
       areaHectares,
+      orientation,
+      patternMode,
       rowSpacing,
+      rowsPerGroup,
+      intraGroupSpacing,
+      interGroupSpacing,
       plantSpacing,
+      totalRows,
+      plantsPerRow,
       estimatedPlants,
     })
 

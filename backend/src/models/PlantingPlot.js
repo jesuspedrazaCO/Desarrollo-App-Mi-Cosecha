@@ -15,8 +15,17 @@ const plantingPlotSchema = new mongoose.Schema(
     ],
     areaM2: { type: Number, required: true, min: 0 },
     areaHectares: { type: Number, required: true, min: 0 },
-    rowSpacing: { type: Number, required: true, min: 0 },
+
+    orientation: { type: String, enum: ['horizontal', 'vertical'], default: 'horizontal' },
+    patternMode: { type: String, enum: ['simple', 'grouped'], default: 'simple' },
+    rowSpacing: { type: Number, default: null },        // modo simple
+    rowsPerGroup: { type: Number, default: 1 },          // modo agrupado
+    intraGroupSpacing: { type: Number, default: null },  // entre surcos del mismo grupo
+    interGroupSpacing: { type: Number, default: null },  // pasillo entre grupos
     plantSpacing: { type: Number, required: true, min: 0 },
+
+    totalRows: { type: Number, default: 0 },
+    plantsPerRow: { type: Number, default: 0 },
     estimatedPlants: { type: Number, required: true, min: 0 },
   },
   { timestamps: true }
