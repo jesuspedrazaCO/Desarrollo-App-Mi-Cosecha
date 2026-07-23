@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Sprout, Home, ShoppingCart, Receipt,
   CalendarDays, BarChart3, Sparkles, TrendingUp, Settings, Wheat,
+  Map as MapIcon,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -17,7 +18,7 @@ const navItems = [
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
   { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
-  { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: Map },
+  { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
