@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Sprout, Home, ShoppingCart, Receipt,
   CalendarDays, BarChart3, Sparkles, TrendingUp, Settings, Wheat,
-  Map as MapIcon,
+  Map as MapIcon, Leaf,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
