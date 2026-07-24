@@ -74,7 +74,7 @@ export default function ReportsPage() {
           {activeTab === 'crops' && (
             <div className="space-y-5">
               {agroExpenses && agroIncome && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="rounded-3xl p-5" style={{ background: 'rgba(194,65,12,0.15)', border: '1px solid rgba(194,65,12,0.3)' }}>
                     <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#fb923c' }}>💰 Total gastado</p>
                     <p className="text-xl font-bold mt-1 font-display text-white">{formatCurrency(agroExpenses.total)}</p>
@@ -122,7 +122,7 @@ export default function ReportsPage() {
             <div className="space-y-5">
               {householdReport && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="rounded-3xl p-5" style={{ background: 'rgba(194,65,12,0.15)', border: '1px solid rgba(194,65,12,0.3)' }}>
                       <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#fb923c' }}>🏠 Total gastos hogar</p>
                       <p className="text-xl font-bold mt-1 font-display text-white">{formatCurrency(householdReport.total)}</p>
