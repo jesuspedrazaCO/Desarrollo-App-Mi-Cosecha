@@ -17,9 +17,10 @@ const navItems = [
   { to: '/calendar', label: 'Calendario', icon: CalendarDays },
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
   { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
+  { to: '/agronomo', label: 'Agrónomo IA', icon: Leaf },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
-  { to: '/agronomo', label: 'Agrónomo IA', icon: Leaf },
+  
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
