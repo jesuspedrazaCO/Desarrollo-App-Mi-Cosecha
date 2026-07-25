@@ -26,9 +26,10 @@ export const getAgroConversation = async (req, res, next) => {
 
 export const postAgroMessage = async (req, res, next) => {
   try {
-    const { message } = req.body
-    if (!message?.trim()) {
-      return res.status(400).json({ success: false, message: 'El mensaje no puede estar vacío' })
+    const { message, imageBase64, imageMimeType } = req.body
+
+    if (!message?.trim() && !imageBase64) {
+      return res.status(400).json({ success: false, message: 'Escribe un mensaje o adjunta una foto' })
     }
 
     const conversation = await AgroConversation.findOne({ _id: req.params.id, user: req.user.id })
@@ -45,10 +46,18 @@ export const postAgroMessage = async (req, res, next) => {
     const reply = await sendAgroChatMessage({
       cropsContext,
       history: recentHistory,
-      newMessage: message,
+      newMessage: message || '',
+      imageBase64,
+      imageMimeType,
     })
 
-    conversation.messages.push({ role: 'user', content: message })
+    // Guardamos un texto legible en el historial (la imagen en sí no se persiste
+    // por ahora — se usa solo para ese análisis puntual)
+    const userContent = imageBase64
+      ? `📷 ${message?.trim() ? message : '[Foto enviada para diagnóstico]'}`
+      : message
+
+    conversation.messages.push({ role: 'user', content: userContent })
     conversation.messages.push({ role: 'assistant', content: reply })
     await conversation.save()
 

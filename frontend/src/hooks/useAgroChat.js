@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getAgroConversation, startNewAgroConversation, sendAgroMessage } from '../services/agro'
+import { resizeImageToBase64 } from '../utils/imageResize'
 import toast from 'react-hot-toast'
 
 export const useAgroChat = () => {
@@ -24,15 +25,26 @@ export const useAgroChat = () => {
   }, [])
 
   const send = useCallback(
-    async (message) => {
+    async (message, imageFile = null) => {
       if (!conversation) return
       setSending(true)
+
+      const optimisticText = imageFile ? `📷 ${message || '[Foto enviada]'}` : message
       setConversation((prev) => ({
         ...prev,
-        messages: [...prev.messages, { role: 'user', content: message }],
+        messages: [...prev.messages, { role: 'user', content: optimisticText }],
       }))
+
       try {
-        const res = await sendAgroMessage(conversation._id, message)
+        let imageBase64 = null
+        let imageMimeType = null
+        if (imageFile) {
+          const resized = await resizeImageToBase64(imageFile)
+          imageBase64 = resized.base64
+          imageMimeType = resized.mimeType
+        }
+
+        const res = await sendAgroMessage(conversation._id, message, imageBase64, imageMimeType)
         setConversation(res.data.data)
       } catch (err) {
         toast.error(err.response?.data?.message || 'Error al enviar el mensaje')
