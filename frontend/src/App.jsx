@@ -57,6 +57,8 @@ export default function App() {
           <Route path="/market-prices" element={<MarketPricesPage />} />
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
           <Route path="/agronomo" element={<AgronomoPage />} />
+          <Route path="/asesor" element={<Asesor />} />
+
         </Route>
       </Route>
 
