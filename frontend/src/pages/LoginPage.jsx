@@ -74,16 +74,23 @@ export default function LoginPage() {
                 error={errors.email?.message}
                 {...register('email')}
               />
-              <Input
-                label="Contraseña"
-                type="password"
-                required
-                placeholder="••••••••"
-                error={errors.password?.message}
-                {...register('password')}
-              />
+              <div>
+                <Input
+                  label="Contraseña"
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  error={errors.password?.message}
+                  {...register('password')}
+                />
+                <div className="flex justify-end mt-1.5">
+                  <Link to="/forgot-password" className="text-[12px] text-white/40 hover:text-mint-400 transition-colors">
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+              </div>
 
-              <Button type="submit" loading={loading} className="w-full mt-6" size="lg">
+              <Button type="submit" loading={loading} className="w-full mt-2" size="lg">
                 Ingresar a mi finca
               </Button>
             </form>

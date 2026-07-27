@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 
 // Rutas locales (Es obligatorio que terminen en .js)
 import aiRoutes from "./routes/aiRoutes.js";
+import agroRoutes from './routes/agroRoutes.js';
+import plantingPlotRoutes from './routes/plantingPlotRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import cropRoutes from './routes/cropRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
@@ -19,9 +21,6 @@ import calendarRoutes from './routes/calendarRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import marketPriceRoutes from './routes/marketPriceRoutes.js';
-import plantingPlotRoutes from './routes/plantingPlotRoutes.js'
-import agroRoutes from './routes/agroRoutes.js'
-
 
 // Middlewares locales (También con .js)
 import { errorHandler, notFound } from './middlewares/errorMiddleware.js';
@@ -58,6 +57,7 @@ app.use(morgan('dev'));
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -73,11 +73,11 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/market-prices', marketPriceRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/agro', agroRoutes);
+app.use('/api/planting-plots', plantingPlotRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor funcionando correctamente' }));
 
-app.use('/api/agro', agroRoutes) 
-app.use('/api/planting-plots', plantingPlotRoutes)
 app.use(notFound);
 app.use(errorHandler);
 

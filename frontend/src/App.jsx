@@ -4,6 +4,8 @@ import MainLayout from './components/layout/MainLayout'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import CropsPage from './pages/CropsPage'
 import CropDetailPage from './pages/CropDetailPage'
@@ -39,8 +41,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" replace />} />
       <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" replace />} />
-      <Route path="/asesor" element={<Asesor />} />
-
+      <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
+      <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
@@ -58,7 +60,6 @@ export default function App() {
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
           <Route path="/agronomo" element={<AgronomoPage />} />
           <Route path="/asesor" element={<Asesor />} />
-
         </Route>
       </Route>
 

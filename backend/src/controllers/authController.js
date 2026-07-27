@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
+const resend = require('../config/resend');
 const User = require('../models/User');
 
 const signToken = (id) =>
@@ -82,5 +84,88 @@ exports.updateAvatar = async (req, res, next) => {
     await user.save();
 
     res.json({ user: userPayload(user) });
+  } catch (error) { next(error); }
+};
+
+// ── Recuperación de contraseña ──────────────────────────────
+
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Por seguridad, siempre respondemos lo mismo exista o no la cuenta —
+    // así nadie puede usar este formulario para averiguar qué correos están registrados.
+    const genericResponse = { message: 'Si el correo está registrado, te enviamos instrucciones para recuperar tu contraseña.' };
+
+    if (!user) {
+      return res.json(genericResponse);
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 minutos
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+
+    try {
+      await resend.emails.send({
+        from: 'AgroFinanzas <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'Recupera tu contraseña - AgroFinanzas',
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2 style="color: #258a4e;">Recupera tu contraseña</h2>
+            <p>Hola ${user.name},</p>
+            <p>Recibimos una solicitud para restablecer tu contraseña de AgroFinanzas. Este enlace es válido por 30 minutos:</p>
+            <p style="margin: 24px 0;">
+              <a href="${resetUrl}" style="background: #258a4e; color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: bold;">
+                Restablecer contraseña
+              </a>
+            </p>
+            <p style="color: #888; font-size: 13px;">Si tú no solicitaste esto, puedes ignorar este correo — tu cuenta sigue segura.</p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      // Si falla el envío del correo, revertimos el token para no dejarlo "colgado"
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      console.error('Error enviando correo de recuperación:', emailError);
+      return res.status(500).json({ message: 'No se pudo enviar el correo. Intenta de nuevo más tarde.' });
+    }
+
+    res.json(genericResponse);
+  } catch (error) { next(error); }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    }).select('+password +resetPasswordToken +resetPasswordExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'El enlace es inválido o ya expiró. Solicita uno nuevo.' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    // Lo dejamos logueado directamente tras cambiar la contraseña
+    const authToken = signToken(user._id);
+    res.json({ token: authToken, user: userPayload(user), message: 'Contraseña actualizada correctamente.' });
   } catch (error) { next(error); }
 };
