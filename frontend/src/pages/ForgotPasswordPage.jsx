@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a1c10' }}>
+    <div className="fixed inset-0 flex items-center justify-center px-4 overflow-y-auto" style={{ background: '#0a1c10' }}>
       <div
         className="w-full max-w-sm rounded-3xl p-6"
         style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.15)' }}
