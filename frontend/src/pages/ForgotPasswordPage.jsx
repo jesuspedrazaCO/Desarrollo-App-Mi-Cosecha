@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div className="mt-4 rounded-2xl p-4" style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)' }}>
             <p className="text-sm text-emerald-300">
-              Si <strong>{email}</strong> está registrado, te enviamos un correo con instrucciones. Revisa también tu carpeta de spam.
+              Si <strong>{email}</strong> está registrado en nuestro sistema, te enviamos un correo con instrucciones. Revisa también tu carpeta de spam.
             </p>
           </div>
         ) : (
