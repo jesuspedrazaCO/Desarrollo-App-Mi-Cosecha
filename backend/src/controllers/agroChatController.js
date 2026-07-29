@@ -1,6 +1,7 @@
 import Crop from '../models/Crop.js'
 import AgroConversation from '../models/AgroConversation.js'
 import { sendAgroChatMessage } from '../services/agroChatService.js'
+import { getWeatherForecast } from '../services/weatherService.js'
 
 const buildCropsContext = (crops) =>
   crops.map((c) => ({
@@ -41,18 +42,20 @@ export const postAgroMessage = async (req, res, next) => {
     const crops = await Crop.find({ owner: req.user.id })
     const cropsContext = buildCropsContext(crops)
 
+    // req.user ya viene de authMiddleware con los datos frescos de Mongo, incluido lat/lng
+    const weather = await getWeatherForecast(req.user.lat, req.user.lng)
+
     const recentHistory = conversation.messages.slice(-20)
 
     const reply = await sendAgroChatMessage({
       cropsContext,
+      weather,
       history: recentHistory,
       newMessage: message || '',
       imageBase64,
       imageMimeType,
     })
 
-    // Guardamos un texto legible en el historial (la imagen en sí no se persiste
-    // por ahora — se usa solo para ese análisis puntual)
     const userContent = imageBase64
       ? `📷 ${message?.trim() ? message : '[Foto enviada para diagnóstico]'}`
       : message

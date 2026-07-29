@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { register, login, getMe, updateMe, updateAvatar, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, getMe, updateMe, updateAvatar, forgotPassword, resetPassword, updateLocation } = require('../controllers/authController');
 const { protect } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validate');
 const upload = require('../middlewares/uploadMiddleware');
@@ -20,6 +20,7 @@ router.post('/login', [
 router.get('/me', protect, getMe);
 router.put('/me', protect, updateMe);
 router.put('/avatar', protect, upload.single('avatar'), updateAvatar);
+router.put('/location', protect, updateLocation);
 
 router.post('/forgot-password', [
   body('email').isEmail().withMessage('Correo inválido').normalizeEmail(),

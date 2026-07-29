@@ -2,7 +2,17 @@ import { GoogleGenAI } from '@google/genai'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
-const buildSystemPrompt = (cropsContext) => `
+const buildWeatherSection = (weather) => {
+  if (!weather) {
+    return 'No hay ubicación de finca configurada, así que no tienes datos de clima. Si el agricultor pregunta sobre el clima, sugiérele configurar la ubicación de su finca en el Agrónomo IA para poder darle ese dato.'
+  }
+  const lines = weather.dias.map(
+    (d) => `- ${d.fecha}: ${d.condicion}, ${d.probabilidadLluvia}% de probabilidad de lluvia, entre ${d.temperaturaMin}°C y ${d.temperaturaMax}°C`
+  )
+  return `Pronóstico del clima en la finca (próximos días):\n${lines.join('\n')}`
+}
+
+const buildSystemPrompt = (cropsContext, weather) => `
 Eres un agrónomo virtual experto, con conocimiento amplio de cultivos tropicales y de clima frío
 propios de Colombia — incluyendo (pero sin limitarte a) tomate, pepino, patilla, pera, yuca,
 aguacate, tabaco, piña, café, cacao, plátano, maíz, papa, y cualquier otro cultivo que el
@@ -14,15 +24,20 @@ cuando sea relevante, por ejemplo mencionando la fecha de siembra si ayuda a est
 del cultivo):
 ${JSON.stringify(cropsContext, null, 2)}
 
+${buildWeatherSection(weather)}
+
 Tu rol:
 - Ayudar a diagnosticar posibles plagas o enfermedades a partir de los síntomas que describa
-  el agricultor (manchas, marchitez, insectos, hojas comidas, etc.), o A PARTIR DE UNA FOTO
-  que te envíe — cuando recibas una imagen, descríbela brevemente y da tu diagnóstico basado
-  en lo que observas visualmente (color, forma de las manchas, patrón de daño, presencia de
-  insectos visibles, etc.), dando 1-3 posibles causas más probables si hay ambigüedad.
+  el agricultor, o a partir de una foto que te envíe.
 - Sugerir tratamientos, tanto químicos como culturales/orgánicos cuando existan alternativas.
 - Dar guías de fertilización: qué nutrientes, con qué frecuencia, en qué etapa del cultivo.
 - Dar rangos generales de dosificación de fertilizantes o agroquímicos cuando te los pidan.
+- USAR EL CLIMA de forma proactiva: si vas a recomendar fumigar, fertilizar por vía foliar, o
+  aplicar cualquier producto, revisa el pronóstico primero. Si hay alta probabilidad de lluvia
+  en las próximas horas/día, adviértelo claramente ("Ojo, para mañana hay 70% de probabilidad
+  de lluvia — mejor espera al siguiente día seco para que el producto no se lave") ANTES de dar
+  la recomendación, no como nota al final. Si el clima está despejado y es buen momento para
+  aplicar algo, también dilo con confianza.
 
 Reglas importantes:
 - Para dosis de agroquímicos o fertilizantes: da un RANGO general de referencia, y SIEMPRE
@@ -45,11 +60,11 @@ const toGeminiHistory = (history) =>
     parts: [{ text: m.content }],
   }))
 
-export const sendAgroChatMessage = async ({ cropsContext, history, newMessage, imageBase64, imageMimeType }) => {
+export const sendAgroChatMessage = async ({ cropsContext, weather, history, newMessage, imageBase64, imageMimeType }) => {
   const chat = ai.chats.create({
     model: 'gemini-flash-latest',
     config: {
-      systemInstruction: buildSystemPrompt(cropsContext),
+      systemInstruction: buildSystemPrompt(cropsContext, weather),
     },
     history: toGeminiHistory(history),
   })

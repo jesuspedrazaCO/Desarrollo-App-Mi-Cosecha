@@ -12,6 +12,7 @@ const userPayload = (user) => ({
   _id: user._id, name: user.name, email: user.email,
   farmName: user.farmName, location: user.location,
   phone: user.phone, avatar: user.avatar,
+  lat: user.lat, lng: user.lng,
 });
 
 const uploadToCloudinary = (buffer, folder = 'agrofinanzas/avatars') => {
@@ -73,16 +74,30 @@ exports.updateAvatar = async (req, res, next) => {
     if (!req.file) return res.status(400).json({ message: 'No se recibió ninguna imagen.' });
     const user = await User.findById(req.user._id);
 
-    // Borrar avatar anterior de Cloudinary
     if (user.avatar && user.avatar.startsWith('agrofinanzas/')) {
       await cloudinary.uploader.destroy(user.avatar, { resource_type: 'image' });
     }
 
-    // Subir nuevo avatar
     const result = await uploadToCloudinary(req.file.buffer);
     user.avatar = result.secure_url;
     await user.save();
 
+    res.json({ user: userPayload(user) });
+  } catch (error) { next(error); }
+};
+
+// ── Ubicación de la finca (para el clima del Agrónomo IA) ──────────────────
+
+exports.updateLocation = async (req, res, next) => {
+  try {
+    const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({ message: 'lat y lng son obligatorios y deben ser números.' });
+    }
+    const user = await User.findById(req.user._id);
+    user.lat = lat;
+    user.lng = lng;
+    await user.save();
     res.json({ user: userPayload(user) });
   } catch (error) { next(error); }
 };
@@ -94,8 +109,6 @@ exports.forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
 
-    // Por seguridad, siempre respondemos lo mismo exista o no la cuenta —
-    // así nadie puede usar este formulario para averiguar qué correos están registrados.
     const genericResponse = { message: 'Si el correo está registrado, te enviamos instrucciones para recuperar tu contraseña.' };
 
     if (!user) {
@@ -106,7 +119,7 @@ exports.forgotPassword = async (req, res, next) => {
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 minutos
+    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
@@ -131,7 +144,6 @@ exports.forgotPassword = async (req, res, next) => {
         `,
       });
     } catch (emailError) {
-      // Si falla el envío del correo, revertimos el token para no dejarlo "colgado"
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
       await user.save({ validateBeforeSave: false });
@@ -164,7 +176,6 @@ exports.resetPassword = async (req, res, next) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    // Lo dejamos logueado directamente tras cambiar la contraseña
     const authToken = signToken(user._id);
     res.json({ token: authToken, user: userPayload(user), message: 'Contraseña actualizada correctamente.' });
   } catch (error) { next(error); }

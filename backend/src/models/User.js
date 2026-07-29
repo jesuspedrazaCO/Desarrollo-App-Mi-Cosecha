@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema(
     phone:    { type: String, trim: true, default: '' },
     avatar:   { type: String, default: '' },
     active:   { type: Boolean, default: true },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
     resetPasswordToken:   { type: String, select: false, default: undefined },
     resetPasswordExpires: { type: Date, select: false, default: undefined },
   },
