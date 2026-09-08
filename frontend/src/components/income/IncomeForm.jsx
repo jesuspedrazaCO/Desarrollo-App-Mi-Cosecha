@@ -27,7 +27,6 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Cultivo */}
         {!cropId && (
           <div className="sm:col-span-2">
             <label className="block text-[13px] font-semibold text-stone-700 mb-1.5">
@@ -85,7 +84,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
         />
 
         <Input
-          label="Precio unitario ($)" type="number" min="0" step="100"
+          label="Precio unitario ($)" type="number" min="0" step="1"
           placeholder="0"
           error={errors.salePrice?.message}
           {...register('salePrice')}
@@ -93,7 +92,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
 
         <div>
           <Input
-            label="Valor total ($)" type="number" min="0" step="100"
+            label="Valor total ($)" type="number" min="0" step="1"
             placeholder={estimated ? `Calculado: $${estimated.toLocaleString('es-CO')}` : '0'}
             error={errors.totalAmount?.message}
             {...register('totalAmount')}

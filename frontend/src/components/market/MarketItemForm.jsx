@@ -31,7 +31,7 @@ export default function MarketItemForm({ defaultValues, onSubmit, onCancel, load
           {...register('unit')}
         />
         <Input
-          label="Precio est. ($)" type="number" min="0" step="100"
+          label="Precio est. ($)" type="number" min="0" step="1"
           placeholder="0"
           error={errors.estimatedPrice?.message}
           {...register('estimatedPrice')}

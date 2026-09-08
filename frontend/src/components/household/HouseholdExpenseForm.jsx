@@ -49,7 +49,7 @@ export default function HouseholdExpenseForm({ defaultValues, onSubmit, onCancel
         />
 
         <Input
-          label="Valor ($)" required type="number" min="0" step="100"
+          label="Valor ($)" required type="number" min="0" step="1"
           placeholder="0"
           error={errors.amount?.message}
           {...register('amount')}
