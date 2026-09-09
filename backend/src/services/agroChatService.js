@@ -2,6 +2,38 @@ import { GoogleGenAI } from '@google/genai'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1500
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const isRetryableError = (err) => {
+  const msg = (err?.message || '').toLowerCase()
+  return msg.includes('503') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('high demand')
+}
+
+const FRIENDLY_UNAVAILABLE_MESSAGE =
+  'Uy, justo ahora el servicio de IA está muy solicitado 🙏 (al ser un plan gratuito, a veces pasa en horas pico). ' +
+  'Ya lo intenté varias veces sin suerte — dame un par de minutos y vuelve a preguntarme, seguro ya estará disponible. ' +
+  '¡Gracias por la paciencia mientras seguimos mejorando esto!'
+
+const sendWithRetry = async (chat, parts) => {
+  let lastError
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await chat.sendMessage({ message: parts })
+    } catch (err) {
+      lastError = err
+      if (attempt < MAX_RETRIES && isRetryableError(err)) {
+        await sleep(RETRY_DELAY_MS * attempt) // 1.5s, luego 3s
+        continue
+      }
+      break
+    }
+  }
+  throw lastError
+}
+
 const buildWeatherSection = (weather) => {
   if (!weather) {
     return 'No hay ubicación de finca configurada, así que no tienes datos de clima. Si el agricultor pregunta sobre el clima, sugiérele configurar la ubicación de su finca en el Agrónomo IA para poder darle ese dato.'
@@ -28,7 +60,10 @@ ${buildWeatherSection(weather)}
 
 Tu rol:
 - Ayudar a diagnosticar posibles plagas o enfermedades a partir de los síntomas que describa
-  el agricultor, o a partir de una foto que te envíe.
+  el agricultor, o a partir de una foto que te envíe — cuando recibas una imagen, descríbela
+  brevemente y da tu diagnóstico basado en lo que observas visualmente (color, forma de las
+  manchas, patrón de daño, presencia de insectos visibles, etc.), dando 1-3 posibles causas
+  más probables si hay ambigüedad.
 - Sugerir tratamientos, tanto químicos como culturales/orgánicos cuando existan alternativas.
 - Dar guías de fertilización: qué nutrientes, con qué frecuencia, en qué etapa del cultivo.
 - Dar rangos generales de dosificación de fertilizantes o agroquímicos cuando te los pidan.
@@ -75,6 +110,11 @@ export const sendAgroChatMessage = async ({ cropsContext, weather, history, newM
     parts.push({ inlineData: { mimeType: imageMimeType, data: imageBase64 } })
   }
 
-  const response = await chat.sendMessage({ message: parts })
-  return response.text.trim()
+  try {
+    const response = await sendWithRetry(chat, parts)
+    return response.text.trim()
+  } catch (err) {
+    console.error('Gemini falló tras varios intentos (agro):', err.message)
+    return FRIENDLY_UNAVAILABLE_MESSAGE
+  }
 }
