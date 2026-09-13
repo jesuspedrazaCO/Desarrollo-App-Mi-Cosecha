@@ -8,14 +8,13 @@ import Textarea from '../common/Textarea'
 import Select from '../common/Select'
 import Button from '../common/Button'
 
-const CROP_TYPES = [
+const BASE_CROP_TYPES = [
   'Piña', 'Tabaco', 'Tomate', 'Patilla', 'Mango', 'Maíz', 'Yuca',
   'Papa', 'Café', 'Cacao', 'Aguacate', 'Plátano', 'Arroz', 'Otro',
 ]
 
-// Si la fecha viene null/undefined/vacía (ej: cosecha estimada sin definir),
-// o si toInputDate falla por cualquier razón, devolvemos '' en vez de tronar
-// toda la pantalla — mismo patrón usado en EventForm.jsx para el Calendario.
+// Si la fecha viene null/undefined/vacía, o si toInputDate falla por
+// cualquier razón, devolvemos '' en vez de tronar toda la pantalla.
 const safeToInputDate = (date) => {
   if (!date) return ''
   try {
@@ -37,6 +36,13 @@ export default function CropForm({ defaultValues, onSubmit, onCancel, loading })
       : { status: 'activo', landSizeUnit: 'hectáreas' },
   })
 
+  // Si el cultivo que se está editando tiene un tipo que no está en la lista
+  // fija (ej: se escribió distinto o es un tipo poco común), lo agregamos
+  // dinámicamente para que el campo no quede en blanco al abrir "Editar".
+  const cropTypes = defaultValues?.type && !BASE_CROP_TYPES.includes(defaultValues.type)
+    ? [defaultValues.type, ...BASE_CROP_TYPES]
+    : BASE_CROP_TYPES
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -57,7 +63,7 @@ export default function CropForm({ defaultValues, onSubmit, onCancel, loading })
             {...register('type')}
           >
             <option value="">Seleccionar tipo</option>
-            {CROP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {cropTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {errors.type && <p className="mt-1.5 text-xs text-red-500">{errors.type.message}</p>}
         </div>
