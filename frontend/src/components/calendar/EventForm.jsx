@@ -7,12 +7,26 @@ import Input from '../common/Input'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
 
+// Si la fecha ya viene en formato yyyy-MM-dd (por ejemplo, cuando haces clic
+// en un día del calendario), la usamos tal cual. Si viene "cruda" desde la
+// base de datos (Date u otro formato), ahí sí la procesamos con toInputDate.
+// Nunca deja que un error de fecha tumbe toda la pantalla.
+const safeToInputDate = (date) => {
+  if (!date) return ''
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+  try {
+    return toInputDate(date)
+  } catch {
+    return ''
+  }
+}
+
 export default function EventForm({ defaultValues, crops = [], onSubmit, onCancel, loading }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(calendarEventSchema),
     defaultValues: defaultValues
-      ? { ...defaultValues, date: toInputDate(defaultValues.date), crop: defaultValues.crop?._id || '' }
-      : { date: toInputDate(new Date()), type: 'otro', completed: false },
+      ? { ...defaultValues, date: safeToInputDate(defaultValues.date), crop: defaultValues.crop?._id || '' }
+      : { date: safeToInputDate(new Date()), type: 'otro', completed: false },
   })
 
   return (
@@ -56,7 +70,7 @@ export default function EventForm({ defaultValues, crops = [], onSubmit, onCance
         </div>
 
         <Input
-          label="Valor asociado ($)" type="number" min="0" step="100"
+          label="Valor asociado ($)" type="number" min="0" step="1"
           placeholder="0 (opcional)"
           error={errors.amount?.message}
           {...register('amount')}
