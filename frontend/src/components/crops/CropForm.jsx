@@ -13,14 +13,26 @@ const CROP_TYPES = [
   'Papa', 'Café', 'Cacao', 'Aguacate', 'Plátano', 'Arroz', 'Otro',
 ]
 
+// Si la fecha viene null/undefined/vacía (ej: cosecha estimada sin definir),
+// o si toInputDate falla por cualquier razón, devolvemos '' en vez de tronar
+// toda la pantalla — mismo patrón usado en EventForm.jsx para el Calendario.
+const safeToInputDate = (date) => {
+  if (!date) return ''
+  try {
+    return toInputDate(date)
+  } catch {
+    return ''
+  }
+}
+
 export default function CropForm({ defaultValues, onSubmit, onCancel, loading }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(cropSchema),
     defaultValues: defaultValues
       ? {
           ...defaultValues,
-          startDate: toInputDate(defaultValues.startDate),
-          estimatedHarvestDate: toInputDate(defaultValues.estimatedHarvestDate),
+          startDate: safeToInputDate(defaultValues.startDate),
+          estimatedHarvestDate: safeToInputDate(defaultValues.estimatedHarvestDate),
         }
       : { status: 'activo', landSizeUnit: 'hectáreas' },
   })
