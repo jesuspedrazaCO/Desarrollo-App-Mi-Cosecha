@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Pin } from 'lucide-react'
 import { useCalendar } from '../hooks/useCalendar'
 import { getCrops } from '../services/cropService'
 import EventForm from '../components/calendar/EventForm'
@@ -33,7 +34,6 @@ const EVENT_COLORS = {
   otro: '#6b7280',
 }
 
-// Estilos inline para sobreescribir react-big-calendar completamente
 const calendarStyles = `
   .rbc-calendar { background: transparent !important; color: rgba(255,255,255,0.90) !important; }
   .rbc-month-view { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 16px !important; overflow: hidden !important; }
@@ -137,9 +137,12 @@ export default function CalendarPage() {
     }
   }
 
+  // EVENT_TYPES.icon ahora es un componente de lucide-react (no un emoji) —
+  // lo extraemos aparte para poder renderizarlo como <SelectedEventIcon />, no como {icon}
+  const SelectedEventIcon = selectedEvent ? (EVENT_TYPES[selectedEvent.type]?.icon || Pin) : null
+
   return (
     <div className="space-y-5 animate-float-up">
-      {/* Inyectar estilos del calendario inline para sobreescribir react-big-calendar */}
       <style>{calendarStyles}</style>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -152,7 +155,6 @@ export default function CalendarPage() {
         </Button>
       </div>
 
-      {/* Leyenda */}
       <div className="rounded-2xl px-5 py-3 flex flex-wrap gap-3"
         style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.11)' }}>
         {Object.entries(EVENT_TYPES).map(([key, val]) => (
@@ -165,7 +167,6 @@ export default function CalendarPage() {
         <p className="text-xs text-white/30 ml-auto hidden sm:block">Haz clic en un día para agregar un evento</p>
       </div>
 
-      {/* Calendario */}
       <div className="rounded-3xl p-4"
         style={{
           background: 'rgba(255,255,255,0.07)',
@@ -192,13 +193,12 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Panel evento seleccionado */}
       {selectedEvent && (
         <div className="rounded-3xl p-5 animate-float-up"
           style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{EVENT_TYPES[selectedEvent.type]?.icon || '📌'}</span>
+              {SelectedEventIcon && <SelectedEventIcon size={24} className="text-white/80 flex-shrink-0" strokeWidth={2} />}
               <div>
                 <h3 className="font-bold text-white font-display">{selectedEvent.title}</h3>
                 <p className="text-sm text-white/50">{formatDate(selectedEvent.date)}</p>

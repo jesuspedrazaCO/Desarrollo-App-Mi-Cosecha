@@ -10,7 +10,6 @@ import Button from '../common/Button'
 // Si la fecha ya viene en formato yyyy-MM-dd (por ejemplo, cuando haces clic
 // en un día del calendario), la usamos tal cual. Si viene "cruda" desde la
 // base de datos (Date u otro formato), ahí sí la procesamos con toInputDate.
-// Nunca deja que un error de fecha tumbe toda la pantalla.
 const safeToInputDate = (date) => {
   if (!date) return ''
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date
@@ -46,8 +45,10 @@ export default function EventForm({ defaultValues, crops = [], onSubmit, onCance
             className="w-full border border-stone-200 rounded-2xl px-4 py-2.5 text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-primary-400/40"
             {...register('type')}
           >
+            {/* Un <option> nativo solo acepta texto — EVENT_TYPES.icon ahora es un
+                componente de lucide-react (no un emoji), así que aquí solo va el label */}
             {Object.entries(EVENT_TYPES).map(([key, val]) => (
-              <option key={key} value={key}>{val.icon} {val.label}</option>
+              <option key={key} value={key}>{val.label}</option>
             ))}
           </select>
         </div>
