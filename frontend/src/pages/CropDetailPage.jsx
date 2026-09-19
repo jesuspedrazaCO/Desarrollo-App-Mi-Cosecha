@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCropById } from '../services/cropService'
+import { getCropContributorSummary } from '../services/contributorService'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
 import { useAuth } from '../hooks/useAuth'
 import CropFinancialSummary from '../components/crops/CropFinancialSummary'
+import ContributorSummary from '../components/contributors/ContributorSummary'
 import ExpenseTable from '../components/expenses/ExpenseTable'
 import ExpenseForm from '../components/expenses/ExpenseForm'
 import IncomeTable from '../components/income/IncomeTable'
@@ -41,6 +43,8 @@ export default function CropDetailPage() {
   const [deletingExpense, setDeletingExpense] = useState(null)
   const [deletingIncome, setDeletingIncome] = useState(null)
   const [formLoading, setFormLoading] = useState(false)
+  const [contributorSummary, setContributorSummary] = useState([])
+  const [loadingContributors, setLoadingContributors] = useState(true)
 
   const { expenses, totalAmount: totalExpenses, loading: loadingExpenses,
     create: createExpense, update: updateExpense, remove: removeExpense } =
@@ -64,6 +68,21 @@ export default function CropDetailPage() {
     }
     load()
   }, [id])
+
+  useEffect(() => {
+    const loadContributors = async () => {
+      setLoadingContributors(true)
+      try {
+        const res = await getCropContributorSummary(id)
+        setContributorSummary(res.data.data)
+      } catch {
+        // silencioso — no es crítico si falla, la pantalla sigue funcionando
+      } finally {
+        setLoadingContributors(false)
+      }
+    }
+    loadContributors()
+  }, [id, expenses])
 
   const handleExpenseSubmit = async (data) => {
     setFormLoading(true)
@@ -131,7 +150,6 @@ export default function CropDetailPage() {
         <ExportPDFButton onExport={handleExportPDF} label="Exportar PDF" size="sm" />
       </div>
 
-      {/* Header del cultivo */}
       <div className="rounded-3xl p-6" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -163,7 +181,12 @@ export default function CropDetailPage() {
 
       <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'summary' && <CropFinancialSummary summary={summary} expenses={expenses} />}
+      {activeTab === 'summary' && (
+        <div className="space-y-5">
+          <CropFinancialSummary summary={summary} expenses={expenses} />
+          <ContributorSummary data={contributorSummary} loading={loadingContributors} title="Aportantes de este cultivo" />
+        </div>
+      )}
 
       {activeTab === 'expenses' && (
         <div className="space-y-4">

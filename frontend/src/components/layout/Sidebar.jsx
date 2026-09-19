@@ -5,6 +5,8 @@ import {
   Map as MapIcon, Leaf,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { Users } from 'lucide-react'
+
 
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
 
@@ -20,6 +22,7 @@ const navItems = [
   { to: '/agronomo', label: 'Agrónomo IA', icon: Leaf },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
+  { to: '/contributors', label: 'Aportantes', icon: Users },
   
 ]
 

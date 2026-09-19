@@ -21,6 +21,8 @@ import NotFoundPage from './pages/NotFoundPage'
 import Asesor from "./pages/Asesor";
 import PlantingCalculatorPage from './pages/PlantingCalculatorPage'
 import AgronomoPage from './pages/AgronomoPage'
+import ContributorsPage from './pages/ContributorsPage'
+
 
 
 export default function App() {
@@ -60,6 +62,7 @@ export default function App() {
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
           <Route path="/agronomo" element={<AgronomoPage />} />
           <Route path="/asesor" element={<Asesor />} />
+          <Route path="/contributors" element={<ContributorsPage />} />
         </Route>
       </Route>
 

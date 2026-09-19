@@ -21,6 +21,9 @@ const expenseValidation = [
     .isFloat({ min: 0 }).withMessage('El valor debe ser un número positivo'),
   body('paymentMethod').optional().isIn(PAYMENT_METHODS).withMessage('Método de pago inválido'),
   body('observations').optional().trim().isLength({ max: 500 }).withMessage('Las observaciones son demasiado largas'),
+  body('payers').optional().isArray().withMessage('El formato de aportantes es inválido'),
+  body('payers.*.contributor').optional().isMongoId().withMessage('Aportante inválido'),
+  body('payers.*.amount').optional().isFloat({ min: 0 }).withMessage('El monto del aportante debe ser un número positivo'),
 ];
 
 router.get('/', getExpenses);

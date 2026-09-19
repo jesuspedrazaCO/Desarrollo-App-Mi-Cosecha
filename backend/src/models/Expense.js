@@ -69,6 +69,18 @@ const expenseSchema = new mongoose.Schema(
       ref: 'Receipt',
       default: null,
     },
+    // Quién(es) pagaron este gasto — opcional. Gastos ya existentes simplemente
+    // quedan con este arreglo vacío, sin ningún efecto sobre ellos.
+    payers: {
+      type: [
+        {
+          contributor: { type: mongoose.Schema.Types.ObjectId, ref: 'Contributor', required: true },
+          amount: { type: Number, required: true, min: 0 },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

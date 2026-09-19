@@ -1,6 +1,17 @@
 const Expense = require('../models/Expense');
 const Crop = require('../models/Crop');
 
+// Si vienen aportantes, verifica que la suma coincida con el valor total del gasto
+// (con una pequeña tolerancia de centavos por redondeo). Si no hay aportantes, no valida nada.
+const validatePayersSum = (payers, amount) => {
+  if (!payers || payers.length === 0) return null;
+  const sum = payers.reduce((s, p) => s + Number(p.amount || 0), 0);
+  if (Math.abs(sum - Number(amount)) > 1) {
+    return `La suma de los aportantes ($${sum.toLocaleString('es-CO')}) no coincide con el valor total del gasto ($${Number(amount).toLocaleString('es-CO')}).`;
+  }
+  return null;
+};
+
 // @desc    Listar gastos (filtrable por cultivo, categoría, rango de fechas)
 // @route   GET /api/expenses
 const getExpenses = async (req, res, next) => {
@@ -20,6 +31,7 @@ const getExpenses = async (req, res, next) => {
     const total = await Expense.countDocuments(query);
     const expenses = await Expense.find(query)
       .populate('crop', 'name type')
+      .populate('payers.contributor', 'name')
       .sort({ date: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -45,12 +57,15 @@ const getExpenses = async (req, res, next) => {
 // @route   POST /api/expenses
 const createExpense = async (req, res, next) => {
   try {
-    // Verificar que el cultivo pertenece al usuario
     const crop = await Crop.findOne({ _id: req.body.crop, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
+    const payersError = validatePayersSum(req.body.payers, req.body.amount);
+    if (payersError) return res.status(400).json({ message: payersError });
+
     const expense = await Expense.create({ ...req.body, owner: req.user._id });
     await expense.populate('crop', 'name type');
+    await expense.populate('payers.contributor', 'name');
     res.status(201).json(expense);
   } catch (error) {
     next(error);
@@ -66,11 +81,16 @@ const updateExpense = async (req, res, next) => {
       if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
     }
 
+    if (req.body.amount !== undefined) {
+      const payersError = validatePayersSum(req.body.payers, req.body.amount);
+      if (payersError) return res.status(400).json({ message: payersError });
+    }
+
     const expense = await Expense.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
       req.body,
       { new: true, runValidators: true }
-    ).populate('crop', 'name type');
+    ).populate('crop', 'name type').populate('payers.contributor', 'name');
 
     if (!expense) return res.status(404).json({ message: 'Gasto no encontrado.' });
     res.json(expense);

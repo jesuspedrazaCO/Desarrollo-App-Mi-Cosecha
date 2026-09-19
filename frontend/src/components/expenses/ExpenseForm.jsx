@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { expenseSchema } from '../../validators/expenseSchema'
@@ -6,9 +7,10 @@ import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../../utils/constants'
 import Input from '../common/Input'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
+import PayerSplit from './PayerSplit'
 
 export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmit, onCancel, loading }) {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(expenseSchema),
     defaultValues: defaultValues
       ? { ...defaultValues, date: toInputDate(defaultValues.date) }
@@ -19,8 +21,23 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
         },
   })
 
+  // Los aportantes se manejan aparte (no con react-hook-form), porque es una
+  // lista dinámica de personas + montos, no un campo simple del formulario.
+  const [payers, setPayers] = useState(
+    defaultValues?.payers?.map((p) => ({
+      contributor: p.contributor?._id || p.contributor,
+      amount: p.amount,
+    })) || []
+  )
+
+  const currentAmount = watch('amount')
+
+  const submitHandler = (data) => {
+    onSubmit({ ...data, payers: payers.filter((p) => p.amount > 0) })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(submitHandler)} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {!cropId && (
           <div className="sm:col-span-2">
@@ -86,6 +103,8 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
             {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
+
+        <PayerSplit payers={payers} onChange={setPayers} totalAmount={currentAmount} />
 
         <Textarea
           label="Observaciones"
