@@ -21,8 +21,6 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
         },
   })
 
-  // Los aportantes se manejan aparte (no con react-hook-form), porque es una
-  // lista dinámica de personas + montos, no un campo simple del formulario.
   const [payers, setPayers] = useState(
     defaultValues?.payers?.map((p) => ({
       contributor: p.contributor?._id || p.contributor,
@@ -37,7 +35,7 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
   }
 
   return (
-    <form onSubmit={handleSubmit(submitHandler)} className="space-y-4">
+    <form onSubmit={handleSubmit(submitHandler)} noValidate className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {!cropId && (
           <div className="sm:col-span-2">
