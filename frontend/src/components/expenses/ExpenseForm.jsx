@@ -13,7 +13,14 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(expenseSchema),
     defaultValues: defaultValues
-      ? { ...defaultValues, date: toInputDate(defaultValues.date) }
+      ? {
+          ...defaultValues,
+          date: toInputDate(defaultValues.date),
+          // ⚠️ defaultValues.crop puede venir "poblado" como objeto ({_id, name, type})
+          // porque el backend hace populate('crop', 'name type') para mostrar el nombre
+          // en la lista. El formulario necesita el ID como texto simple, no el objeto.
+          crop: cropId || defaultValues.crop?._id || defaultValues.crop || '',
+        }
       : {
           crop: cropId || '',
           date: toInputDate(new Date()),
@@ -21,6 +28,8 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
         },
   })
 
+  // Los aportantes se manejan aparte (no con react-hook-form), porque es una
+  // lista dinámica de personas + montos, no un campo simple del formulario.
   const [payers, setPayers] = useState(
     defaultValues?.payers?.map((p) => ({
       contributor: p.contributor?._id || p.contributor,
