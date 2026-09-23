@@ -56,6 +56,8 @@ const createIncome = async (req, res, next) => {
   }
 };
 
+// @desc    Actualizar ingreso
+// @route   PUT /api/income/:id
 const updateIncome = async (req, res, next) => {
   try {
     if (req.body.crop) {
@@ -64,7 +66,16 @@ const updateIncome = async (req, res, next) => {
     }
 
     const body = { ...req.body };
-    if ((!body.items || body.items.length === 0) && body.quantitySold && body.salePrice && !body.totalAmount) {
+
+    // IMPORTANTE: findOneAndUpdate no dispara el hook pre('validate') del modelo,
+    // así que el total hay que recalcularlo aquí manualmente en cada edición.
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      body.items = body.items.map((it) => ({
+        ...it,
+        subtotal: Number(it.quantitySold || 0) * Number(it.salePrice || 0),
+      }));
+      body.totalAmount = body.items.reduce((sum, it) => sum + it.subtotal, 0);
+    } else if (body.quantitySold && body.salePrice && !body.totalAmount) {
       body.totalAmount = Number(body.quantitySold) * Number(body.salePrice);
     }
 
@@ -91,8 +102,6 @@ const deleteIncome = async (req, res, next) => {
   }
 };
 
-// @desc    Agrupar varios ingresos dispersos en uno solo con desglose por producto
-// @route   POST /api/income/merge
 const mergeIncomes = async (req, res, next) => {
   try {
     const { ids, crop, date, client, type, observations, items: submittedItems } = req.body;
@@ -109,8 +118,6 @@ const mergeIncomes = async (req, res, next) => {
       return res.status(404).json({ message: 'Alguno de los ingresos seleccionados no existe o no te pertenece.' });
     }
 
-    // Usar el desglose que el usuario ajustó/nombró en el formulario de agrupación.
-    // Solo si no llega (uso directo de la API) se reconstruye desde los originales.
     const items = Array.isArray(submittedItems) && submittedItems.length > 0
       ? submittedItems.map((it) => ({
           variety: it.variety,
