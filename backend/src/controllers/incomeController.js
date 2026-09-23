@@ -1,8 +1,6 @@
 const Income = require('../models/Income');
 const Crop = require('../models/Crop');
 
-// @desc    Listar ingresos (filtrable por cultivo, rango de fechas)
-// @route   GET /api/income
 const getIncomes = async (req, res, next) => {
   try {
     const { crop, startDate, endDate, page = 1, limit = 20 } = req.query;
@@ -40,16 +38,12 @@ const getIncomes = async (req, res, next) => {
   }
 };
 
-// @desc    Crear ingreso (venta con uno o varios productos)
-// @route   POST /api/income
 const createIncome = async (req, res, next) => {
   try {
     const crop = await Crop.findOne({ _id: req.body.crop, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
     const body = { ...req.body };
-
-    // Compatibilidad con el formato antiguo (venta sin desglose por producto)
     if ((!body.items || body.items.length === 0) && body.quantitySold && body.salePrice && !body.totalAmount) {
       body.totalAmount = Number(body.quantitySold) * Number(body.salePrice);
     }
@@ -62,8 +56,6 @@ const createIncome = async (req, res, next) => {
   }
 };
 
-// @desc    Actualizar ingreso
-// @route   PUT /api/income/:id
 const updateIncome = async (req, res, next) => {
   try {
     if (req.body.crop) {
@@ -89,8 +81,6 @@ const updateIncome = async (req, res, next) => {
   }
 };
 
-// @desc    Eliminar ingreso
-// @route   DELETE /api/income/:id
 const deleteIncome = async (req, res, next) => {
   try {
     const income = await Income.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
@@ -105,7 +95,7 @@ const deleteIncome = async (req, res, next) => {
 // @route   POST /api/income/merge
 const mergeIncomes = async (req, res, next) => {
   try {
-    const { ids, crop, date, client, type, observations } = req.body;
+    const { ids, crop, date, client, type, observations, items: submittedItems } = req.body;
 
     if (!Array.isArray(ids) || ids.length < 2) {
       return res.status(400).json({ message: 'Selecciona al menos dos ingresos para agrupar.' });
@@ -114,31 +104,39 @@ const mergeIncomes = async (req, res, next) => {
     const cropDoc = await Crop.findOne({ _id: crop, owner: req.user._id });
     if (!cropDoc) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
-    // Verificar que todos los ingresos seleccionados existan y sean del usuario
     const originals = await Income.find({ _id: { $in: ids }, owner: req.user._id });
     if (originals.length !== ids.length) {
       return res.status(404).json({ message: 'Alguno de los ingresos seleccionados no existe o no te pertenece.' });
     }
 
-    // Construir items[] a partir de cada ingreso original (respetando su desglose si ya lo tenía)
-    const items = originals.flatMap((income) => {
-      if (Array.isArray(income.items) && income.items.length > 0) {
-        return income.items.map((it) => ({
+    // Usar el desglose que el usuario ajustó/nombró en el formulario de agrupación.
+    // Solo si no llega (uso directo de la API) se reconstruye desde los originales.
+    const items = Array.isArray(submittedItems) && submittedItems.length > 0
+      ? submittedItems.map((it) => ({
           variety: it.variety,
           quantitySold: it.quantitySold,
-          unit: it.unit,
+          unit: it.unit || 'kg',
           crates: it.crates || 0,
           salePrice: it.salePrice,
-        }));
-      }
-      return [{
-        variety: 'Venta',
-        quantitySold: income.quantitySold || 0,
-        unit: income.unit || 'kg',
-        crates: 0,
-        salePrice: income.salePrice || 0,
-      }];
-    });
+        }))
+      : originals.flatMap((income) => {
+          if (Array.isArray(income.items) && income.items.length > 0) {
+            return income.items.map((it) => ({
+              variety: it.variety,
+              quantitySold: it.quantitySold,
+              unit: it.unit,
+              crates: it.crates || 0,
+              salePrice: it.salePrice,
+            }));
+          }
+          return [{
+            variety: 'Venta',
+            quantitySold: income.quantitySold || 0,
+            unit: income.unit || 'kg',
+            crates: 0,
+            salePrice: income.salePrice || 0,
+          }];
+        });
 
     const merged = await Income.create({
       owner: req.user._id,

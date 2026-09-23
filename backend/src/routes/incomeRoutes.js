@@ -33,6 +33,10 @@ const mergeValidation = [
   body('ids').isArray({ min: 2 }).withMessage('Selecciona al menos dos ingresos para agrupar'),
   body('ids.*').isMongoId().withMessage('ID de ingreso inválido'),
   body('crop').notEmpty().withMessage('El cultivo es obligatorio').isMongoId().withMessage('Cultivo inválido'),
+  body('items').optional().isArray({ min: 1 }).withMessage('Agrega al menos un producto vendido'),
+  body('items.*.variety').optional().trim().notEmpty().withMessage('La variedad es obligatoria').isLength({ max: 100 }).withMessage('El nombre de la variedad es demasiado largo'),
+  body('items.*.quantitySold').optional().isFloat({ min: 0 }).withMessage('La cantidad debe ser un número positivo'),
+  body('items.*.salePrice').optional().isFloat({ min: 0 }).withMessage('El precio debe ser un número positivo'),
 ];
 
 router.get('/', getIncomes);

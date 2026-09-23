@@ -54,6 +54,14 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
     return sum + qty * price
   }, 0)
 
+  const totalKg = (items || []).reduce((sum, it) => {
+    const unit = (it?.unit || 'kg').trim().toLowerCase()
+    if (unit !== 'kg') return sum
+    return sum + (Number(it?.quantitySold) || 0)
+  }, 0)
+
+  const totalCrates = (items || []).reduce((sum, it) => sum + (Number(it?.crates) || 0), 0)
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -100,7 +108,6 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
         />
       </div>
 
-      {/* Desglose de productos vendidos */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -140,10 +147,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
               <div
                 key={field.id}
                 className="rounded-2xl p-3.5"
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -177,7 +181,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
                         {...register(`items.${index}.unit`)}
                       />
                       <Input
-                        label="Canastillas"
+                        label="Canastillas (opcional)"
                         type="number" min="0" step="1"
                         placeholder="Ej: 8"
                         error={errors.items?.[index]?.crates?.message}
@@ -218,14 +222,23 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
         </datalist>
 
         <div
-          className="mt-3 flex items-center justify-between rounded-2xl px-4 py-3"
-          style={{
-            background: 'rgba(16,185,129,0.08)',
-            border: '1px solid rgba(16,185,129,0.18)',
-          }}
+          className="mt-3 rounded-2xl px-4 py-3"
+          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}
         >
-          <span className="text-sm text-white/60">Total de la venta</span>
-          <span className="text-lg font-bold text-emerald-300">${total.toLocaleString('es-CO')}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-white/60">Total de la venta</span>
+            <span className="text-lg font-bold text-emerald-300">${total.toLocaleString('es-CO')}</span>
+          </div>
+          <div className="flex items-center gap-4 mt-1.5 pt-1.5" style={{ borderTop: '1px solid rgba(16,185,129,0.14)' }}>
+            <span className="text-xs text-white/50">
+              {totalKg.toLocaleString('es-CO')} kg en total
+            </span>
+            {totalCrates > 0 && (
+              <span className="text-xs text-white/50">
+                {totalCrates.toLocaleString('es-CO')} canastillas
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

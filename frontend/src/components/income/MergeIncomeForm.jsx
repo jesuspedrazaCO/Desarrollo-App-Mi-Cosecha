@@ -27,6 +27,12 @@ export default function MergeIncomeForm({ selected, onConfirm, onCancel, loading
   }
 
   const total = items.reduce((sum, it) => sum + (Number(it.quantitySold) || 0) * (Number(it.salePrice) || 0), 0)
+  const totalKg = items.reduce((sum, it) => {
+    const unit = (it.unit || 'kg').trim().toLowerCase()
+    if (unit !== 'kg') return sum
+    return sum + (Number(it.quantitySold) || 0)
+  }, 0)
+  const totalCrates = items.reduce((sum, it) => sum + (Number(it.crates) || 0), 0)
   const canSubmit = items.every((it) => it.variety.trim().length > 0)
 
   const handleSubmit = () => {
@@ -81,7 +87,7 @@ export default function MergeIncomeForm({ selected, onConfirm, onCancel, loading
                   onChange={(e) => updateItem(index, 'quantitySold', e.target.value)}
                 />
                 <Input
-                  label="Canastillas" type="number" min="0" step="1"
+                  label="Canastillas (opcional)" type="number" min="0" step="1"
                   value={item.crates}
                   onChange={(e) => updateItem(index, 'crates', e.target.value)}
                 />
@@ -102,11 +108,19 @@ export default function MergeIncomeForm({ selected, onConfirm, onCancel, loading
       </div>
 
       <div
-        className="flex items-center justify-between rounded-2xl px-4 py-3"
+        className="rounded-2xl px-4 py-3"
         style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}
       >
-        <span className="text-sm text-white/60">Total agrupado</span>
-        <span className="text-lg font-bold text-emerald-300">{formatCurrency(total)}</span>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-white/60">Total agrupado</span>
+          <span className="text-lg font-bold text-emerald-300">{formatCurrency(total)}</span>
+        </div>
+        <div className="flex items-center gap-4 mt-1.5 pt-1.5" style={{ borderTop: '1px solid rgba(16,185,129,0.14)' }}>
+          <span className="text-xs text-white/50">{totalKg.toLocaleString('es-CO')} kg en total</span>
+          {totalCrates > 0 && (
+            <span className="text-xs text-white/50">{totalCrates.toLocaleString('es-CO')} canastillas</span>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-3 justify-end pt-2 border-t border-white/10">

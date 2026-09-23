@@ -25,6 +25,54 @@ const formatDate = (d) => {
   return dt.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// ── Obtiene el desglose de productos de un ingreso, con compatibilidad
+//    para ventas antiguas que no tienen items[] ──
+const getIncomeItems = (income) => {
+  if (Array.isArray(income.items) && income.items.length > 0) return income.items
+  if (income.quantitySold > 0) {
+    return [{
+      variety: 'Venta',
+      quantitySold: income.quantitySold,
+      unit: income.unit || 'kg',
+      crates: 0,
+      salePrice: income.salePrice,
+    }]
+  }
+  return []
+}
+
+// ── Total de kg vendidos en un ingreso (suma solo los items en kg) ──
+const getIncomeKg = (income) => {
+  return getIncomeItems(income).reduce((sum, it) => {
+    const unit = (it.unit || 'kg').trim().toLowerCase()
+    if (unit !== 'kg') return sum
+    return sum + (Number(it.quantitySold) || 0)
+  }, 0)
+}
+
+// ── Texto con la cantidad total (kg + otras unidades si las hay) ──
+const formatIncomeQuantity = (income) => {
+  const items = getIncomeItems(income)
+  if (items.length === 0) return '—'
+
+  const byUnit = {}
+  items.forEach((it) => {
+    const unit = it.unit || 'kg'
+    byUnit[unit] = (byUnit[unit] || 0) + (Number(it.quantitySold) || 0)
+  })
+
+  return Object.entries(byUnit)
+    .map(([unit, qty]) => `${qty.toLocaleString('es-CO')} ${unit}`)
+    .join(' + ')
+}
+
+// ── Lista de variedades/productos vendidos en el ingreso ──
+const formatIncomeVarieties = (income) => {
+  const items = getIncomeItems(income)
+  if (items.length === 0) return '—'
+  return items.map((it) => it.variety).join(', ')
+}
+
 // ── Dibuja un ícono de hoja/planta vectorial (reemplaza el emoji 🌾) ──
 const drawLeafIcon = (doc, cx, cy, scale = 1) => {
   doc.setFillColor(...C.green)
@@ -234,11 +282,13 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
   doc.text(`Inicio: ${formatDate(crop.startDate)}   Cosecha est.: ${formatDate(crop.estimatedHarvestDate)}`, 14, y + 12)
   y += 20
 
+  const totalKgVendidos = incomes.reduce((sum, i) => sum + getIncomeKg(i), 0)
+
   y = drawKPICards(doc, [
     { label: 'Total invertido', value: formatCOP(summary?.totalInvested), negative: false },
     { label: 'Total vendido',   value: formatCOP(summary?.totalSold),     negative: false },
     { label: 'Ganancia neta',   value: formatCOP(summary?.netProfit),     negative: (summary?.netProfit || 0) < 0 },
-    { label: 'Rentabilidad',    value: `${summary?.profitability || 0}%`, negative: (summary?.netProfit || 0) < 0 },
+    { label: 'Kg vendidos',     value: `${totalKgVendidos.toLocaleString('es-CO')} kg`, negative: false },
   ], y)
 
   if (expenses.length > 0) {
@@ -271,7 +321,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
   }
 
   if (incomes.length > 0) {
-    if (y > 220) { doc.addPage(); y = 20 }
+    if (y > 210) { doc.addPage(); y = 20 }
 
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
@@ -281,24 +331,68 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
 
     doc.autoTable({
       startY: y,
-      head: [['Fecha', 'Tipo', 'Cliente', 'Cantidad', 'Total']],
+      head: [['Fecha', 'Cliente', 'Productos', 'Cantidad', 'Total']],
       body: incomes.map(i => [
-        formatDate(i.date), i.type || '—', i.client || '—',
-        i.quantitySold > 0 ? `${i.quantitySold} ${i.unit}` : '—',
+        formatDate(i.date),
+        i.client || '—',
+        formatIncomeVarieties(i),
+        formatIncomeQuantity(i),
         formatCOP(i.totalAmount),
       ]),
       headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 8, textColor: C.dark },
       alternateRowStyles: { fillColor: C.greenLight },
-      columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: {
+        2: { cellWidth: 45 },
+        4: { halign: 'right', fontStyle: 'bold' },
+      },
       margin: { left: 14, right: 14 },
       styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
       foot: [[
-        { content: 'TOTAL INGRESOS', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight, textColor: C.dark } },
+        { content: `TOTAL INGRESOS (${totalKgVendidos.toLocaleString('es-CO')} kg)`, colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', fillColor: C.greenLight, textColor: C.dark } },
         { content: formatCOP(incomes.reduce((s, i) => s + i.totalAmount, 0)), styles: { fontStyle: 'bold', halign: 'right', textColor: C.greenDark, fillColor: C.greenLight } },
       ]],
       showFoot: 'lastPage',
     })
+
+    // Desglose detallado por producto/variedad, para las ventas con varios ítems
+    const incomesWithMultipleItems = incomes.filter(i => getIncomeItems(i).length > 1)
+    if (incomesWithMultipleItems.length > 0) {
+      let yDetail = doc.lastAutoTable.finalY + 10
+      if (yDetail > 220) { doc.addPage(); yDetail = 20 }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...C.dark)
+      doc.text('Detalle por producto', 14, yDetail)
+      yDetail += 4
+
+      const detailRows = incomesWithMultipleItems.flatMap((income) =>
+        getIncomeItems(income).map((item) => [
+          formatDate(income.date),
+          item.variety,
+          `${Number(item.quantitySold).toLocaleString('es-CO')} ${item.unit || 'kg'}`,
+          item.crates > 0 ? String(item.crates) : '—',
+          formatCOP(item.salePrice),
+          formatCOP(item.subtotal ?? (Number(item.quantitySold) * Number(item.salePrice))),
+        ])
+      )
+
+      doc.autoTable({
+        startY: yDetail,
+        head: [['Fecha', 'Producto', 'Cantidad', 'Canastillas', 'Precio/u.', 'Subtotal']],
+        body: detailRows,
+        headStyles: { fillColor: C.greenDark, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8, textColor: C.dark },
+        alternateRowStyles: { fillColor: C.grayLight },
+        columnStyles: {
+          4: { halign: 'right' },
+          5: { halign: 'right', fontStyle: 'bold' },
+        },
+        margin: { left: 14, right: 14 },
+        styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+      })
+    }
   }
 
   drawFooter(doc)
