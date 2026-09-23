@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { incomeSchema } from '../../utils/validators/incomeSchema'
+import { incomeSchema } from '../../validators/incomeSchema'
 import { toInputDate } from '../../utils/formatDate'
 import { INCOME_TYPES } from '../../utils/constants'
 import Input from '../common/Input'
