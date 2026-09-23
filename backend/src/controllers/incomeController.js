@@ -40,16 +40,17 @@ const getIncomes = async (req, res, next) => {
   }
 };
 
-// @desc    Crear ingreso
+// @desc    Crear ingreso (venta con uno o varios productos)
 // @route   POST /api/income
 const createIncome = async (req, res, next) => {
   try {
     const crop = await Crop.findOne({ _id: req.body.crop, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
-    // Si no se envía totalAmount pero sí cantidad y precio, calcularlo automáticamente
     const body = { ...req.body };
-    if (!body.totalAmount && body.quantitySold && body.salePrice) {
+
+    // Compatibilidad con el formato antiguo (venta sin desglose por producto)
+    if ((!body.items || body.items.length === 0) && body.quantitySold && body.salePrice && !body.totalAmount) {
       body.totalAmount = Number(body.quantitySold) * Number(body.salePrice);
     }
 
@@ -71,14 +72,14 @@ const updateIncome = async (req, res, next) => {
     }
 
     const body = { ...req.body };
-    if (body.quantitySold && body.salePrice && !body.totalAmount) {
+    if ((!body.items || body.items.length === 0) && body.quantitySold && body.salePrice && !body.totalAmount) {
       body.totalAmount = Number(body.quantitySold) * Number(body.salePrice);
     }
 
     const income = await Income.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
       body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, context: 'query' }
     ).populate('crop', 'name type');
 
     if (!income) return res.status(404).json({ message: 'Ingreso no encontrado.' });

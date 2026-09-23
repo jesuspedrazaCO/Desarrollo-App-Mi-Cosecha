@@ -1,28 +1,57 @@
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { incomeSchema } from '../../validators/incomeSchema'
+import { incomeSchema } from '../../utils/validators/incomeSchema'
 import { toInputDate } from '../../utils/formatDate'
 import { INCOME_TYPES } from '../../utils/constants'
 import Input from '../common/Input'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
 
+const emptyItem = { variety: '', quantitySold: '', unit: 'kg', crates: '', salePrice: '' }
+const COMMON_VARIETIES = ['Piña gruesa', 'Piña pareja', 'Pipo', 'Riche', 'Racha']
+
+function buildDefaultValues(defaultValues, cropId) {
+  if (!defaultValues) {
+    return {
+      crop: cropId || '',
+      date: toInputDate(new Date()),
+      type: 'venta_cosecha',
+      client: '',
+      items: [emptyItem],
+      observations: '',
+    }
+  }
+
+  const hasItems = Array.isArray(defaultValues.items) && defaultValues.items.length > 0
+  return {
+    ...defaultValues,
+    date: toInputDate(defaultValues.date),
+    items: hasItems
+      ? defaultValues.items
+      : [{
+          variety: 'Venta',
+          quantitySold: defaultValues.quantitySold || '',
+          unit: defaultValues.unit || 'kg',
+          crates: '',
+          salePrice: defaultValues.salePrice || '',
+        }],
+  }
+}
+
 export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit, onCancel, loading }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(incomeSchema),
-    defaultValues: defaultValues
-      ? { ...defaultValues, date: toInputDate(defaultValues.date) }
-      : {
-          crop: cropId || '',
-          date: toInputDate(new Date()),
-          type: 'venta_cosecha',
-          unit: 'kg',
-        },
+    defaultValues: buildDefaultValues(defaultValues, cropId),
   })
 
-  const qty = watch('quantitySold')
-  const price = watch('salePrice')
-  const estimated = qty > 0 && price > 0 ? (Number(qty) * Number(price)) : null
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
+  const items = watch('items')
+
+  const total = (items || []).reduce((sum, it) => {
+    const qty = Number(it?.quantitySold) || 0
+    const price = Number(it?.salePrice) || 0
+    return sum + qty * price
+  }, 0)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -68,50 +97,101 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
           className="sm:col-span-2"
           {...register('client')}
         />
+      </div>
 
-        <Input
-          label="Cantidad vendida" type="number" min="0" step="0.1"
-          placeholder="Ej: 500"
-          error={errors.quantitySold?.message}
-          {...register('quantitySold')}
-        />
+      <div className="border-t border-stone-100 pt-4">
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-[13px] font-semibold text-stone-700">
+            Productos vendidos <span className="text-accent-500">*</span>
+          </label>
+          <Button type="button" size="sm" variant="secondary" onClick={() => append(emptyItem)}>
+            + Agregar producto
+          </Button>
+        </div>
+        {errors.items?.message && (
+          <p className="mb-2 text-xs text-red-500">{errors.items.message}</p>
+        )}
 
-        <Input
-          label="Unidad"
-          placeholder="kg, unidades, toneladas..."
-          error={errors.unit?.message}
-          {...register('unit')}
-        />
+        <div className="space-y-3">
+          {fields.map((field, index) => {
+            const qty = Number(items?.[index]?.quantitySold) || 0
+            const price = Number(items?.[index]?.salePrice) || 0
+            const subtotal = qty * price
 
-        <Input
-          label="Precio unitario ($)" type="number" min="0" step="1"
-          placeholder="0"
-          error={errors.salePrice?.message}
-          {...register('salePrice')}
-        />
-
-        <div>
-          <Input
-            label="Valor total ($)" type="number" min="0" step="1"
-            placeholder={estimated ? `Calculado: $${estimated.toLocaleString('es-CO')}` : '0'}
-            error={errors.totalAmount?.message}
-            {...register('totalAmount')}
-          />
-          {estimated && (
-            <p className="mt-1 text-xs text-primary-600 font-medium">
-              💡 Calculado: ${estimated.toLocaleString('es-CO')}
-            </p>
-          )}
+            return (
+              <div key={field.id} className="rounded-2xl border border-stone-200 bg-white/60 p-3">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <Input
+                      label="Producto / variedad"
+                      list="variety-suggestions"
+                      placeholder="Piña gruesa..."
+                      error={errors.items?.[index]?.variety?.message}
+                      {...register(`items.${index}.variety`)}
+                    />
+                  </div>
+                  <Input
+                    label="Cantidad" type="number" min="0" step="0.1"
+                    placeholder="Ej: 195"
+                    error={errors.items?.[index]?.quantitySold?.message}
+                    {...register(`items.${index}.quantitySold`)}
+                  />
+                  <Input
+                    label="Unidad"
+                    placeholder="kg"
+                    error={errors.items?.[index]?.unit?.message}
+                    {...register(`items.${index}.unit`)}
+                  />
+                  <Input
+                    label="Canastillas"
+                    type="number" min="0" step="1"
+                    placeholder="Ej: 8"
+                    error={errors.items?.[index]?.crates?.message}
+                    {...register(`items.${index}.crates`)}
+                  />
+                  <Input
+                    label="Precio/unidad ($)" type="number" min="0" step="1"
+                    placeholder="Ej: 2600"
+                    error={errors.items?.[index]?.salePrice?.message}
+                    {...register(`items.${index}.salePrice`)}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-stone-500">
+                    Subtotal: <span className="font-semibold text-primary-600">${subtotal.toLocaleString('es-CO')}</span>
+                  </p>
+                  {fields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
-        <Textarea
-          label="Observaciones"
-          placeholder="Notas sobre la venta..."
-          rows={2}
-          className="sm:col-span-2"
-          {...register('observations')}
-        />
+        <datalist id="variety-suggestions">
+          {COMMON_VARIETIES.map(v => <option key={v} value={v} />)}
+        </datalist>
+
+        <div className="mt-3 text-right">
+          <p className="text-sm text-stone-600">
+            Total de la venta: <span className="text-base font-bold text-primary-600">${total.toLocaleString('es-CO')}</span>
+          </p>
+        </div>
       </div>
+
+      <Textarea
+        label="Observaciones"
+        placeholder="Notas sobre la venta..."
+        rows={2}
+        {...register('observations')}
+      />
 
       <div className="flex gap-3 justify-end pt-2 border-t border-stone-100">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
