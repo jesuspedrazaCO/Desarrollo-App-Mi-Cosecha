@@ -101,4 +101,62 @@ const deleteIncome = async (req, res, next) => {
   }
 };
 
-module.exports = { getIncomes, createIncome, updateIncome, deleteIncome };
+// @desc    Agrupar varios ingresos dispersos en uno solo con desglose por producto
+// @route   POST /api/income/merge
+const mergeIncomes = async (req, res, next) => {
+  try {
+    const { ids, crop, date, client, type, observations } = req.body;
+
+    if (!Array.isArray(ids) || ids.length < 2) {
+      return res.status(400).json({ message: 'Selecciona al menos dos ingresos para agrupar.' });
+    }
+
+    const cropDoc = await Crop.findOne({ _id: crop, owner: req.user._id });
+    if (!cropDoc) return res.status(404).json({ message: 'Cultivo no encontrado.' });
+
+    // Verificar que todos los ingresos seleccionados existan y sean del usuario
+    const originals = await Income.find({ _id: { $in: ids }, owner: req.user._id });
+    if (originals.length !== ids.length) {
+      return res.status(404).json({ message: 'Alguno de los ingresos seleccionados no existe o no te pertenece.' });
+    }
+
+    // Construir items[] a partir de cada ingreso original (respetando su desglose si ya lo tenía)
+    const items = originals.flatMap((income) => {
+      if (Array.isArray(income.items) && income.items.length > 0) {
+        return income.items.map((it) => ({
+          variety: it.variety,
+          quantitySold: it.quantitySold,
+          unit: it.unit,
+          crates: it.crates || 0,
+          salePrice: it.salePrice,
+        }));
+      }
+      return [{
+        variety: 'Venta',
+        quantitySold: income.quantitySold || 0,
+        unit: income.unit || 'kg',
+        crates: 0,
+        salePrice: income.salePrice || 0,
+      }];
+    });
+
+    const merged = await Income.create({
+      owner: req.user._id,
+      crop,
+      date: date || originals[0].date,
+      type: type || 'venta_cosecha',
+      client: client ?? originals[0].client,
+      items,
+      observations: observations || '',
+    });
+
+    await Income.deleteMany({ _id: { $in: ids }, owner: req.user._id });
+    await merged.populate('crop', 'name type');
+
+    res.status(201).json(merged);
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getIncomes, createIncome, updateIncome, deleteIncome, mergeIncomes };

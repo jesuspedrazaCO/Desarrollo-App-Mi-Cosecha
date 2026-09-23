@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CheckSquare, Square, Combine } from 'lucide-react'
 import { formatDate } from '../../utils/formatDate'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { INCOME_TYPES } from '../../utils/constants'
@@ -7,13 +8,15 @@ import Badge from '../common/Badge'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 
-export default function IncomeTable({ incomes, loading, onEdit, onDelete }) {
+export default function IncomeTable({ incomes, loading, onEdit, onDelete, onMergeSelected }) {
   const [detailIncome, setDetailIncome] = useState(null)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+
   const getTypeLabel = (val) => INCOME_TYPES.find(t => t.value === val)?.label || val
 
   const getItems = (income) => {
     if (Array.isArray(income.items) && income.items.length > 0) return income.items
-    // Compatibilidad con ventas antiguas sin desglose por producto
     if (income.quantitySold > 0) {
       return [{
         variety: getTypeLabel(income.type),
@@ -27,7 +30,30 @@ export default function IncomeTable({ incomes, loading, onEdit, onDelete }) {
     return []
   }
 
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const exitSelectMode = () => {
+    setSelectMode(false)
+    setSelectedIds([])
+  }
+
+  const handleMergeClick = () => {
+    const selected = incomes.filter(i => selectedIds.includes(i._id))
+    onMergeSelected(selected)
+    exitSelectMode()
+  }
+
   const columns = [
+    ...(selectMode ? [{
+      key: 'select', label: '',
+      render: (i) => (
+        <button type="button" onClick={() => toggleSelect(i._id)} className="text-white/60 hover:text-emerald-300">
+          {selectedIds.includes(i._id) ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} />}
+        </button>
+      ),
+    }] : []),
     {
       key: 'date', label: 'Fecha',
       render: (i) => <span className="text-white/65 text-sm">{formatDate(i.date)}</span>,
@@ -71,6 +97,23 @@ export default function IncomeTable({ incomes, loading, onEdit, onDelete }) {
 
   return (
     <>
+      <div className="flex items-center justify-between mb-3">
+        {!selectMode ? (
+          <Button size="sm" variant="secondary" onClick={() => setSelectMode(true)}>
+            <Combine size={14} className="mr-1.5" />
+            Agrupar ventas de un mismo recibo
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-white/60">{selectedIds.length} seleccionados</span>
+            <Button size="sm" onClick={handleMergeClick} disabled={selectedIds.length < 2}>
+              Agrupar seleccionados
+            </Button>
+            <Button size="sm" variant="ghost" onClick={exitSelectMode}>Cancelar</Button>
+          </div>
+        )}
+      </div>
+
       <Table
         columns={columns}
         data={incomes}

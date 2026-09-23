@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getIncomes, createIncome, updateIncome, deleteIncome } from '../services/incomeService'
+import { getIncomes, createIncome, updateIncome, deleteIncome, mergeIncomes } from '../services/incomeService'
 import toast from 'react-hot-toast'
 
 export const useIncome = (initialParams = {}) => {
@@ -45,5 +45,11 @@ export const useIncome = (initialParams = {}) => {
     fetchIncomes()
   }
 
-  return { incomes, total, totalAmount, totalPages, loading, params, setParams, create, update, remove, refetch: fetchIncomes }
+  const merge = async (data) => {
+    await mergeIncomes(data)
+    toast.success('Ventas agrupadas correctamente')
+    fetchIncomes()
+  }
+
+  return { incomes, total, totalAmount, totalPages, loading, params, setParams, create, update, remove, merge, refetch: fetchIncomes }
 }

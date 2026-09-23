@@ -11,6 +11,7 @@ import ExpenseTable from '../components/expenses/ExpenseTable'
 import ExpenseForm from '../components/expenses/ExpenseForm'
 import IncomeTable from '../components/income/IncomeTable'
 import IncomeForm from '../components/income/IncomeForm'
+import MergeIncomeForm from '../components/income/MergeIncomeForm'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
@@ -42,6 +43,7 @@ export default function CropDetailPage() {
   const [editingIncome, setEditingIncome] = useState(null)
   const [deletingExpense, setDeletingExpense] = useState(null)
   const [deletingIncome, setDeletingIncome] = useState(null)
+  const [mergeSelection, setMergeSelection] = useState(null)
   const [formLoading, setFormLoading] = useState(false)
   const [contributorSummary, setContributorSummary] = useState([])
   const [loadingContributors, setLoadingContributors] = useState(true)
@@ -51,7 +53,7 @@ export default function CropDetailPage() {
     useExpenses({ crop: id, limit: 50 })
 
   const { incomes, totalAmount: totalIncomes, loading: loadingIncomes,
-    create: createIncome, update: updateIncome, remove: removeIncome } =
+    create: createIncome, update: updateIncome, remove: removeIncome, merge: mergeIncome } =
     useIncome({ crop: id, limit: 50 })
 
   useEffect(() => {
@@ -107,6 +109,18 @@ export default function CropDetailPage() {
       setEditingIncome(null)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al guardar el ingreso')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  const handleMergeConfirm = async (data) => {
+    setFormLoading(true)
+    try {
+      await mergeIncome(data)
+      setMergeSelection(null)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al agrupar los ingresos')
     } finally {
       setFormLoading(false)
     }
@@ -217,7 +231,8 @@ export default function CropDetailPage() {
           <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
             <IncomeTable incomes={incomes} loading={loadingIncomes}
               onEdit={(i) => { setEditingIncome(i); setShowIncomeForm(true) }}
-              onDelete={(i) => setDeletingIncome(i)} />
+              onDelete={(i) => setDeletingIncome(i)}
+              onMergeSelected={(selected) => setMergeSelection(selected)} />
           </div>
         </div>
       )}
@@ -232,6 +247,18 @@ export default function CropDetailPage() {
         title={editingIncome ? 'Editar ingreso' : 'Registrar ingreso'} size="lg">
         <IncomeForm defaultValues={editingIncome} cropId={id} onSubmit={handleIncomeSubmit}
           onCancel={() => { setShowIncomeForm(false); setEditingIncome(null) }} loading={formLoading} />
+      </Modal>
+
+      <Modal isOpen={!!mergeSelection} onClose={() => setMergeSelection(null)}
+        title="Agrupar ventas de un mismo recibo" size="lg">
+        {mergeSelection && (
+          <MergeIncomeForm
+            selected={mergeSelection}
+            onCancel={() => setMergeSelection(null)}
+            onConfirm={handleMergeConfirm}
+            loading={formLoading}
+          />
+        )}
       </Modal>
 
       <ConfirmDialog isOpen={!!deletingExpense} onClose={() => setDeletingExpense(null)}
