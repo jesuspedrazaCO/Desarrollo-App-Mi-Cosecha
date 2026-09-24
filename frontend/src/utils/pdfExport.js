@@ -73,6 +73,29 @@ const formatIncomeVarieties = (income) => {
   return items.map((it) => it.variety).join(', ')
 }
 
+// ── Acumula, por variedad, cuánto se ha vendido en TODAS las ventas del cultivo ──
+const getVarietyTotals = (incomes) => {
+  const totals = {}
+
+  incomes.forEach((income) => {
+    getIncomeItems(income).forEach((item) => {
+      const key = item.variety || 'Sin variedad'
+      const unit = item.unit || 'kg'
+      const subtotal = item.subtotal ?? (Number(item.quantitySold) * Number(item.salePrice))
+
+      if (!totals[key]) {
+        totals[key] = { variety: key, quantity: 0, unit, crates: 0, amount: 0, sales: 0 }
+      }
+      totals[key].quantity += Number(item.quantitySold) || 0
+      totals[key].crates += Number(item.crates) || 0
+      totals[key].amount += subtotal || 0
+      totals[key].sales += 1
+    })
+  })
+
+  return Object.values(totals).sort((a, b) => b.quantity - a.quantity)
+}
+
 // ── Dibuja un ícono de hoja/planta vectorial (reemplaza el emoji 🌾) ──
 const drawLeafIcon = (doc, cx, cy, scale = 1) => {
   doc.setFillColor(...C.green)
@@ -355,7 +378,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       showFoot: 'lastPage',
     })
 
-    // Desglose detallado por producto/variedad, para las ventas con varios ítems
+    // Detalle por producto, agrupado visualmente por venta (una fila de encabezado por fecha/cliente)
     const incomesWithMultipleItems = incomes.filter(i => getIncomeItems(i).length > 1)
     if (incomesWithMultipleItems.length > 0) {
       let yDetail = doc.lastAutoTable.finalY + 10
@@ -364,33 +387,104 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...C.dark)
-      doc.text('Detalle por producto', 14, yDetail)
+      doc.text('Detalle por venta', 14, yDetail)
       yDetail += 4
 
-      const detailRows = incomesWithMultipleItems.flatMap((income) =>
-        getIncomeItems(income).map((item) => [
-          formatDate(income.date),
-          item.variety,
-          `${Number(item.quantitySold).toLocaleString('es-CO')} ${item.unit || 'kg'}`,
-          item.crates > 0 ? String(item.crates) : '—',
-          formatCOP(item.salePrice),
-          formatCOP(item.subtotal ?? (Number(item.quantitySold) * Number(item.salePrice))),
-        ])
-      )
+      // Construir filas: una fila "grupo" por venta, seguida de sus productos
+      const detailRows = []
+      incomesWithMultipleItems.forEach((income) => {
+        detailRows.push({
+          isGroup: true,
+          label: `Venta del ${formatDate(income.date)}${income.client ? ' - ' + income.client : ''}`,
+          total: income.totalAmount,
+        })
+        getIncomeItems(income).forEach((item) => {
+          detailRows.push({
+            isGroup: false,
+            producto: item.variety,
+            cantidad: `${Number(item.quantitySold).toLocaleString('es-CO')} ${item.unit || 'kg'}`,
+            canastillas: item.crates > 0 ? String(item.crates) : '—',
+            precio: formatCOP(item.salePrice),
+            subtotal: formatCOP(item.subtotal ?? (Number(item.quantitySold) * Number(item.salePrice))),
+          })
+        })
+      })
 
       doc.autoTable({
         startY: yDetail,
-        head: [['Fecha', 'Producto', 'Cantidad', 'Canastillas', 'Precio/u.', 'Subtotal']],
-        body: detailRows,
+        head: [['Producto', 'Cantidad', 'Canastillas', 'Precio/u.', 'Subtotal']],
+        body: detailRows.map(row =>
+          row.isGroup
+            ? [{ content: row.label, colSpan: 5 }]
+            : [row.producto, row.cantidad, row.canastillas, row.precio, row.subtotal]
+        ),
         headStyles: { fillColor: C.greenDark, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
         bodyStyles: { fontSize: 8, textColor: C.dark },
-        alternateRowStyles: { fillColor: C.grayLight },
         columnStyles: {
-          4: { halign: 'right' },
-          5: { halign: 'right', fontStyle: 'bold' },
+          3: { halign: 'right' },
+          4: { halign: 'right', fontStyle: 'bold' },
         },
         margin: { left: 14, right: 14 },
         styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+        didParseCell: (data) => {
+          const row = detailRows[data.row.index]
+          if (row?.isGroup && data.section === 'body') {
+            data.cell.styles.fillColor = C.greenLight
+            data.cell.styles.textColor = C.greenDark
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.fontSize = 8
+          } else if (data.section === 'body' && data.row.index % 2 === 0) {
+            data.cell.styles.fillColor = C.grayLight
+          }
+        },
+      })
+
+      yDetail = doc.lastAutoTable.finalY + 10
+    }
+
+    // Totales acumulados por variedad, sumando TODAS las ventas del cultivo
+    const varietyTotals = getVarietyTotals(incomes)
+    if (varietyTotals.length > 0) {
+      let ySummary = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 10
+      if (ySummary > 220) { doc.addPage(); ySummary = 20 }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...C.dark)
+      doc.text('Total vendido por variedad (todas las ventas)', 14, ySummary)
+      ySummary += 4
+
+      const totalCratesAll = varietyTotals.reduce((s, v) => s + v.crates, 0)
+
+      doc.autoTable({
+        startY: ySummary,
+        head: [['Variedad', 'Total vendido', 'Canastillas', 'N° ventas', 'Valor total']],
+        body: varietyTotals.map(v => [
+          v.variety,
+          `${v.quantity.toLocaleString('es-CO')} ${v.unit}`,
+          v.crates > 0 ? String(v.crates) : '—',
+          String(v.sales),
+          formatCOP(v.amount),
+        ]),
+        headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8, textColor: C.dark },
+        alternateRowStyles: { fillColor: C.greenLight },
+        columnStyles: {
+          1: { halign: 'right', fontStyle: 'bold' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'right', fontStyle: 'bold' },
+        },
+        margin: { left: 14, right: 14 },
+        styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+        foot: [[
+          { content: `TOTAL (${totalKgVendidos.toLocaleString('es-CO')} kg)`, styles: { fontStyle: 'bold', fillColor: C.greenDark, textColor: C.white } },
+          { content: '', styles: { fillColor: C.greenDark } },
+          { content: totalCratesAll > 0 ? String(totalCratesAll) : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: C.greenDark, textColor: C.white } },
+          { content: '', styles: { fillColor: C.greenDark } },
+          { content: formatCOP(varietyTotals.reduce((s, v) => s + v.amount, 0)), styles: { halign: 'right', fontStyle: 'bold', fillColor: C.greenDark, textColor: C.white } },
+        ]],
+        showFoot: 'lastPage',
       })
     }
   }
