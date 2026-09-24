@@ -23,9 +23,15 @@ function buildDefaultValues(defaultValues, cropId) {
     }
   }
 
+  // El backend devuelve `crop` como objeto populado ({ _id, name, type }).
+  // El validador espera un string con el ID, así que hay que normalizarlo aquí,
+  // o la edición falla en silencio (el error de "crop" no se muestra cuando hay cropId).
+  const cropValue = cropId || defaultValues.crop?._id || defaultValues.crop || ''
+
   const hasItems = Array.isArray(defaultValues.items) && defaultValues.items.length > 0
   return {
     ...defaultValues,
+    crop: cropValue,
     date: toInputDate(defaultValues.date),
     items: hasItems
       ? defaultValues.items
@@ -77,11 +83,14 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
               <option value="">Seleccionar cultivo</option>
               {crops.map(c => <option key={c._id} value={c._id}>{c.name} — {c.type}</option>)}
             </select>
-            {errors.crop && <p className="mt-1.5 text-xs text-red-500">{errors.crop.message}</p>}
           </div>
         )}
 
-        {cropId && <input type="hidden" value={cropId} {...register('crop')} />}
+        {cropId && <input type="hidden" {...register('crop')} />}
+
+        {/* Se muestra siempre (aunque el select de cultivo esté oculto) para no volver a
+            esconder un error real de validación sin que el usuario lo vea */}
+        {errors.crop && <p className="sm:col-span-2 -mt-2 text-xs text-red-400">{errors.crop.message}</p>}
 
         <Input
           label="Fecha" required type="date"
