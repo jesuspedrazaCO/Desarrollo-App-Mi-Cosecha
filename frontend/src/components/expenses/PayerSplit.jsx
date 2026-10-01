@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, X, Equal } from 'lucide-react'
 import { useContributors } from '../../hooks/useContributors'
 
 // payers: [{ contributor: id, amount: number }]
@@ -7,21 +7,56 @@ export default function PayerSplit({ payers, onChange, totalAmount }) {
   const { contributors, loading, create } = useContributors()
   const [newName, setNewName] = useState('')
   const [addingContributor, setAddingContributor] = useState(false)
+  const [equalSplit, setEqualSplit] = useState(false)
 
   const totalAssigned = payers.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
   const diff = (Number(totalAmount) || 0) - totalAssigned
 
+  // Reparte el total en partes iguales. Si no divide exacto, el residuo
+  // (en pesos) se reparte de a $1 entre los primeros aportantes de la lista,
+  // para que la suma siempre cuadre con el valor total del gasto.
+  const distributeEqually = (list, total) => {
+    const n = list.length
+    if (n === 0) return list
+    const totalNum = Number(total) || 0
+    const base = Math.floor(totalNum / n)
+    const remainder = totalNum - base * n
+    return list.map((p, i) => ({ ...p, amount: base + (i < remainder ? 1 : 0) }))
+  }
+
+  // Si "partes iguales" está activo, recalcular cuando cambie el valor total
+  // del gasto (ej: el usuario sigue escribiendo el monto).
+  useEffect(() => {
+    if (equalSplit && payers.length > 0) {
+      onChange(distributeEqually(payers, totalAmount))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalAmount, equalSplit])
+
   const addPayer = (contributorId) => {
     if (payers.some((p) => p.contributor === contributorId)) return
-    onChange([...payers, { contributor: contributorId, amount: diff > 0 ? diff : 0 }])
+    const next = [...payers, { contributor: contributorId, amount: diff > 0 ? diff : 0 }]
+    onChange(equalSplit ? distributeEqually(next, totalAmount) : next)
   }
 
   const removePayer = (contributorId) => {
-    onChange(payers.filter((p) => p.contributor !== contributorId))
+    const next = payers.filter((p) => p.contributor !== contributorId)
+    onChange(equalSplit ? distributeEqually(next, totalAmount) : next)
   }
 
   const updateAmount = (contributorId, amount) => {
-    onChange(payers.map((p) => (p.contributor === contributorId ? { ...p, amount: Number(amount) } : p)))
+    // Editar un monto a mano significa que el usuario quiere personalizarlo,
+    // así que se desactiva el reparto automático.
+    setEqualSplit(false)
+    onChange(payers.map((p) => (p.contributor === contributorId ? { ...p, amount: Number(amount) || 0 } : p)))
+  }
+
+  const toggleEqualSplit = () => {
+    const next = !equalSplit
+    setEqualSplit(next)
+    if (next && payers.length > 0) {
+      onChange(distributeEqually(payers, totalAmount))
+    }
   }
 
   const handleAddContributor = async () => {
@@ -39,9 +74,25 @@ export default function PayerSplit({ payers, onChange, totalAmount }) {
 
   return (
     <div className="sm:col-span-2">
-      <label className="block text-[13px] font-semibold text-stone-700 mb-1.5">
-        ¿Quién(es) pagaron este gasto? <span className="text-stone-400 font-normal">(opcional)</span>
-      </label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-[13px] font-semibold text-stone-700">
+          ¿Quién(es) pagaron este gasto? <span className="text-stone-400 font-normal">(opcional)</span>
+        </label>
+        {payers.length > 1 && (
+          <button
+            type="button"
+            onClick={toggleEqualSplit}
+            className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+              equalSplit
+                ? 'bg-primary-100 border-primary-300 text-primary-700'
+                : 'border-stone-200 text-stone-500 hover:bg-stone-50'
+            }`}
+          >
+            <Equal size={12} />
+            Partes iguales
+          </button>
+        )}
+      </div>
 
       {/* Aportantes ya agregados a este gasto, con su monto */}
       {payers.length > 0 && (
@@ -51,7 +102,8 @@ export default function PayerSplit({ payers, onChange, totalAmount }) {
               <span className="text-sm text-stone-700 w-28 flex-shrink-0 truncate">{getContributorName(p.contributor)}</span>
               <input
                 type="number" min="0" step="1"
-                value={p.amount}
+                value={p.amount === 0 ? '' : p.amount}
+                placeholder="0"
                 onChange={(e) => updateAmount(p.contributor, e.target.value)}
                 className="flex-1 border border-stone-200 rounded-xl px-3 py-1.5 text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-primary-400/40"
               />
