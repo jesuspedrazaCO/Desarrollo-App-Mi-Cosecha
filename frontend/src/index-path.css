@@ -36,3 +36,14 @@ input[type="time"] {
 .card-light * {
   color: inherit;
 }
+/* ── PATCH: evitar el zoom automático de Android/iOS al enfocar campos ──
+   Los navegadores móviles hacen zoom automático cuando un input tiene
+   font-size menor a 16px. Esta regla lo evita sin cambiar el tamaño visual
+   en desktop (solo aplica dentro de la media query de pantallas angostas). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
