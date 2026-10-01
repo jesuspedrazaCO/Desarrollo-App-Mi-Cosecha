@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
@@ -17,12 +18,17 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
+      {/* Overlay: difuminado del fondo, no un cuadro negro sólido */}
       <div
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
-        style={{ animation: 'fadeIn 0.2s ease-out' }}
+        className="absolute inset-0"
+        style={{
+          background: 'rgba(5,15,9,0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          animation: 'fadeIn 0.2s ease-out',
+        }}
         onClick={onClose}
       />
 
@@ -63,6 +69,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
