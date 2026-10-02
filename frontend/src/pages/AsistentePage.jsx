@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, Camera, X } from 'lucide-react'
-import { useAssistantChat } from '../../hooks/useAssistantChat'
-
+import { useAssistantChat } from '../hooks/useAssistantChat'
 export default function AssistantChat() {
   const { conversation, loading, sending, send, newChat } = useAssistantChat()
   const [input, setInput] = useState('')
