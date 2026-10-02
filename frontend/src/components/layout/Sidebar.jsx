@@ -64,7 +64,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         <NavLink to="/asistente" onClick={onClose} className={linkClass}>
           <img
-            src="/scooby.jpg"
+            src="/scooby.jpeg"
             alt="Scooby"
             className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
           />

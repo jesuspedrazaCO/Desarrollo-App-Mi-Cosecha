@@ -47,7 +47,7 @@ export default function AssistantChat() {
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <img
-            src="/scooby.jpg"
+            src="/scooby.jpeg"
             alt="Scooby"
             className="w-6 h-6 rounded-full object-cover flex-shrink-0"
           />
@@ -68,7 +68,7 @@ export default function AssistantChat() {
 
         {!loading && conversation?.messages?.length === 0 && (
           <div className="flex items-start gap-2">
-            <img src="/scooby.jpg" alt="Scooby" className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5" />
+            <img src="/scooby.jpeg" alt="Scooby" className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5" />
             <p className="text-white/50 text-sm">
               ¡Hola! Soy Scooby 🐾 Pregúntame lo que necesites: desde cómo van tus cultivos
               financieramente, hasta qué le pasa a una planta — <strong>toma una foto</strong> si
@@ -80,7 +80,7 @@ export default function AssistantChat() {
         {conversation?.messages?.map((m, i) => (
           <div key={i} className={`flex items-end gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
-              <img src="/scooby.jpg" alt="Scooby" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+              <img src="/scooby.jpeg" alt="Scooby" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
             )}
             <div
               className="max-w-[85%] sm:max-w-[80%] rounded-xl px-3 py-2 text-sm break-words whitespace-pre-wrap"
@@ -96,7 +96,7 @@ export default function AssistantChat() {
 
         {sending && (
           <div className="flex items-end gap-2 justify-start">
-            <img src="/scooby.jpg" alt="Scooby" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+            <img src="/scooby.jpeg" alt="Scooby" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
             <div
               className="rounded-xl px-3 py-2 text-sm text-white/60"
               style={{ background: 'rgba(255,255,255,0.1)' }}
