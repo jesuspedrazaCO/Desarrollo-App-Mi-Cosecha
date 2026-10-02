@@ -22,6 +22,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import marketPriceRoutes from './routes/marketPriceRoutes.js';
 import contributorRoutes from './routes/contributorRoutes.js'
+import assistantRoutes from './routes/assistantRoutes.js';
 
 
 // Middlewares locales (También con .js)
@@ -78,6 +79,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/agro', agroRoutes);
 app.use('/api/planting-plots', plantingPlotRoutes);
 app.use('/api/contributors', contributorRoutes)
+app.use('/api/assistant', assistantRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor funcionando correctamente' }));
 

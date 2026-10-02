@@ -1,8 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Sprout, Home, ShoppingCart, Receipt,
-  CalendarDays, BarChart3, Sparkles, TrendingUp, Settings, Wheat,
-  Map as MapIcon, Leaf,
+  CalendarDays, BarChart3, TrendingUp, Settings, Wheat,
+  Map as MapIcon,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Users } from 'lucide-react'
@@ -18,12 +18,9 @@ const navItems = [
   { to: '/receipts', label: 'Comprobantes', icon: Receipt },
   { to: '/calendar', label: 'Calendario', icon: CalendarDays },
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
-  { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
-  { to: '/agronomo', label: 'Agrónomo IA', icon: Leaf },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
   { to: '/contributors', label: 'Aportantes', icon: Users },
-  
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -64,6 +61,16 @@ export default function Sidebar({ isOpen, onClose }) {
             {item.label}
           </NavLink>
         ))}
+
+        <NavLink to="/asistente" onClick={onClose} className={linkClass}>
+          <img
+            src="/scooby.jpg"
+            alt="Scooby"
+            className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
+          />
+          Scooby
+        </NavLink>
+
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
           <Settings size={17} className="flex-shrink-0" strokeWidth={2} />

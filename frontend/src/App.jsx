@@ -18,9 +18,8 @@ import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
 import MarketPricesPage from './pages/MarketPricesPage'
 import NotFoundPage from './pages/NotFoundPage'
-import Asesor from "./pages/Asesor";
 import PlantingCalculatorPage from './pages/PlantingCalculatorPage'
-import AgronomoPage from './pages/AgronomoPage'
+import AsistentePage from './pages/AsistentePage'
 import ContributorsPage from './pages/ContributorsPage'
 
 
@@ -60,8 +59,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/market-prices" element={<MarketPricesPage />} />
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
-          <Route path="/agronomo" element={<AgronomoPage />} />
-          <Route path="/asesor" element={<Asesor />} />
+          <Route path="/asistente" element={<AsistentePage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
         </Route>
       </Route>
