@@ -12,6 +12,7 @@ const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
 
 const navItems = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+  { to: '/asistente', label: 'Scooby', isImage: true },
   { to: '/crops', label: 'Cultivos', icon: Sprout },
   { to: '/household', label: 'Gastos del Hogar', icon: Home },
   { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
@@ -57,19 +58,18 @@ export default function Sidebar({ isOpen, onClose }) {
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
-            <item.icon size={17} className="flex-shrink-0" strokeWidth={2} />
+            {item.isImage ? (
+              <img
+                src="/scooby.jpeg"
+                alt="Scooby"
+                className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <item.icon size={17} className="flex-shrink-0" strokeWidth={2} />
+            )}
             {item.label}
           </NavLink>
         ))}
-
-        <NavLink to="/asistente" onClick={onClose} className={linkClass}>
-          <img
-            src="/scooby.jpeg"
-            alt="Scooby"
-            className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
-          />
-          Scooby
-        </NavLink>
 
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
