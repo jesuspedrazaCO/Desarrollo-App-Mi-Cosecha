@@ -13,6 +13,24 @@ const plantingPlotSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    // Zonas que NO se siembran dentro del lote (carretera, casa, quebrada, etc.).
+    // Cada zona es su propio polígono. Campo nuevo y opcional — los lotes
+    // guardados antes de este cambio simplemente quedan con un arreglo vacío.
+    exclusionZones: {
+      type: [
+        {
+          points: [
+            {
+              lat: { type: Number, required: true },
+              lng: { type: Number, required: true },
+              _id: false,
+            },
+          ],
+          _id: false,
+        },
+      ],
+      default: [],
+    },
     areaM2: { type: Number, required: true, min: 0 },
     areaHectares: { type: Number, required: true, min: 0 },
 

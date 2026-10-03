@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { MapContainer, TileLayer, Polygon, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import * as turf from '@turf/turf'
-import { Search, LocateFixed, Satellite, Map as MapIcon2 } from 'lucide-react'
+import { Search, LocateFixed, Satellite, Map as MapIcon2, Ban } from 'lucide-react'
 import toast from 'react-hot-toast'
 import 'leaflet/dist/leaflet.css'
 
@@ -11,6 +11,15 @@ import 'leaflet/dist/leaflet.css'
 const pointIcon = L.divIcon({
   className: '',
   html: `<div style="width:18px;height:18px;border-radius:50%;background:#4ade80;border:2.5px solid white;box-shadow:0 1px 6px rgba(0,0,0,0.5)"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+})
+
+// Mismo ícono, en rojo — para los puntos de una zona que NO se va a sembrar
+// (carretera, casa, etc.), así se diferencia a simple vista del lote.
+const exclusionPointIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:#f87171;border:2.5px solid white;box-shadow:0 1px 6px rgba(0,0,0,0.5)"></div>`,
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 })
@@ -56,6 +65,11 @@ export const calculateAreaM2 = (points) => {
   }
 }
 
+// Suma el área de todas las zonas marcadas como "no sembrables", para poder
+// mostrar cuánto le resta al área total del lote.
+export const calculateExcludedAreaM2 = (exclusionZones) =>
+  exclusionZones.reduce((sum, zone) => sum + calculateAreaM2(zone), 0)
+
 // Arma un nombre corto y legible a partir de los datos estructurados de Nominatim,
 // en vez del display_name completo (que en zonas rurales de Colombia suele traer
 // vereda + corregimiento + departamento + región + país, todo junto).
@@ -66,8 +80,17 @@ const buildShortLabel = (result) => {
   return [place, region].filter(Boolean).join(', ') || result.display_name
 }
 
-export default function PlantingMap({ points, onPointsChange, center = [7.1193, -73.1227], zoom = 15 }) {
+export default function PlantingMap({
+  points,
+  onPointsChange,
+  exclusionZones = [],
+  onExclusionZonesChange = () => {},
+  center = [7.1193, -73.1227],
+  zoom = 15,
+}) {
   const [layerType, setLayerType] = useState('satellite')
+  const [mode, setMode] = useState('lote') // 'lote' | 'exclusion'
+  const [draftExclusion, setDraftExclusion] = useState([])
   const [flyTarget, setFlyTarget] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -75,14 +98,44 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
   const [locating, setLocating] = useState(false)
   const debounceRef = useRef(null)
 
-  const handleClick = (point) => onPointsChange([...points, point])
-  const undo = () => onPointsChange(points.slice(0, -1))
-  const reset = () => onPointsChange([])
+  const handleMapClick = (point) => {
+    if (mode === 'exclusion') {
+      setDraftExclusion((prev) => [...prev, point])
+    } else {
+      onPointsChange([...points, point])
+    }
+  }
 
-  const handleDragPoint = (index, latlng) => {
+  const undo = () => {
+    if (mode === 'exclusion') setDraftExclusion((prev) => prev.slice(0, -1))
+    else onPointsChange(points.slice(0, -1))
+  }
+
+  const reset = () => {
+    if (mode === 'exclusion') setDraftExclusion([])
+    else onPointsChange([])
+  }
+
+  const handleDragLotPoint = (index, latlng) => {
     const updated = [...points]
     updated[index] = [latlng.lat, latlng.lng]
     onPointsChange(updated)
+  }
+
+  const handleDragDraftPoint = (index, latlng) => {
+    setDraftExclusion((prev) => prev.map((p, i) => (i === index ? [latlng.lat, latlng.lng] : p)))
+  }
+
+  const saveExclusionZone = () => {
+    if (draftExclusion.length < 3) return
+    onExclusionZonesChange([...exclusionZones, draftExclusion])
+    setDraftExclusion([])
+  }
+
+  const cancelExclusionZone = () => setDraftExclusion([])
+
+  const removeExclusionZone = (index) => {
+    onExclusionZonesChange(exclusionZones.filter((_, i) => i !== index))
   }
 
   // Búsqueda de ciudad/departamento con OpenStreetMap Nominatim (gratis, sin API key)
@@ -155,7 +208,6 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
         if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
           bestPosition = pos
         }
-        // Si ya es bastante precisa, no hace falta seguir esperando
         if (pos.coords.accuracy < 30) finish()
       },
       (err) => {
@@ -171,12 +223,17 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
 
-    // Espera máximo 8s recolectando lecturas, y se queda con la mejor obtenida
     setTimeout(finish, 8000)
   }, [])
 
   const areaM2 = calculateAreaM2(points)
+  const excludedAreaM2 = calculateExcludedAreaM2(exclusionZones)
   const tile = TILE_LAYERS[layerType]
+
+  const modeBtnClass = (active) =>
+    `flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+      active ? 'bg-primary-500 text-white' : 'text-white/50 hover:text-white/80'
+    }`
 
   return (
     <div>
@@ -221,19 +278,52 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
         </button>
       </div>
 
+      {/* Qué estoy marcando: el lote, o una zona que no se siembra */}
+      <div className="flex gap-1.5 rounded-2xl p-1 mb-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
+        <button type="button" onClick={() => setMode('lote')} className={modeBtnClass(mode === 'lote')}>
+          Marcar lote
+        </button>
+        <button type="button" onClick={() => setMode('exclusion')} className={modeBtnClass(mode === 'exclusion')}>
+          <Ban size={13} /> Zona sin sembrar
+        </button>
+      </div>
+
       <div className="relative rounded-2xl overflow-hidden border border-white/15" style={{ height: '420px' }}>
         <MapContainer center={center} zoom={zoom} style={{ height: '100%', width: '100%' }}>
           <TileLayer url={tile.url} attribution={tile.attribution} maxZoom={tile.maxZoom} maxNativeZoom={tile.maxZoom} />
-          <ClickHandler onMapClick={handleClick} />
+          <ClickHandler onMapClick={handleMapClick} />
           <FlyTo target={flyTarget} />
+
           {points.map((p, i) => (
             <Marker
-              key={i} position={p} icon={pointIcon} draggable
-              eventHandlers={{ dragend: (e) => handleDragPoint(i, e.target.getLatLng()) }}
+              key={`lot-${i}`} position={p} icon={pointIcon} draggable
+              eventHandlers={{ dragend: (e) => handleDragLotPoint(i, e.target.getLatLng()) }}
             />
           ))}
           {points.length >= 3 && (
             <Polygon positions={points} pathOptions={{ color: '#4ade80', fillColor: '#4ade80', fillOpacity: 0.25 }} />
+          )}
+
+          {/* Zonas excluidas ya guardadas */}
+          {exclusionZones.map((zone, zi) => (
+            <Polygon
+              key={`zone-${zi}`} positions={zone}
+              pathOptions={{ color: '#f87171', fillColor: '#f87171', fillOpacity: 0.35 }}
+            />
+          ))}
+
+          {/* Zona excluida que se está marcando en este momento */}
+          {draftExclusion.map((p, i) => (
+            <Marker
+              key={`draft-${i}`} position={p} icon={exclusionPointIcon} draggable
+              eventHandlers={{ dragend: (e) => handleDragDraftPoint(i, e.target.getLatLng()) }}
+            />
+          ))}
+          {draftExclusion.length >= 3 && (
+            <Polygon
+              positions={draftExclusion}
+              pathOptions={{ color: '#f87171', fillColor: '#f87171', fillOpacity: 0.2, dashArray: '6 4' }}
+            />
           )}
         </MapContainer>
 
@@ -257,20 +347,39 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
       </div>
 
       <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            type="button" onClick={undo} disabled={points.length === 0}
+            type="button" onClick={undo}
+            disabled={mode === 'exclusion' ? draftExclusion.length === 0 : points.length === 0}
             className="px-3 py-1.5 rounded-full text-xs font-semibold text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all"
           >
             ← Deshacer punto
           </button>
           <button
-            type="button" onClick={reset} disabled={points.length === 0}
+            type="button" onClick={reset}
+            disabled={mode === 'exclusion' ? draftExclusion.length === 0 : points.length === 0}
             className="px-3 py-1.5 rounded-full text-xs font-semibold text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all"
           >
             Reiniciar
           </button>
-          {points.length > 0 && (
+
+          {mode === 'exclusion' && draftExclusion.length > 0 && (
+            <>
+              <button
+                type="button" onClick={saveExclusionZone} disabled={draftExclusion.length < 3}
+                className="px-3 py-1.5 rounded-full text-xs font-bold text-white disabled:opacity-30 transition-all"
+                style={{ background: '#ef4444' }}
+              >
+                ✓ Guardar zona
+              </button>
+              <button type="button" onClick={cancelExclusionZone}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white/60 hover:text-white transition-all">
+                Cancelar
+              </button>
+            </>
+          )}
+
+          {mode === 'lote' && points.length > 0 && (
             <span className="text-[11px] text-white/40 font-semibold">{points.length} punto{points.length !== 1 ? 's' : ''}</span>
           )}
         </div>
@@ -281,11 +390,32 @@ export default function PlantingMap({ points, onPointsChange, center = [7.1193, 
               ? `${areaM2.toLocaleString('es-CO', { maximumFractionDigits: 0 })} m² (${(areaM2 / 10000).toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha)`
               : 'Marca al menos 3 puntos'}
           </p>
+          {excludedAreaM2 > 0 && (
+            <p className="text-[11px] text-red-300 mt-0.5">
+              − {excludedAreaM2.toLocaleString('es-CO', { maximumFractionDigits: 0 })} m² sin sembrar
+            </p>
+          )}
         </div>
       </div>
 
+      {/* Lista de zonas excluidas guardadas */}
+      {exclusionZones.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2.5">
+          {exclusionZones.map((zone, i) => (
+            <span key={i} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', color: '#fca5a5' }}>
+              Zona {i + 1} · {zone.length} puntos
+              <button type="button" onClick={() => removeExclusionZone(i)} className="hover:text-white">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-[11px] text-white/35 mt-2">
-        Toca el mapa para marcar las esquinas de tu lote — puedes arrastrar cada punto para ajustarlo. Si el satelital se ve gris ("sin datos"), cambia a "Calles" para seguir haciendo zoom.
+        {mode === 'lote'
+          ? 'Toca el mapa para marcar las esquinas de tu lote — puedes arrastrar cada punto para ajustarlo.'
+          : 'Marca el contorno de la carretera, casa u otra zona que no se vaya a sembrar, y dale "Guardar zona". Puedes marcar varias.'}
+        {' '}Si el satelital se ve gris ("sin datos"), cambia a "Calles" para seguir haciendo zoom.
       </p>
     </div>
   )
