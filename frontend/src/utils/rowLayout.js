@@ -8,7 +8,7 @@ const toLocalMeters = (points, refLat) => {
   const rad = (refLat * Math.PI) / 180
   return points.map(([lat, lng]) => [
     (lng * Math.PI / 180) * R * Math.cos(rad),
-    (lat * Math.PI / 180) * R,
+    -(lat * Math.PI / 180) * R, // negativo: así el norte queda arriba en la simulación, igual que en el mapa satelital
   ])
 }
 
@@ -143,8 +143,6 @@ export const computeRowLayout = ({
   const plantableArea = canCheckExact ? buildPlantableArea(lotPolygon, exclusionPolygons) : null
 
   const rowDetails = offsets.map((crossOffset) => {
-    // Sin polígono real disponible (o lote demasiado grande para revisar
-    // punto por punto): se asume la fila completa sembrada, como antes.
     if (!plantableArea) {
       const count = Math.max(0, candidatesPerRow)
       return { offset: crossOffset, count, segments: count > 0 ? [[0, length]] : [] }
