@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sprout, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
-import PlantingMap, { calculateAreaM2 } from '../components/planting/PlantingMap'
+import PlantingMap, { calculateAreaM2, calculateExcludedAreaM2 } from '../components/planting/PlantingMap'
 import RowSimulation from '../components/planting/RowSimulation'
-import { computeBoundingDims, computeRowLayout } from '../utils/rowLayout'
+import { projectPlotSpace, computeRowLayout } from '../utils/rowLayout'
 import { PLANTING_PRESETS } from '../utils/plantingPresets'
 import { createPlantingPlot } from '../services/plantingPlotService'
 import Button from '../components/common/Button'
@@ -12,6 +12,7 @@ import Button from '../components/common/Button'
 export default function PlantingCalculatorPage() {
   const navigate = useNavigate()
   const [points, setPoints] = useState([])
+  const [exclusionZones, setExclusionZones] = useState([])
   const [cropKey, setCropKey] = useState('pina')
 
   const [patternMode, setPatternMode] = useState('simple') // 'simple' | 'grouped'
@@ -33,10 +34,11 @@ export default function PlantingCalculatorPage() {
 
   const areaM2 = calculateAreaM2(points)
   const areaHectares = areaM2 / 10000
+  const excludedAreaM2 = calculateExcludedAreaM2(exclusionZones)
 
-  const { length, width } = useMemo(
-    () => computeBoundingDims(points, orientation),
-    [points, orientation]
+  const { length, width, lotPolygon, exclusionPolygons } = useMemo(
+    () => projectPlotSpace(points, exclusionZones, orientation),
+    [points, exclusionZones, orientation]
   )
 
   const layout = useMemo(() => {
@@ -47,6 +49,8 @@ export default function PlantingCalculatorPage() {
         intraGroupSpacing: rowSpacing,
         interGroupSpacing: rowSpacing,
         plantSpacing,
+        lotPolygon,
+        exclusionPolygons,
       })
     }
     return computeRowLayout({
@@ -55,8 +59,10 @@ export default function PlantingCalculatorPage() {
       intraGroupSpacing,
       interGroupSpacing,
       plantSpacing,
+      lotPolygon,
+      exclusionPolygons,
     })
-  }, [patternMode, length, width, rowSpacing, rowsPerGroup, intraGroupSpacing, interGroupSpacing, plantSpacing])
+  }, [patternMode, length, width, rowSpacing, rowsPerGroup, intraGroupSpacing, interGroupSpacing, plantSpacing, lotPolygon, exclusionPolygons])
 
   const inputStyle = { background: 'rgba(255,255,255,0.85)', color: '#1c1917' }
   const inputClass = 'w-full rounded-2xl px-4 py-2.5 text-sm outline-none'
@@ -81,6 +87,9 @@ export default function PlantingCalculatorPage() {
         name: plotName,
         cropType: cropKey,
         geometry: points.map(([lat, lng]) => ({ lat, lng })),
+        exclusionZones: exclusionZones.map((zone) => ({
+          points: zone.map(([lat, lng]) => ({ lat, lng })),
+        })),
         areaM2,
         areaHectares,
         orientation,
@@ -121,7 +130,10 @@ export default function PlantingCalculatorPage() {
       </div>
 
       <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        <PlantingMap points={points} onPointsChange={setPoints} />
+        <PlantingMap
+          points={points} onPointsChange={setPoints}
+          exclusionZones={exclusionZones} onExclusionZonesChange={setExclusionZones}
+        />
       </div>
 
       <div className="rounded-3xl p-5 space-y-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
@@ -224,13 +236,18 @@ export default function PlantingCalculatorPage() {
             <p className="text-sm font-bold text-white mt-1">
               {areaHectares > 0 ? `${areaHectares.toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha` : '—'}
             </p>
+            {excludedAreaM2 > 0 && (
+              <p className="text-[10px] text-red-300 mt-0.5">
+                −{(excludedAreaM2 / 10000).toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha sin sembrar
+              </p>
+            )}
           </div>
           <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
             <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Surcos</p>
             <p className="text-sm font-bold text-white mt-1">{layout.totalRows}</p>
           </div>
           <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Matas / surco</p>
+            <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Matas / surco (prom.)</p>
             <p className="text-sm font-bold text-white mt-1">{layout.plantsPerRow}</p>
           </div>
           <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.25)' }}>
@@ -241,8 +258,10 @@ export default function PlantingCalculatorPage() {
 
         {/* Simulación visual */}
         <RowSimulation
-          length={length} width={width} rows={layout.rows}
-          orientation={orientation} rowsPerGroup={patternMode === 'grouped' ? rowsPerGroup : 1}
+          length={length} width={width}
+          lotPolygon={lotPolygon} exclusionPolygons={exclusionPolygons}
+          rowDetails={layout.rowDetails}
+          rowsPerGroup={patternMode === 'grouped' ? rowsPerGroup : 1}
         />
 
         <div>
@@ -263,7 +282,7 @@ export default function PlantingCalculatorPage() {
 
       <p className="text-[11px] text-white/30 text-center px-4">
         Los valores de espaciamiento son referencias generales — ajústalos según tu variedad, clima y experiencia local.
-        Los surcos y matas se calculan sobre el rectángulo que envuelve tu lote, no la forma irregular exacta.
+        El cálculo respeta la forma real de tu lote y descuenta cualquier zona que hayas marcado como no sembrable.
       </p>
     </div>
   )
