@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sprout, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
-import PlantingMap, { calculateAreaM2, calculateExcludedAreaM2 } from '../components/planting/PlantingMap'
+import PlantingMap, { calculateAreaM2 } from '../components/planting/PlantingMap'
 import RowSimulation from '../components/planting/RowSimulation'
 import { projectPlotSpace, computeRowLayout } from '../utils/rowLayout'
 import { PLANTING_PRESETS } from '../utils/plantingPresets'
@@ -12,7 +12,7 @@ import Button from '../components/common/Button'
 export default function PlantingCalculatorPage() {
   const navigate = useNavigate()
   const [points, setPoints] = useState([])
-  const [exclusionZones, setExclusionZones] = useState([])
+  const [exclusionZones, setExclusionZones] = useState([]) // ← CAMBIO: preparado para zonas sin sembrar
   const [cropKey, setCropKey] = useState('pina')
 
   const [patternMode, setPatternMode] = useState('simple') // 'simple' | 'grouped'
@@ -34,35 +34,30 @@ export default function PlantingCalculatorPage() {
 
   const areaM2 = calculateAreaM2(points)
   const areaHectares = areaM2 / 10000
-  const excludedAreaM2 = calculateExcludedAreaM2(exclusionZones)
 
-  const { length, width, lotPolygon, exclusionPolygons } = useMemo(
-    () => projectPlotSpace(points, exclusionZones, orientation),
-    [points, exclusionZones, orientation]
+  // ← CAMBIO: ya no depende de `orientation` — la forma del lote es siempre la misma
+  const { canonicalWidth, canonicalHeight, lotPolygon, exclusionPolygons } = useMemo(
+    () => projectPlotSpace(points, exclusionZones),
+    [points, exclusionZones]
   )
 
   const layout = useMemo(() => {
+    const base = { canonicalWidth, canonicalHeight, orientation, lotPolygon, exclusionPolygons, plantSpacing }
     if (patternMode === 'simple') {
       return computeRowLayout({
-        length, width,
+        ...base,
         rowsPerGroup: 1,
         intraGroupSpacing: rowSpacing,
         interGroupSpacing: rowSpacing,
-        plantSpacing,
-        lotPolygon,
-        exclusionPolygons,
       })
     }
     return computeRowLayout({
-      length, width,
+      ...base,
       rowsPerGroup,
       intraGroupSpacing,
       interGroupSpacing,
-      plantSpacing,
-      lotPolygon,
-      exclusionPolygons,
     })
-  }, [patternMode, length, width, rowSpacing, rowsPerGroup, intraGroupSpacing, interGroupSpacing, plantSpacing, lotPolygon, exclusionPolygons])
+  }, [patternMode, canonicalWidth, canonicalHeight, orientation, rowSpacing, rowsPerGroup, intraGroupSpacing, interGroupSpacing, plantSpacing, lotPolygon, exclusionPolygons])
 
   const inputStyle = { background: 'rgba(255,255,255,0.85)', color: '#1c1917' }
   const inputClass = 'w-full rounded-2xl px-4 py-2.5 text-sm outline-none'
@@ -87,9 +82,6 @@ export default function PlantingCalculatorPage() {
         name: plotName,
         cropType: cropKey,
         geometry: points.map(([lat, lng]) => ({ lat, lng })),
-        exclusionZones: exclusionZones.map((zone) => ({
-          points: zone.map(([lat, lng]) => ({ lat, lng })),
-        })),
         areaM2,
         areaHectares,
         orientation,
@@ -130,10 +122,7 @@ export default function PlantingCalculatorPage() {
       </div>
 
       <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        <PlantingMap
-          points={points} onPointsChange={setPoints}
-          exclusionZones={exclusionZones} onExclusionZonesChange={setExclusionZones}
-        />
+        <PlantingMap points={points} onPointsChange={setPoints} />
       </div>
 
       <div className="rounded-3xl p-5 space-y-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
@@ -161,6 +150,10 @@ export default function PlantingCalculatorPage() {
               ↕ Vertical
             </button>
           </div>
+          <p className="text-[11px] text-white/35 mt-1.5">
+            Esto solo cambia la dirección en la que corren los surcos dentro de tu lote — la forma del lote en la
+            simulación siempre se ve igual que en el mapa.
+          </p>
         </div>
 
         {/* Patrón de siembra */}
@@ -236,11 +229,6 @@ export default function PlantingCalculatorPage() {
             <p className="text-sm font-bold text-white mt-1">
               {areaHectares > 0 ? `${areaHectares.toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha` : '—'}
             </p>
-            {excludedAreaM2 > 0 && (
-              <p className="text-[10px] text-red-300 mt-0.5">
-                −{(excludedAreaM2 / 10000).toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha sin sembrar
-              </p>
-            )}
           </div>
           <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
             <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Surcos</p>
@@ -258,9 +246,9 @@ export default function PlantingCalculatorPage() {
 
         {/* Simulación visual */}
         <RowSimulation
-          length={length} width={width}
+          canonicalWidth={canonicalWidth} canonicalHeight={canonicalHeight}
           lotPolygon={lotPolygon} exclusionPolygons={exclusionPolygons}
-          rowDetails={layout.rowDetails}
+          rowSegments={layout.rowSegments}
           rowsPerGroup={patternMode === 'grouped' ? rowsPerGroup : 1}
         />
 
@@ -282,7 +270,7 @@ export default function PlantingCalculatorPage() {
 
       <p className="text-[11px] text-white/30 text-center px-4">
         Los valores de espaciamiento son referencias generales — ajústalos según tu variedad, clima y experiencia local.
-        El cálculo respeta la forma real de tu lote y descuenta cualquier zona que hayas marcado como no sembrable.
+        El cálculo y la simulación respetan la forma real de tu lote tal como la marcaste en el mapa.
       </p>
     </div>
   )

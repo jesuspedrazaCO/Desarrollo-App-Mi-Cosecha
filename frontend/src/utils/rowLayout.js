@@ -1,32 +1,27 @@
 import * as turf from '@turf/turf'
 
-// Proyección aproximada de lat/lng a metros locales (equirectangular),
-// suficientemente precisa para el tamaño de un lote agrícola (unos cientos de metros).
 const R = 6371000
 
 const toLocalMeters = (points, refLat) => {
   const rad = (refLat * Math.PI) / 180
   return points.map(([lat, lng]) => [
     (lng * Math.PI / 180) * R * Math.cos(rad),
-    -(lat * Math.PI / 180) * R, // negativo: así el norte queda arriba en la simulación, igual que en el mapa satelital
+    -(lat * Math.PI / 180) * R, // negativo: el norte queda arriba, igual que en el mapa satelital
   ])
 }
 
-// Proyecta el lote y sus zonas excluidas (carretera, casa, etc.) a un espacio
-// local en metros, orientado según `orientation` y desplazado para que el
-// lote arranque en (0,0) — así coincide exactamente con el sistema de
-// coordenadas que usan los surcos (0..length a lo largo, 0..width a lo ancho).
-// Lote y zonas excluidas comparten la misma latitud de referencia y el mismo
-// desplazamiento, para que queden alineados entre sí.
-export const projectPlotSpace = (points, exclusionZones = [], orientation = 'horizontal') => {
+// Proyecta el lote y sus zonas excluidas a metros locales, SIEMPRE con la
+// misma orientación del mapa real (norte arriba, este a la derecha). Esta
+// forma nunca rota — elegir surcos horizontales o verticales solo cambia
+// cómo se calculan los surcos por dentro, no cómo se ve el lote.
+export const projectPlotSpace = (points, exclusionZones = []) => {
   if (points.length < 3) {
-    return { length: 0, width: 0, lotPolygon: [], exclusionPolygons: [] }
+    return { canonicalWidth: 0, canonicalHeight: 0, lotPolygon: [], exclusionPolygons: [] }
   }
 
   const refLat = points.reduce((sum, [lat]) => sum + lat, 0) / points.length
-  const toAxis = ([x, y]) => (orientation === 'horizontal' ? [x, y] : [y, x])
+  const lotLocal = toLocalMeters(points, refLat)
 
-  const lotLocal = toLocalMeters(points, refLat).map(toAxis)
   const xs = lotLocal.map((p) => p[0])
   const ys = lotLocal.map((p) => p[1])
   const minX = Math.min(...xs)
@@ -39,20 +34,14 @@ export const projectPlotSpace = (points, exclusionZones = [], orientation = 'hor
 
   const exclusionPolygons = exclusionZones
     .filter((zone) => zone.length >= 3)
-    .map((zone) => toLocalMeters(zone, refLat).map(toAxis).map(shift))
+    .map((zone) => toLocalMeters(zone, refLat).map(shift))
 
   return {
-    length: maxX - minX,
-    width: maxY - minY,
+    canonicalWidth: maxX - minX,   // este-oeste
+    canonicalHeight: maxY - minY,  // norte-sur
     lotPolygon,
     exclusionPolygons,
   }
-}
-
-// Se mantiene por compatibilidad, por si algo más en el proyecto todavía lo usa.
-export const computeBoundingDims = (points, orientation) => {
-  const { length, width } = projectPlotSpace(points, [], orientation)
-  return { length, width }
 }
 
 const closeRing = (ring) => {
@@ -62,15 +51,12 @@ const closeRing = (ring) => {
   return fx !== lx || fy !== ly ? [...ring, ring[0]] : ring
 }
 
-// Resta una zona excluida del área sembrable. Si turf.difference falla por
-// alguna geometría inválida, se ignora esa zona en particular en vez de
-// romper todo el cálculo.
 const subtractPolygon = (base, hole) => {
   try {
     return turf.difference(turf.featureCollection([base, hole])) || base
   } catch {
     try {
-      return turf.difference(base, hole) || base // API de versiones anteriores de turf
+      return turf.difference(base, hole) || base
     } catch {
       return base
     }
@@ -98,19 +84,16 @@ const buildPlantableArea = (lotPolygon, exclusionPolygons) => {
   return plantable
 }
 
-// Límite de seguridad: si el espaciamiento es muy pequeño frente al tamaño
-// del lote, probar cada posición una por una podría congelar el navegador.
-// En ese caso extremo, se vuelve al cálculo simple (fila completa) en vez
-// de trabarse.
 const MAX_CANDIDATES_PER_ROW = 4000
 
-// Simula colocar surcos uno por uno a lo ancho del lote, respetando el patrón
-// de grupo (ej: 3 surcos juntos + 1 pasillo ancho, se repite), y cuenta solo
-// las plantas que caen dentro de la forma real del lote (menos las zonas
-// marcadas como no sembrables).
+// Simula colocar surcos sobre la forma real del lote (siempre en su
+// orientación canónica, la del mapa). `orientation` decide si los surcos
+// corren este-oeste ("horizontal") o norte-sur ("vertical") — nunca rota
+// el lote, solo cambia la dirección de las líneas dentro de él.
 export const computeRowLayout = ({
-  length,
-  width,
+  canonicalWidth,
+  canonicalHeight,
+  orientation = 'horizontal',
   rowsPerGroup = 1,
   intraGroupSpacing = 1,
   interGroupSpacing = 1,
@@ -118,15 +101,19 @@ export const computeRowLayout = ({
   lotPolygon = null,
   exclusionPolygons = [],
 }) => {
-  if (length <= 0 || width <= 0 || plantSpacing <= 0) {
-    return { rows: [], totalRows: 0, plantsPerRow: 0, totalPlants: 0, rowDetails: [] }
+  const isHorizontal = orientation === 'horizontal'
+  const length = isHorizontal ? canonicalWidth : canonicalHeight   // a lo largo de cada surco
+  const crossSpan = isHorizontal ? canonicalHeight : canonicalWidth // dirección en la que se apilan los surcos
+
+  if (length <= 0 || crossSpan <= 0 || plantSpacing <= 0) {
+    return { totalRows: 0, plantsPerRow: 0, totalPlants: 0, rowSegments: [] }
   }
 
   const offsets = []
   let offset = 0
   let countInGroup = 0
   let safety = 0
-  while (offset <= width && safety < 5000) {
+  while (offset <= crossSpan && safety < 5000) {
     offsets.push(offset)
     countInGroup += 1
     if (countInGroup >= rowsPerGroup) {
@@ -142,10 +129,25 @@ export const computeRowLayout = ({
   const canCheckExact = lotPolygon && lotPolygon.length >= 3 && candidatesPerRow <= MAX_CANDIDATES_PER_ROW
   const plantableArea = canCheckExact ? buildPlantableArea(lotPolygon, exclusionPolygons) : null
 
-  const rowDetails = offsets.map((crossOffset) => {
+  // Convierte (posición a lo largo del surco, posición entre surcos) a
+  // coordenadas del lote real [x,y] — las mismas que usa el polígono.
+  const toCanonical = (along, cross) => (isHorizontal ? [along, cross] : [cross, along])
+
+  let totalPlants = 0
+  const rowSegments = []
+
+  offsets.forEach((crossOffset) => {
     if (!plantableArea) {
       const count = Math.max(0, candidatesPerRow)
-      return { offset: crossOffset, count, segments: count > 0 ? [[0, length]] : [] }
+      totalPlants += count
+      if (count > 0) {
+        const [x1, y1] = toCanonical(0, crossOffset)
+        const [x2, y2] = toCanonical(length, crossOffset)
+        rowSegments.push({ count, segments: [[x1, y1, x2, y2]] })
+      } else {
+        rowSegments.push({ count: 0, segments: [] })
+      }
+      return
     }
 
     const segments = []
@@ -154,27 +156,35 @@ export const computeRowLayout = ({
     let pos = 0
 
     while (pos <= length + 1e-9) {
-      const point = turf.point([pos, crossOffset])
-      const inside = turf.booleanPointInPolygon(point, plantableArea)
+      const [cx, cy] = toCanonical(pos, crossOffset)
+      const inside = turf.booleanPointInPolygon(turf.point([cx, cy]), plantableArea)
 
       if (inside) {
         count += 1
         if (runStart === null) runStart = pos
       } else if (runStart !== null) {
-        segments.push([runStart, pos - plantSpacing])
+        const endPos = pos - plantSpacing
+        const [sx, sy] = toCanonical(runStart, crossOffset)
+        const [ex, ey] = toCanonical(endPos, crossOffset)
+        segments.push([sx, sy, ex, ey])
         runStart = null
       }
       pos += plantSpacing
     }
-    if (runStart !== null) segments.push([runStart, Math.min(length, pos - plantSpacing)])
+    if (runStart !== null) {
+      const endPos = Math.min(length, pos - plantSpacing)
+      const [sx, sy] = toCanonical(runStart, crossOffset)
+      const [ex, ey] = toCanonical(endPos, crossOffset)
+      segments.push([sx, sy, ex, ey])
+    }
 
-    return { offset: crossOffset, count, segments }
+    totalPlants += count
+    rowSegments.push({ count, segments })
   })
 
-  const usableRows = rowDetails.filter((r) => r.count > 0)
+  const usableRows = rowSegments.filter((r) => r.count > 0)
   const totalRows = usableRows.length
-  const totalPlants = rowDetails.reduce((sum, r) => sum + r.count, 0)
   const plantsPerRow = totalRows > 0 ? Math.round(totalPlants / totalRows) : 0
 
-  return { rows: offsets, totalRows, plantsPerRow, totalPlants, rowDetails }
+  return { totalRows, plantsPerRow, totalPlants, rowSegments }
 }
