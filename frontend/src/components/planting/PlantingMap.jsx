@@ -24,6 +24,26 @@ const exclusionPointIcon = L.divIcon({
   iconAnchor: [9, 9],
 })
 
+// Marcador de "aquí estoy" — un punto azul con un halo pulsante, para que se
+// distinga claramente de los puntos del lote (verdes) y de exclusión (rojos).
+const currentLocationIcon = L.divIcon({
+  className: '',
+  html: `
+    <div style="position:relative;width:22px;height:22px;">
+      <div style="position:absolute;inset:0;border-radius:50%;background:#3b82f6;opacity:0.35;animation:agrofinanzas-pulse 1.6s ease-out infinite;"></div>
+      <div style="position:absolute;top:4px;left:4px;width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid white;box-shadow:0 1px 6px rgba(0,0,0,0.6);"></div>
+    </div>
+    <style>
+      @keyframes agrofinanzas-pulse {
+        0% { transform: scale(0.6); opacity: 0.55; }
+        100% { transform: scale(2.2); opacity: 0; }
+      }
+    </style>
+  `,
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+})
+
 const TILE_LAYERS = {
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -96,6 +116,8 @@ export default function PlantingMap({
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [locating, setLocating] = useState(false)
+  const [currentLocation, setCurrentLocation] = useState(null)
+  const [currentAccuracy, setCurrentAccuracy] = useState(null)
   const debounceRef = useRef(null)
 
   const handleMapClick = (point) => {
@@ -192,6 +214,8 @@ export default function PlantingMap({
 
       const { latitude, longitude, accuracy } = bestPosition.coords
       setFlyTarget({ center: [latitude, longitude], zoom: accuracy < 50 ? 18 : 15 })
+      setCurrentLocation([latitude, longitude])
+      setCurrentAccuracy(accuracy)
 
       if (accuracy > 500) {
         toast(
@@ -293,6 +317,11 @@ export default function PlantingMap({
           <TileLayer url={tile.url} attribution={tile.attribution} maxZoom={tile.maxZoom} maxNativeZoom={tile.maxZoom} />
           <ClickHandler onMapClick={handleMapClick} />
           <FlyTo target={flyTarget} />
+
+          {/* Punto azul de "aquí estoy" — se queda fijo hasta que vuelvas a ubicarte */}
+          {currentLocation && (
+            <Marker position={currentLocation} icon={currentLocationIcon} />
+          )}
 
           {points.map((p, i) => (
             <Marker
@@ -412,6 +441,12 @@ export default function PlantingMap({
       )}
 
       <p className="text-[11px] text-white/35 mt-2">
+        {currentLocation && (
+          <>
+            📍 El punto azul con halo es tu ubicación actual
+            {currentAccuracy ? ` (margen de error: ±${Math.round(currentAccuracy)}m)` : ''}.{' '}
+          </>
+        )}
         {mode === 'lote'
           ? 'Toca el mapa para marcar las esquinas de tu lote — puedes arrastrar cada punto para ajustarlo.'
           : 'Marca el contorno de la carretera, casa u otra zona que no se vaya a sembrar, y dale "Guardar zona". Puedes marcar varias.'}
