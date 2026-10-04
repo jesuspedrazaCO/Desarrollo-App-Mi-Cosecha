@@ -12,37 +12,35 @@ import Button from '../components/common/Button'
 export default function PlantingCalculatorPage() {
   const navigate = useNavigate()
   const [points, setPoints] = useState([])
-  const [exclusionZones, setExclusionZones] = useState([]) // ← CAMBIO: preparado para zonas sin sembrar
+  const [exclusionZones, setExclusionZones] = useState([])
   const [cropKey, setCropKey] = useState('pina')
-
   const [patternMode, setPatternMode] = useState('simple') // 'simple' | 'grouped'
-  const [orientation, setOrientation] = useState('horizontal') // 'horizontal' | 'vertical'
-  const [rowSpacing, setRowSpacing] = useState(PLANTING_PRESETS.pina.rowSpacing) // modo simple
-  const [rowsPerGroup, setRowsPerGroup] = useState(3) // modo agrupado
-  const [intraGroupSpacing, setIntraGroupSpacing] = useState(0.4) // entre surcos del mismo grupo
-  const [interGroupSpacing, setInterGroupSpacing] = useState(1) // pasillo entre grupos
-  const [plantSpacing, setPlantSpacing] = useState(PLANTING_PRESETS.pina.plantSpacing)
-
+  const [orientation, setOrientation] = useState('horizontal')
+  const [rowSpacing, setRowSpacing] = useState(1)
+  const [rowsPerGroup, setRowsPerGroup] = useState(2)
+  const [intraGroupSpacing, setIntraGroupSpacing] = useState(0.4)
+  const [interGroupSpacing, setInterGroupSpacing] = useState(1.2)
+  const [plantSpacing, setPlantSpacing] = useState(0.3)
   const [plotName, setPlotName] = useState('')
   const [saving, setSaving] = useState(false)
-
-  const handleCropChange = (key) => {
-    setCropKey(key)
-    setRowSpacing(PLANTING_PRESETS[key].rowSpacing)
-    setPlantSpacing(PLANTING_PRESETS[key].plantSpacing)
-  }
 
   const areaM2 = calculateAreaM2(points)
   const areaHectares = areaM2 / 10000
 
-  // ← CAMBIO: ya no depende de `orientation` — la forma del lote es siempre la misma
   const { canonicalWidth, canonicalHeight, lotPolygon, exclusionPolygons } = useMemo(
     () => projectPlotSpace(points, exclusionZones),
     [points, exclusionZones]
   )
 
   const layout = useMemo(() => {
-    const base = { canonicalWidth, canonicalHeight, orientation, lotPolygon, exclusionPolygons, plantSpacing }
+    const base = {
+      canonicalWidth,
+      canonicalHeight,
+      orientation,
+      lotPolygon,
+      exclusionPolygons,
+      plantSpacing,
+    }
     if (patternMode === 'simple') {
       return computeRowLayout({
         ...base,
@@ -57,19 +55,23 @@ export default function PlantingCalculatorPage() {
       intraGroupSpacing,
       interGroupSpacing,
     })
-  }, [patternMode, canonicalWidth, canonicalHeight, orientation, rowSpacing, rowsPerGroup, intraGroupSpacing, interGroupSpacing, plantSpacing, lotPolygon, exclusionPolygons])
-
-  const inputStyle = { background: 'rgba(255,255,255,0.85)', color: '#1c1917' }
-  const inputClass = 'w-full rounded-2xl px-4 py-2.5 text-sm outline-none'
-
-  const toggleBtnClass = (active) =>
-    `flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-      active ? 'bg-primary-500 text-white' : 'text-white/50 hover:text-white/80'
-    }`
+  }, [
+    patternMode,
+    canonicalWidth,
+    canonicalHeight,
+    orientation,
+    rowSpacing,
+    rowsPerGroup,
+    intraGroupSpacing,
+    interGroupSpacing,
+    plantSpacing,
+    lotPolygon,
+    exclusionPolygons,
+  ])
 
   const handleSave = async () => {
     if (points.length < 3) {
-      toast.error('Marca al menos 3 puntos en el mapa')
+      toast.error('Marca el lote en el mapa antes de guardar')
       return
     }
     if (!plotName.trim()) {
@@ -79,199 +81,267 @@ export default function PlantingCalculatorPage() {
     setSaving(true)
     try {
       await createPlantingPlot({
-        name: plotName,
-        cropType: cropKey,
-        geometry: points.map(([lat, lng]) => ({ lat, lng })),
-        areaM2,
-        areaHectares,
+        name: plotName.trim(),
+        cropKey,
+        points,
+        exclusionZones,
         orientation,
         patternMode,
-        rowSpacing: patternMode === 'simple' ? rowSpacing : null,
-        rowsPerGroup: patternMode === 'grouped' ? rowsPerGroup : 1,
-        intraGroupSpacing: patternMode === 'grouped' ? intraGroupSpacing : rowSpacing,
-        interGroupSpacing: patternMode === 'grouped' ? interGroupSpacing : rowSpacing,
+        rowSpacing,
+        rowsPerGroup,
+        intraGroupSpacing,
+        interGroupSpacing,
         plantSpacing,
+        areaM2,
+        areaHectares,
         totalRows: layout.totalRows,
         plantsPerRow: layout.plantsPerRow,
         estimatedPlants: layout.totalPlants,
       })
       toast.success('Lote guardado correctamente')
-      navigate('/crops')
+      navigate(-1)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al guardar el lote')
+      toast.error(err?.response?.data?.message || 'No se pudo guardar el lote')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="space-y-5 animate-float-up max-w-3xl">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+    <div style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 16px 60px' }}>
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'none',
+          border: 'none',
+          color: 'rgba(255,255,255,0.6)',
+          cursor: 'pointer',
+          marginBottom: '16px',
+          fontSize: '14px',
+        }}
+      >
+        <ArrowLeft size={16} /> Volver
+      </button>
+
+      <h1
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontFamily: 'Fraunces, serif',
+          fontSize: '26px',
+          color: '#fff',
+          marginBottom: '20px',
+        }}
+      >
+        <Sprout size={24} color="#4ade80" /> Calculadora de siembra
+      </h1>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Mapa */}
+        <PlantingMap
+          points={points}
+          onPointsChange={setPoints}
+          exclusionZones={exclusionZones}
+          onExclusionZonesChange={setExclusionZones}
+        />
+
+        {/* Resumen de área */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '16px',
+            flexWrap: 'wrap',
+            padding: '16px',
+            borderRadius: '14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
         >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Sprout size={22} /> Calculadora de siembra
-          </h1>
-          <p className="text-white/45 text-sm mt-1">Marca tu lote en el mapa y calcula cuántas plantas caben</p>
-        </div>
-      </div>
-
-      <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        <PlantingMap points={points} onPointsChange={setPoints} />
-      </div>
-
-      <div className="rounded-3xl p-5 space-y-5" style={{ background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        {/* Cultivo */}
-        <div>
-          <label className="block text-[13px] font-semibold text-white/70 mb-1.5">Cultivo</label>
-          <select value={cropKey} onChange={(e) => handleCropChange(e.target.value)} style={inputStyle} className={inputClass}>
-            {Object.entries(PLANTING_PRESETS).map(([key, p]) => (
-              <option key={key} value={key}>{p.label}</option>
-            ))}
-          </select>
-          <p className="text-[11px] text-white/35 mt-1.5">
-            Los valores se sugieren automáticamente según el cultivo — puedes ajustarlos si tu técnica es distinta.
-          </p>
+          <Stat label="Área del lote" value={`${areaHectares.toFixed(3)} ha`} />
+          <Stat label="Zonas sin sembrar" value={`${exclusionZones.length}`} />
+          <Stat label="Surcos" value={`${layout.totalRows ?? 0}`} />
+          <Stat label="Plantas por surco (aprox.)" value={`${layout.plantsPerRow ?? 0}`} />
+          <Stat label="Total estimado" value={`${layout.totalPlants ?? 0} plantas`} />
         </div>
 
-        {/* Orientación */}
-        <div>
-          <label className="block text-[13px] font-semibold text-white/70 mb-1.5">Orientación de los surcos</label>
-          <div className="flex gap-1.5 rounded-2xl p-1" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <button type="button" onClick={() => setOrientation('horizontal')} className={toggleBtnClass(orientation === 'horizontal')}>
-              ↔ Horizontal
-            </button>
-            <button type="button" onClick={() => setOrientation('vertical')} className={toggleBtnClass(orientation === 'vertical')}>
-              ↕ Vertical
-            </button>
-          </div>
-          <p className="text-[11px] text-white/35 mt-1.5">
-            Esto solo cambia la dirección en la que corren los surcos dentro de tu lote — la forma del lote en la
-            simulación siempre se ve igual que en el mapa.
-          </p>
-        </div>
+        {/* Configuración de siembra */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '14px',
+            padding: '16px',
+            borderRadius: '14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <Field label="Cultivo">
+            <select
+              value={cropKey}
+              onChange={(e) => setCropKey(e.target.value)}
+              style={selectStyle}
+            >
+              {Object.entries(PLANTING_PRESETS).map(([key, preset]) => (
+                <option key={key} value={key}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        {/* Patrón de siembra */}
-        <div>
-          <label className="block text-[13px] font-semibold text-white/70 mb-1.5">Patrón de siembra</label>
-          <div className="flex gap-1.5 rounded-2xl p-1 mb-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <button type="button" onClick={() => setPatternMode('simple')} className={toggleBtnClass(patternMode === 'simple')}>
-              Surcos simples
-            </button>
-            <button type="button" onClick={() => setPatternMode('grouped')} className={toggleBtnClass(patternMode === 'grouped')}>
-              Surcos agrupados (camas)
-            </button>
-          </div>
+          <Field label="Orientación de los surcos">
+            <select
+              value={orientation}
+              onChange={(e) => setOrientation(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+          </Field>
+
+          <Field label="Patrón">
+            <select
+              value={patternMode}
+              onChange={(e) => setPatternMode(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="simple">Surcos simples</option>
+              <option value="grouped">Surcos agrupados</option>
+            </select>
+          </Field>
+
+          <Field label="Distancia entre plantas (m)">
+            <input
+              type="number"
+              step="0.05"
+              value={plantSpacing || ''}
+              onChange={(e) => setPlantSpacing(parseFloat(e.target.value) || 0)}
+              style={inputStyle}
+            />
+          </Field>
 
           {patternMode === 'simple' ? (
-            <div>
-              <label className="block text-[12px] text-white/60 mb-1.5">Espacio entre surcos (m)</label>
+            <Field label="Distancia entre surcos (m)">
               <input
-                type="number" min="0.1" step="0.1" value={rowSpacing}
-                onChange={(e) => setRowSpacing(Number(e.target.value))}
-                style={inputStyle} className={inputClass}
+                type="number"
+                step="0.1"
+                value={rowSpacing || ''}
+                onChange={(e) => setRowSpacing(parseFloat(e.target.value) || 0)}
+                style={inputStyle}
               />
-            </div>
+            </Field>
           ) : (
-            <div className="space-y-3">
-              <p className="text-[11px] text-white/40">
-                Ej: piña oro miel con camas de 3 surcos muy juntos, luego un pasillo ancho, y se repite.
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] text-white/60 mb-1.5">Surcos por grupo</label>
-                  <input
-                    type="number" min="1" step="1" value={rowsPerGroup}
-                    onChange={(e) => setRowsPerGroup(Math.max(1, Number(e.target.value)))}
-                    style={inputStyle} className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-white/60 mb-1.5">Entre surcos del grupo (m)</label>
-                  <input
-                    type="number" min="0.1" step="0.05" value={intraGroupSpacing}
-                    onChange={(e) => setIntraGroupSpacing(Number(e.target.value))}
-                    style={inputStyle} className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-white/60 mb-1.5">Pasillo entre grupos (m)</label>
-                  <input
-                    type="number" min="0.1" step="0.05" value={interGroupSpacing}
-                    onChange={(e) => setInterGroupSpacing(Number(e.target.value))}
-                    style={inputStyle} className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
+            <>
+              <Field label="Surcos por grupo">
+                <input
+                  type="number"
+                  step="1"
+                  value={rowsPerGroup || ''}
+                  onChange={(e) => setRowsPerGroup(parseInt(e.target.value) || 0)}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Distancia dentro del grupo (m)">
+                <input
+                  type="number"
+                  step="0.05"
+                  value={intraGroupSpacing || ''}
+                  onChange={(e) => setIntraGroupSpacing(parseFloat(e.target.value) || 0)}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Distancia entre grupos (m)">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={interGroupSpacing || ''}
+                  onChange={(e) => setInterGroupSpacing(parseFloat(e.target.value) || 0)}
+                  style={inputStyle}
+                />
+              </Field>
+            </>
           )}
         </div>
 
-        {/* Espacio entre plantas */}
-        <div>
-          <label className="block text-[13px] font-semibold text-white/70 mb-1.5">Espacio entre plantas (a lo largo del surco, m)</label>
-          <input
-            type="number" min="0.05" step="0.05" value={plantSpacing}
-            onChange={(e) => setPlantSpacing(Number(e.target.value))}
-            style={inputStyle} className={inputClass}
-          />
-        </div>
-
-        {/* Resultados */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Área</p>
-            <p className="text-sm font-bold text-white mt-1">
-              {areaHectares > 0 ? `${areaHectares.toLocaleString('es-CO', { maximumFractionDigits: 3 })} ha` : '—'}
-            </p>
-          </div>
-          <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Surcos</p>
-            <p className="text-sm font-bold text-white mt-1">{layout.totalRows}</p>
-          </div>
-          <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Matas / surco (prom.)</p>
-            <p className="text-sm font-bold text-white mt-1">{layout.plantsPerRow}</p>
-          </div>
-          <div className="rounded-2xl px-3 py-3 text-center" style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.25)' }}>
-            <p className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider">Total plantas</p>
-            <p className="text-base font-bold text-emerald-300 mt-1">{layout.totalPlants.toLocaleString('es-CO')}</p>
-          </div>
-        </div>
-
         {/* Simulación visual */}
-        <RowSimulation
-          canonicalWidth={canonicalWidth} canonicalHeight={canonicalHeight}
-          lotPolygon={lotPolygon} exclusionPolygons={exclusionPolygons}
-          rowSegments={layout.rowSegments}
-          rowsPerGroup={patternMode === 'grouped' ? rowsPerGroup : 1}
-        />
-
-        <div>
-          <label className="block text-[13px] font-semibold text-white/70 mb-1.5">Nombre del lote</label>
-          <input
-            type="text" placeholder="Ej: Lote norte - Piña" value={plotName}
-            onChange={(e) => setPlotName(e.target.value)}
-            style={inputStyle} className={inputClass}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '16px',
+            borderRadius: '14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <RowSimulation
+            canonicalWidth={canonicalWidth}
+            canonicalHeight={canonicalHeight}
+            lotPolygon={lotPolygon}
+            exclusionPolygons={exclusionPolygons}
+            rowSegments={layout.rowSegments}
+            rowsPerGroup={patternMode === 'grouped' ? rowsPerGroup : 1}
           />
         </div>
 
-        <div className="flex justify-end pt-2 border-t border-white/10">
-          <Button onClick={handleSave} loading={saving}>
-            <Save size={16} className="mr-1.5" /> Guardar lote
+        {/* Guardar */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Nombre del lote"
+            value={plotName}
+            onChange={(e) => setPlotName(e.target.value)}
+            style={{ ...inputStyle, flex: 1, minWidth: '220px' }}
+          />
+          <Button onClick={handleSave} disabled={saving}>
+            <Save size={16} style={{ marginRight: '6px' }} />
+            {saving ? 'Guardando...' : 'Guardar lote'}
           </Button>
         </div>
       </div>
-
-      <p className="text-[11px] text-white/30 text-center px-4">
-        Los valores de espaciamiento son referencias generales — ajústalos según tu variedad, clima y experiencia local.
-        El cálculo y la simulación respetan la forma real de tu lote tal como la marcaste en el mapa.
-      </p>
     </div>
   )
 }
+
+function Stat({ label, value }) {
+  return (
+    <div style={{ minWidth: '120px' }}>
+      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{label}</div>
+      <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>{value}</div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+      {children}
+    </label>
+  )
+}
+
+const inputStyle = {
+  padding: '10px 12px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#fff',
+  fontSize: '14px',
+}
+
+const selectStyle = { ...inputStyle }
