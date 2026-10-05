@@ -5,6 +5,7 @@ import { getCropContributorSummary } from '../services/contributorService'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
 import { useAuth } from '../hooks/useAuth'
+import { useCrops } from '../hooks/useCrops'
 import CropFinancialSummary from '../components/crops/CropFinancialSummary'
 import ContributorSummary from '../components/contributors/ContributorSummary'
 import ExpenseTable from '../components/expenses/ExpenseTable'
@@ -55,6 +56,10 @@ export default function CropDetailPage() {
   const { incomes, totalAmount: totalIncomes, loading: loadingIncomes,
     create: createIncome, update: updateIncome, remove: removeIncome, merge: mergeIncome } =
     useIncome({ crop: id, limit: 50 })
+
+  // Lista de TODOS los cultivos del usuario — se usa solo para el selector
+  // opcional "¿Pagado con plata de otro cultivo?" dentro del formulario de gastos.
+  const { crops: allCrops } = useCrops()
 
   useEffect(() => {
     const load = async () => {
@@ -239,7 +244,7 @@ export default function CropDetailPage() {
 
       <Modal isOpen={showExpenseForm} onClose={() => { setShowExpenseForm(false); setEditingExpense(null) }}
         title={editingExpense ? 'Editar gasto' : 'Registrar gasto'} size="lg">
-        <ExpenseForm defaultValues={editingExpense} cropId={id} onSubmit={handleExpenseSubmit}
+        <ExpenseForm defaultValues={editingExpense} cropId={id} crops={allCrops} onSubmit={handleExpenseSubmit}
           onCancel={() => { setShowExpenseForm(false); setEditingExpense(null) }} loading={formLoading} />
       </Modal>
 
