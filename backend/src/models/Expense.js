@@ -81,6 +81,15 @@ const expenseSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // Si la plata para pagar este gasto salió de OTRO cultivo (ej: vendí piña y con
+    // esa plata pagué un gasto del cultivo de café), se guarda aquí la referencia.
+    // 100% opcional y retrocompatible: los gastos existentes quedan con null,
+    // sin ningún cambio de comportamiento.
+    fundedByCrop: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Crop',
+      default: null,
+    },
   },
   { timestamps: true }
 );

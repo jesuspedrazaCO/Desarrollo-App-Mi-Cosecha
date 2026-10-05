@@ -24,6 +24,9 @@ const expenseValidation = [
   body('payers').optional().isArray().withMessage('El formato de aportantes es inválido'),
   body('payers.*.contributor').optional().isMongoId().withMessage('Aportante inválido'),
   body('payers.*.amount').optional().isFloat({ min: 0 }).withMessage('El monto del aportante debe ser un número positivo'),
+  // Opcional: de qué cultivo salió la plata con la que se pagó este gasto.
+  // Acepta vacío/null (significa "no aplica") además de un ID válido.
+  body('fundedByCrop').optional({ checkFalsy: true }).isMongoId().withMessage('Cultivo de origen inválido'),
 ];
 
 router.get('/', getExpenses);

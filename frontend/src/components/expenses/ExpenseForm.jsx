@@ -20,11 +20,14 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
           // porque el backend hace populate('crop', 'name type') para mostrar el nombre
           // en la lista. El formulario necesita el ID como texto simple, no el objeto.
           crop: cropId || defaultValues.crop?._id || defaultValues.crop || '',
+          // Igual que crop: fundedByCrop también llega poblado si ya tenía valor.
+          fundedByCrop: defaultValues.fundedByCrop?._id || defaultValues.fundedByCrop || '',
         }
       : {
           crop: cropId || '',
           date: toInputDate(new Date()),
           paymentMethod: 'efectivo',
+          fundedByCrop: '',
         },
   })
 
@@ -38,9 +41,17 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
   )
 
   const currentAmount = watch('amount')
+  const currentCrop = watch('crop')
+
+  // El cultivo del gasto no puede ser, a la vez, su propio "financiador"
+  const fundingOptions = crops.filter((c) => c._id !== currentCrop)
 
   const submitHandler = (data) => {
-    onSubmit({ ...data, payers: payers.filter((p) => p.amount > 0) })
+    onSubmit({
+      ...data,
+      fundedByCrop: data.fundedByCrop || null,
+      payers: payers.filter((p) => p.amount > 0),
+    })
   }
 
   return (
@@ -110,6 +121,24 @@ export default function ExpenseForm({ defaultValues, crops = [], cropId, onSubmi
             {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
+
+        {fundingOptions.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className="block text-[13px] font-semibold text-stone-700 mb-1.5">
+              ¿Pagado con plata de otro cultivo? <span className="text-stone-400 font-normal">(opcional)</span>
+            </label>
+            <select
+              className="w-full border border-stone-200 rounded-2xl px-4 py-2.5 text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+              {...register('fundedByCrop')}
+            >
+              <option value="">No — plata de este mismo cultivo</option>
+              {fundingOptions.map(c => <option key={c._id} value={c._id}>{c.name} — {c.type}</option>)}
+            </select>
+            <p className="mt-1.5 text-xs text-stone-400">
+              Úsalo cuando el gasto se pagó con el ingreso de otra cosecha, para que quede claro de dónde salió la plata.
+            </p>
+          </div>
+        )}
 
         <PayerSplit payers={payers} onChange={setPayers} totalAmount={currentAmount} />
 

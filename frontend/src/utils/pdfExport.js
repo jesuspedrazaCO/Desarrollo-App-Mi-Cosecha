@@ -96,6 +96,15 @@ const getVarietyTotals = (incomes) => {
   return Object.values(totals).sort((a, b) => b.quantity - a.quantity)
 }
 
+// ── Texto de descripción de un gasto, marcando si se pagó con plata de otro cultivo ──
+const formatExpenseDescription = (expense) => {
+  const base = expense.description || '—'
+  if (expense.fundedByCrop?.name) {
+    return `${base} (pagado con ingresos de ${expense.fundedByCrop.name})`
+  }
+  return base
+}
+
 // ── Dibuja un ícono de hoja/planta vectorial (reemplaza el emoji 🌾) ──
 const drawLeafIcon = (doc, cx, cy, scale = 1) => {
   doc.setFillColor(...C.green)
@@ -325,7 +334,7 @@ export const exportCropReport = (cropData, expenses, incomes, user) => {
       startY: y,
       head: [['Fecha', 'Categoria', 'Descripcion', 'Valor', 'Pago']],
       body: expenses.map(e => [
-        formatDate(e.date), e.category || '—', e.description || '—', formatCOP(e.amount), e.paymentMethod || '—',
+        formatDate(e.date), e.category || '—', formatExpenseDescription(e), formatCOP(e.amount), e.paymentMethod || '—',
       ]),
       headStyles: { fillColor: C.orange, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 8, textColor: C.dark },

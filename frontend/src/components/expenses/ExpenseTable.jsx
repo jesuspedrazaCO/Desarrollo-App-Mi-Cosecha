@@ -28,7 +28,16 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
     },
     {
       key: 'description', label: 'Descripción',
-      render: (e) => <span className="text-sm text-white/80 line-clamp-1">{e.description}</span>,
+      render: (e) => (
+        <div>
+          <span className="text-sm text-white/80 line-clamp-1">{e.description}</span>
+          {e.fundedByCrop && (
+            <div className="text-[11px] text-amber-300/90 mt-0.5">
+              💸 Pagado con plata de: {e.fundedByCrop.name}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       key: 'amount', label: 'Valor',

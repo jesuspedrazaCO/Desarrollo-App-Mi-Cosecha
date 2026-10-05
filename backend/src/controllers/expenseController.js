@@ -12,6 +12,9 @@ const validatePayersSum = (payers, amount) => {
   return null;
 };
 
+// Normaliza fundedByCrop: '' o undefined se guardan como null (no financiado por otro cultivo)
+const normalizeFundedByCrop = (value) => (value ? value : null);
+
 // @desc    Listar gastos (filtrable por cultivo, categoría, rango de fechas)
 // @route   GET /api/expenses
 const getExpenses = async (req, res, next) => {
@@ -31,6 +34,7 @@ const getExpenses = async (req, res, next) => {
     const total = await Expense.countDocuments(query);
     const expenses = await Expense.find(query)
       .populate('crop', 'name type')
+      .populate('fundedByCrop', 'name type')
       .populate('payers.contributor', 'name')
       .sort({ date: -1 })
       .skip(skip)
@@ -63,8 +67,15 @@ const createExpense = async (req, res, next) => {
     const payersError = validatePayersSum(req.body.payers, req.body.amount);
     if (payersError) return res.status(400).json({ message: payersError });
 
-    const expense = await Expense.create({ ...req.body, owner: req.user._id });
+    const fundedByCrop = normalizeFundedByCrop(req.body.fundedByCrop);
+    if (fundedByCrop) {
+      const fundingCrop = await Crop.findOne({ _id: fundedByCrop, owner: req.user._id });
+      if (!fundingCrop) return res.status(404).json({ message: 'El cultivo de origen de la plata no existe.' });
+    }
+
+    const expense = await Expense.create({ ...req.body, fundedByCrop, owner: req.user._id });
     await expense.populate('crop', 'name type');
+    await expense.populate('fundedByCrop', 'name type');
     await expense.populate('payers.contributor', 'name');
     res.status(201).json(expense);
   } catch (error) {
@@ -86,11 +97,23 @@ const updateExpense = async (req, res, next) => {
       if (payersError) return res.status(400).json({ message: payersError });
     }
 
+    const updateData = { ...req.body };
+    if ('fundedByCrop' in req.body) {
+      updateData.fundedByCrop = normalizeFundedByCrop(req.body.fundedByCrop);
+      if (updateData.fundedByCrop) {
+        const fundingCrop = await Crop.findOne({ _id: updateData.fundedByCrop, owner: req.user._id });
+        if (!fundingCrop) return res.status(404).json({ message: 'El cultivo de origen de la plata no existe.' });
+      }
+    }
+
     const expense = await Expense.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
-      req.body,
+      updateData,
       { new: true, runValidators: true }
-    ).populate('crop', 'name type').populate('payers.contributor', 'name');
+    )
+      .populate('crop', 'name type')
+      .populate('fundedByCrop', 'name type')
+      .populate('payers.contributor', 'name');
 
     if (!expense) return res.status(404).json({ message: 'Gasto no encontrado.' });
     res.json(expense);

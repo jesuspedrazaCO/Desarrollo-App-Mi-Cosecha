@@ -8,4 +8,6 @@ export const expenseSchema = z.object({
   amount: z.coerce.number().positive('El valor debe ser mayor a 0'),
   paymentMethod: z.string().default('efectivo'),
   observations: z.string().optional(),
+  // Opcional: de qué cultivo salió la plata con la que se pagó este gasto
+  fundedByCrop: z.string().optional(),
 })
