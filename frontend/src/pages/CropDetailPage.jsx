@@ -153,7 +153,7 @@ export default function CropDetailPage() {
 
   if (loading) return <Spinner size="lg" className="mt-20" />
 
-  const { crop, summary } = cropData || {}
+  const { crop, summary, lentExpenses = [] } = cropData || {}
   const status = CROP_STATUS[crop?.status] || CROP_STATUS.activo
 
   return (
@@ -202,7 +202,7 @@ export default function CropDetailPage() {
 
       {activeTab === 'summary' && (
         <div className="space-y-5">
-          <CropFinancialSummary summary={summary} expenses={expenses} />
+          <CropFinancialSummary summary={summary} expenses={expenses} lentExpenses={lentExpenses} />
           <ContributorSummary data={contributorSummary} loading={loadingContributors} title="Aportantes de este cultivo" />
         </div>
       )}

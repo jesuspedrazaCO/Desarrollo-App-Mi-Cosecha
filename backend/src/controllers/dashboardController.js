@@ -27,15 +27,21 @@ const getDashboardStats = async (req, res, next) => {
       activeCrops.map(async (crop) => {
         const expenses = allExpenses.filter((e) => e.crop.toString() === crop._id.toString());
         const incomes = allIncomes.filter((i) => i.crop.toString() === crop._id.toString());
+        // Plata de ESTE cultivo que se usó para pagar gastos de OTROS cultivos
+        const lentExpenses = allExpenses.filter(
+          (e) => e.fundedByCrop && e.fundedByCrop.toString() === crop._id.toString()
+        );
+
         const invested = expenses.reduce((sum, e) => sum + e.amount, 0);
         const sold = incomes.reduce((sum, i) => sum + i.totalAmount, 0);
+        const lent = lentExpenses.reduce((sum, e) => sum + e.amount, 0);
 
         return {
           _id: crop._id,
           name: crop.name,
           type: crop.type,
           status: crop.status,
-          ...calculateCropSummary(invested, sold),
+          ...calculateCropSummary(invested, sold, lent),
         };
       })
     );

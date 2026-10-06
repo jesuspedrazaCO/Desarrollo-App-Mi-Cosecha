@@ -1,6 +1,7 @@
 const Crop = require('../models/Crop');
 const Expense = require('../models/Expense');
 const Income = require('../models/Income');
+const { calculateCropSummary } = require('../utils/financialCalculations');
 
 // @desc    Listar cultivos del usuario
 // @route   GET /api/crops
@@ -31,23 +32,21 @@ const getCrops = async (req, res, next) => {
           { $match: { crop: crop._id } },
           { $group: { _id: null, total: { $sum: '$totalAmount' } } },
         ]);
+        // Plata de ESTE cultivo que se usó para pagar gastos de OTROS cultivos
+        const lent = await Expense.aggregate([
+          { $match: { fundedByCrop: crop._id } },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]);
 
         const totalInvested = expenses[0]?.total || 0;
         const totalSold = incomes[0]?.total || 0;
-        const netProfit = totalSold - totalInvested;
-        
-        // CORRECCIÓN: Evitar 0% si no hay inversión inicial en el listado general
-        const profitability = totalInvested > 0 
-          ? (netProfit / totalInvested) * 100 
-          : (totalSold > 0 ? 100 : 0);
+        const totalLent = lent[0]?.total || 0;
+
+        const cropSummary = calculateCropSummary(totalInvested, totalSold, totalLent);
 
         return {
           ...crop.toObject(),
-          totalInvested,
-          totalSold,
-          netProfit,
-          profitability: Math.round(profitability * 100) / 100,
-          isProfit: netProfit >= 0,
+          ...cropSummary,
         };
       })
     );
@@ -69,26 +68,25 @@ const getCropById = async (req, res, next) => {
     const expenses = await Expense.find({ crop: crop._id }).sort({ date: -1 });
     const incomes = await Income.find({ crop: crop._id }).sort({ date: -1 });
 
+    // Gastos de OTROS cultivos que se pagaron con plata de este — no son un
+    // gasto de este cultivo, pero sí plata que salió de aquí y hay que restar
+    // del disponible. Se muestran aparte, sin duplicar el registro.
+    const lentExpenses = await Expense.find({ fundedByCrop: crop._id })
+      .populate('crop', 'name type')
+      .sort({ date: -1 });
+
     const totalInvested = expenses.reduce((sum, e) => sum + e.amount, 0);
     const totalSold = incomes.reduce((sum, i) => sum + i.totalAmount, 0);
-    const netProfit = totalSold - totalInvested;
+    const totalLent = lentExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // CORRECCIÓN: Evitar el 0% cuando la inversión es 0 pero hay ventas reales
-    const profitability = totalInvested > 0 
-      ? (netProfit / totalInvested) * 100 
-      : (totalSold > 0 ? 100 : 0);
+    const cropSummary = calculateCropSummary(totalInvested, totalSold, totalLent);
 
     res.json({
       crop,
       expenses,
       incomes,
-      summary: {
-        totalInvested,
-        totalSold,
-        netProfit,
-        profitability: Math.round(profitability * 100) / 100,
-        isProfit: netProfit >= 0,
-      },
+      lentExpenses,
+      summary: cropSummary,
     });
   } catch (error) {
     next(error);
