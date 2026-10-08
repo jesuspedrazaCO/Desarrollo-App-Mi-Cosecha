@@ -41,6 +41,15 @@ export default function MarketPricesPage() {
     return () => clearTimeout(t)
   }, [search])
 
+  // CRÍTICO — sin esto, el filtro nunca llegaba al hook: useMarketPrices solo
+  // toma su `initialParams` en el primer render (useState lo ignora después),
+  // así que escribir en el buscador o cambiar la categoría no hacía nada.
+  // Este efecto empuja el filtro actualizado hacia el estado interno del hook
+  // cada vez que cambian la búsqueda (ya con debounce) o la categoría.
+  useEffect(() => {
+    setParams({ search: debouncedSearch, category })
+  }, [debouncedSearch, category, setParams])
+
   useEffect(() => {
     getMarketPriceCategories().then(r => setCategories(r.data)).catch(() => {})
   }, [])
