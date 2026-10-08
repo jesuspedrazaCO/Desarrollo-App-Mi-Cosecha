@@ -16,20 +16,27 @@ export const useMarketPriceSummary = () => {
   return { data, loading }
 }
 
-export const useMarketPrices = (initialParams = {}) => {
+// Trae TODOS los productos disponibles (de la base de datos primero, o en
+// tiempo real al pedirlo) y los deja en memoria tal cual. El filtrado por
+// texto o categoría ya NO pasa por aquí — se hace del lado del componente,
+// sobre esta misma lista, sin volver a pedir nada al servidor. Antes, cada
+// cambio de filtro disparaba una nueva consulta a MongoDB (que está vacía
+// mientras no se siembre), y esa respuesta vacía borraba los productos que
+// ya estaban cargados en tiempo real.
+export const useMarketPrices = () => {
   const [prices, setPrices] = useState([])
   const [total, setTotal] = useState(0)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [isRealtime, setIsRealtime] = useState(false)
-  const [params, setParams] = useState(initialParams)
 
-  // Cargar precios del seed (MongoDB) — rápido
+  // Cargar precios guardados en MongoDB — rápido, pero puede venir vacío
+  // si nunca se ha sembrado la base de datos.
   const fetchFromDB = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getMarketPrices({ ...params, limit: 500 })
+      const res = await getMarketPrices({ limit: 500 })
       setPrices(res.data.prices)
       setTotal(res.data.total)
       setLastUpdated(res.data.lastUpdated)
@@ -39,26 +46,16 @@ export const useMarketPrices = (initialParams = {}) => {
     } finally {
       setLoading(false)
     }
-  }, [params])
+  }, [])
 
-  // Actualizar con datos en tiempo real — tarda ~20-30s
+  // Actualizar con datos en tiempo real — tarda unos segundos
   const refreshRealtime = useCallback(async () => {
     setRefreshing(true)
     const toastId = toast.loading('Consultando precios actuales de Centroabastos...')
     try {
       const data = await fetchRealtimePrices()
       if (data.success && data.products.length > 0) {
-        // Filtrar por búsqueda/categoría si hay params activos
-        let filtered = data.products
-        if (params.search) {
-          filtered = filtered.filter(p =>
-            p.product.toLowerCase().includes(params.search.toLowerCase())
-          )
-        }
-        if (params.category) {
-          filtered = filtered.filter(p => p.category === params.category)
-        }
-        setPrices(filtered)
+        setPrices(data.products)
         setTotal(data.total)
         setLastUpdated(data.lastUpdated)
         setIsRealtime(true)
@@ -71,12 +68,12 @@ export const useMarketPrices = (initialParams = {}) => {
     } finally {
       setRefreshing(false)
     }
-  }, [params])
+  }, [])
 
   useEffect(() => { fetchFromDB() }, [fetchFromDB])
 
   return {
     prices, total, lastUpdated, loading, refreshing, isRealtime,
-    params, setParams, refetch: fetchFromDB, refreshRealtime,
+    refetch: fetchFromDB, refreshRealtime,
   }
 }

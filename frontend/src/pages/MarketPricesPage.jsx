@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useMarketPrices } from '../hooks/useMarketPrices'
-import { getMarketPriceCategories } from '../services/marketPriceService'
 import SearchBar from '../components/common/SearchBar'
 import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
@@ -26,36 +25,43 @@ const catOrder = ['frutas', 'verduras', 'tuberculos', 'granos', 'carnes', 'pesca
 export default function MarketPricesPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
-  const [categories, setCategories] = useState([])
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
+  // prices = TODOS los productos cargados (de la DB o de tiempo real), sin filtrar.
   const {
-    prices, total, lastUpdated, loading, refreshing, isRealtime,
-    params, setParams, refreshRealtime,
-  } = useMarketPrices(
-    category || debouncedSearch ? { search: debouncedSearch, category } : {}
-  )
+    prices, total, lastUpdated, loading, refreshing, isRealtime, refreshRealtime,
+  } = useMarketPrices()
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(t)
   }, [search])
 
-  // CRÍTICO — sin esto, el filtro nunca llegaba al hook: useMarketPrices solo
-  // toma su `initialParams` en el primer render (useState lo ignora después),
-  // así que escribir en el buscador o cambiar la categoría no hacía nada.
-  // Este efecto empuja el filtro actualizado hacia el estado interno del hook
-  // cada vez que cambian la búsqueda (ya con debounce) o la categoría.
-  useEffect(() => {
-    setParams({ search: debouncedSearch, category })
-  }, [debouncedSearch, category, setParams])
+  // Categorías disponibles para el dropdown — se calculan de lo que YA está
+  // cargado, no de una llamada aparte al backend (esa llamada consultaba la
+  // base de datos, que está vacía mientras no se siembre, así que el
+  // dropdown se quedaba sin opciones).
+  const availableCategories = useMemo(() => {
+    const set = new Set(prices.map(p => p.category || 'otros'))
+    return catOrder.filter(c => set.has(c))
+  }, [prices])
 
-  useEffect(() => {
-    getMarketPriceCategories().then(r => setCategories(r.data)).catch(() => {})
-  }, [])
+  // Filtrado 100% en el cliente — instantáneo, no vuelve a pedir nada al
+  // servidor. Si el texto de búsqueda queda vacío, se ve la lista completa.
+  const filteredPrices = useMemo(() => {
+    let list = prices
+    const q = debouncedSearch.trim().toLowerCase()
+    if (q) {
+      list = list.filter(p => p.product.toLowerCase().includes(q))
+    }
+    if (category) {
+      list = list.filter(p => (p.category || 'otros') === category)
+    }
+    return list
+  }, [prices, debouncedSearch, category])
 
-  // Agrupar por categoría
-  const grouped = prices.reduce((acc, p) => {
+  // Agrupar por categoría (ya filtrado)
+  const grouped = filteredPrices.reduce((acc, p) => {
     const cat = p.category || 'otros'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(p)
@@ -140,7 +146,7 @@ export default function MarketPricesPage() {
           }}
         >
           <option value="">Todas las categorías</option>
-          {catOrder.filter(c => categories.includes(c)).map(c => (
+          {availableCategories.map(c => (
             <option key={c} value={c}>{CATEGORY_LABELS[c] || c}</option>
           ))}
         </select>
@@ -156,23 +162,31 @@ export default function MarketPricesPage() {
       {/* Contenido */}
       {loading ? (
         <Spinner size="lg" className="mt-16" />
-      ) : prices.length === 0 ? (
+      ) : filteredPrices.length === 0 ? (
         <EmptyState
           icon="📈"
           title="No se encontraron productos"
-          description={search ? `No hay resultados para "${search}"` : 'Haz clic en "Actualizar precios ahora" para cargar datos en tiempo real'}
+          description={
+            prices.length === 0
+              ? 'Haz clic en "Actualizar precios ahora" para cargar datos en tiempo real'
+              : search
+                ? `No hay resultados para "${search}"`
+                : 'No hay productos en esta categoría'
+          }
           action={
-            <button onClick={refreshRealtime} disabled={refreshing}
-              className="px-5 py-2.5 rounded-full text-white text-sm font-semibold"
-              style={{ background: 'linear-gradient(135deg,#258a4e,#1a6e3c)' }}>
-              🔄 Actualizar ahora
-            </button>
+            prices.length === 0 ? (
+              <button onClick={refreshRealtime} disabled={refreshing}
+                className="px-5 py-2.5 rounded-full text-white text-sm font-semibold"
+                style={{ background: 'linear-gradient(135deg,#258a4e,#1a6e3c)' }}>
+                🔄 Actualizar ahora
+              </button>
+            ) : null
           }
         />
       ) : (
         <div className="space-y-6">
           {catOrder
-            .filter(cat => grouped[cat] && (category === '' || category === cat))
+            .filter(cat => grouped[cat])
             .map(cat => (
               <div key={cat}>
                 <div className="flex items-center gap-2 mb-3">
