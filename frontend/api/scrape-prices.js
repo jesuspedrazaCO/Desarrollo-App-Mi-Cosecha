@@ -1,7 +1,12 @@
 // Vercel Serverless Function — /api/scrape-prices
 // Corre en los servidores de Vercel (no Render), puede acceder a sitios externos
+//
+// NOTA: el package.json del frontend tiene "type": "module", así que Vercel
+// trata este archivo como ES Module — por eso se usa `import`/`export default`
+// en vez de `require`/`module.exports` (CommonJS), que causaba el error
+// "require is not defined in ES module scope".
 
-const https = require('https');
+import https from 'https';
 
 const fetchPage = (pageNum) => {
   return new Promise((resolve, reject) => {
