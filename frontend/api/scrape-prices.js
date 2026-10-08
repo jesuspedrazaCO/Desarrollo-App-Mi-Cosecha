@@ -16,7 +16,7 @@ const fetchPage = (pageNum) => {
         'Referer': 'https://preciosnub.centroabastos.com/',
         'Connection': 'keep-alive',
       },
-      timeout: 15000,
+      timeout: 8000, // bajado de 15s a 8s — si una página individual se cuelga, no se come todo el presupuesto de tiempo de la función
     };
 
     const req = https.request(options, (res) => {
@@ -52,7 +52,6 @@ const parseHtmlTable = (html) => {
   const products = [];
   // Extraer filas de tabla con regex simple (sin cheerio en serverless)
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
   const stripTags = (str) => str.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
 
   let rowMatch;
@@ -94,6 +93,32 @@ const categorize = (name) => {
   return 'otros';
 };
 
+// Pide varias páginas al tiempo, en lotes, en vez de una por una.
+// Esto es lo que arregla el timeout: 18 páginas en serie con pausas
+// fácilmente pasaban de los 10s que da Vercel por defecto en el plan
+// gratuito. En lotes de 6 en paralelo, 18 páginas caben en 3 rondas.
+const BATCH_SIZE = 6;
+
+const fetchAllPages = async (totalPages = 18) => {
+  const allProducts = [];
+  for (let start = 1; start <= totalPages; start += BATCH_SIZE) {
+    const batch = [];
+    for (let p = start; p < start + BATCH_SIZE && p <= totalPages; p++) {
+      batch.push(
+        fetchPage(p)
+          .then(({ status, html }) => (status === 200 ? parseHtmlTable(html) : []))
+          .catch((e) => {
+            console.error(`Error página ${p}:`, e.message);
+            return [];
+          })
+      );
+    }
+    const results = await Promise.all(batch);
+    results.forEach((products) => allProducts.push(...products));
+  }
+  return allProducts;
+};
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -107,21 +132,7 @@ export default async function handler(req, res) {
 
   try {
     if (allPages) {
-      // Scrapear todas las páginas (máx 18)
-      const allProducts = [];
-      for (let p = 1; p <= 18; p++) {
-        try {
-          const { status, html } = await fetchPage(p);
-          if (status === 200) {
-            const products = parseHtmlTable(html);
-            allProducts.push(...products);
-          }
-          // Pausa entre peticiones
-          await new Promise(r => setTimeout(r, 200));
-        } catch (e) {
-          console.error(`Error página ${p}:`, e.message);
-        }
-      }
+      const allProducts = await fetchAllPages(18);
 
       return res.status(200).json({
         success: true,
