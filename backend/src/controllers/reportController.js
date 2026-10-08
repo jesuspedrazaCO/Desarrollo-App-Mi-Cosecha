@@ -66,7 +66,10 @@ const getAgroExpensesReport = async (req, res, next) => {
     const expenses = await Expense.find(query).populate('crop', 'name type');
 
     const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const byCategory = groupByCategory(expenses, 'category', 'amount');
+    // groupByCategory solo recibe (items, amountField) — antes se le mandaba
+    // un tercer argumento ('amount') que nunca usaba, y el segundo ('category')
+    // terminaba haciendo de amountField por error, sumando texto en vez de números.
+    const byCategory = groupByCategory(expenses, 'amount');
     const byMonth = groupByMonth(expenses, 'amount');
 
     res.json({ total, byCategory, byMonth, count: expenses.length });
@@ -114,7 +117,9 @@ const getHouseholdReport = async (req, res, next) => {
     const expenses = await HouseholdExpense.find(query);
 
     const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const byCategory = groupByCategory(expenses, 'category', 'amount');
+    // Mismo arreglo que en getAgroExpensesReport: groupByCategory solo toma
+    // (items, amountField).
+    const byCategory = groupByCategory(expenses, 'amount');
     const byMonth = groupByMonth(expenses, 'amount');
 
     res.json({ total, byCategory, byMonth, count: expenses.length });
