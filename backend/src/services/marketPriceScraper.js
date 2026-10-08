@@ -3,7 +3,11 @@ const cheerio = require('cheerio');
 const MarketPrice = require('../models/MarketPrice');
 
 const BASE_URL = 'https://preciosnub.centroabastos.com/vistas/list_productos.php';
-const TOTAL_PAGES = 18; // Total de páginas conocidas en el sitio
+// El sitio tiene 23 páginas reales (confirmado — "Piña Golden" y "Piña
+// perolera" viven en la página 19, por eso no aparecían con el límite viejo
+// de 18). Se deja un pequeño margen hasta 25 por si el catálogo del sitio
+// crece; las páginas que no existen simplemente no devuelven filas.
+const TOTAL_PAGES = 25;
 
 // Categorización simple por palabras clave en el nombre del producto
 const categorize = (name) => {

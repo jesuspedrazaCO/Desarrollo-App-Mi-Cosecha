@@ -137,7 +137,12 @@ export default async function handler(req, res) {
 
   try {
     if (allPages) {
-      const allProducts = await fetchAllPages(18);
+      // El sitio tiene 23 páginas reales (confirmado — "Piña Golden" y "Piña
+      // perolera" viven en la página 19, por eso no aparecían con el límite
+      // viejo de 18). Se deja un pequeño margen hasta 25 por si el catálogo
+      // del sitio crece; las páginas que no existen simplemente no devuelven
+      // filas, así que no hacen daño.
+      const allProducts = await fetchAllPages(25);
 
       return res.status(200).json({
         success: true,
