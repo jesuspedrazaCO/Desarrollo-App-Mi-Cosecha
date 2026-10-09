@@ -250,7 +250,7 @@ export default function CropDetailPage() {
 
       <Modal isOpen={showIncomeForm} onClose={() => { setShowIncomeForm(false); setEditingIncome(null) }}
         title={editingIncome ? 'Editar ingreso' : 'Registrar ingreso'} size="lg">
-        <IncomeForm defaultValues={editingIncome} cropId={id} onSubmit={handleIncomeSubmit}
+        <IncomeForm defaultValues={editingIncome} cropId={id} cropType={crop?.type} onSubmit={handleIncomeSubmit}
           onCancel={() => { setShowIncomeForm(false); setEditingIncome(null) }} loading={formLoading} />
       </Modal>
 

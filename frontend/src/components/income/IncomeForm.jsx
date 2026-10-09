@@ -4,21 +4,23 @@ import { Plus, Trash2 } from 'lucide-react'
 import { incomeSchema } from '../../validators/incomeSchema'
 import { toInputDate } from '../../utils/formatDate'
 import { INCOME_TYPES } from '../../utils/constants'
+import { getCropFieldPreset } from '../../utils/cropFieldPresets'
 import Input from '../common/Input'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
 
-const emptyItem = { variety: '', quantitySold: '', unit: 'kg', crates: '', salePrice: '' }
-const COMMON_VARIETIES = ['Piña gruesa', 'Piña pareja', 'Pipo', 'Riche', 'Racha']
+function buildEmptyItem(preset) {
+  return { variety: '', quantitySold: '', unit: preset.defaultUnit, crates: '', salePrice: '' }
+}
 
-function buildDefaultValues(defaultValues, cropId) {
+function buildDefaultValues(defaultValues, cropId, preset) {
   if (!defaultValues) {
     return {
       crop: cropId || '',
       date: toInputDate(new Date()),
       type: 'venta_cosecha',
       client: '',
-      items: [emptyItem],
+      items: [buildEmptyItem(preset)],
       observations: '',
     }
   }
@@ -38,17 +40,24 @@ function buildDefaultValues(defaultValues, cropId) {
       : [{
           variety: 'Venta',
           quantitySold: defaultValues.quantitySold || '',
-          unit: defaultValues.unit || 'kg',
+          unit: defaultValues.unit || preset.defaultUnit,
           crates: '',
           salePrice: defaultValues.salePrice || '',
         }],
   }
 }
 
-export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit, onCancel, loading }) {
+// cropType: se puede pasar directo (ej. desde CropDetailPage, que ya tiene el
+// cultivo cargado) o se deriva del cultivo seleccionado en el selector `crops`
+// cuando no hay un cropId fijo. Si no se encuentra, se usa la ficha genérica.
+export default function IncomeForm({ defaultValues, crops = [], cropId, cropType, onSubmit, onCancel, loading }) {
+  const selectedCropFromList = crops.find(c => c._id === (cropId || defaultValues?.crop?._id || defaultValues?.crop))
+  const effectiveCropType = cropType || selectedCropFromList?.type
+  const preset = getCropFieldPreset(effectiveCropType)
+
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(incomeSchema),
-    defaultValues: buildDefaultValues(defaultValues, cropId),
+    defaultValues: buildDefaultValues(defaultValues, cropId, preset),
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
@@ -67,6 +76,8 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
   }, 0)
 
   const totalCrates = (items || []).reduce((sum, it) => sum + (Number(it?.crates) || 0), 0)
+
+  const itemsGridClass = preset.showCrates ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -127,7 +138,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
           </div>
           <button
             type="button"
-            onClick={() => append(emptyItem)}
+            onClick={() => append(buildEmptyItem(preset))}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
             style={{
               background: 'rgba(255,255,255,0.08)',
@@ -167,12 +178,12 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                    <div className={`grid ${itemsGridClass} gap-2.5`}>
                       <div className="col-span-2 sm:col-span-1">
                         <Input
                           label="Producto / variedad"
                           list="variety-suggestions"
-                          placeholder="Piña gruesa..."
+                          placeholder={preset.varieties[0] ? `${preset.varieties[0]}...` : 'Ej: Producto...'}
                           error={errors.items?.[index]?.variety?.message}
                           {...register(`items.${index}.variety`)}
                         />
@@ -185,17 +196,20 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
                       />
                       <Input
                         label="Unidad"
-                        placeholder="kg"
+                        list="unit-suggestions"
+                        placeholder={preset.defaultUnit}
                         error={errors.items?.[index]?.unit?.message}
                         {...register(`items.${index}.unit`)}
                       />
-                      <Input
-                        label="Canastillas (opcional)"
-                        type="number" min="0" step="1"
-                        placeholder="Ej: 8"
-                        error={errors.items?.[index]?.crates?.message}
-                        {...register(`items.${index}.crates`)}
-                      />
+                      {preset.showCrates && (
+                        <Input
+                          label="Canastillas (opcional)"
+                          type="number" min="0" step="1"
+                          placeholder="Ej: 8"
+                          error={errors.items?.[index]?.crates?.message}
+                          {...register(`items.${index}.crates`)}
+                        />
+                      )}
                       <Input
                         label="Precio/unidad ($)" type="number" min="0" step="1"
                         placeholder="Ej: 2600"
@@ -227,7 +241,10 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, onSubmit
         </div>
 
         <datalist id="variety-suggestions">
-          {COMMON_VARIETIES.map(v => <option key={v} value={v} />)}
+          {preset.varieties.map(v => <option key={v} value={v} />)}
+        </datalist>
+        <datalist id="unit-suggestions">
+          {preset.unitSuggestions.map(u => <option key={u} value={u} />)}
         </datalist>
 
         <div
