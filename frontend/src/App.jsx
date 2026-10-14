@@ -50,12 +50,12 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/crops" element={<CropsPage />} />
           <Route path="/crops/:id" element={<CropDetailPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/household" element={<HouseholdPage />} />
           <Route path="/market" element={<MarketListsPage />} />
           <Route path="/market/:id" element={<MarketListDetailPage />} />
           <Route path="/receipts" element={<ReceiptsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/market-prices" element={<MarketPricesPage />} />
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
