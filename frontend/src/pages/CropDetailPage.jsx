@@ -4,6 +4,7 @@ import { getCropById } from '../services/cropService'
 import { getCropContributorSummary } from '../services/contributorService'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
+import { useApplications } from '../hooks/useApplications'
 import { useAuth } from '../hooks/useAuth'
 import { useCrops } from '../hooks/useCrops'
 import CropFinancialSummary from '../components/crops/CropFinancialSummary'
@@ -13,6 +14,9 @@ import ExpenseForm from '../components/expenses/ExpenseForm'
 import IncomeTable from '../components/income/IncomeTable'
 import IncomeForm from '../components/income/IncomeForm'
 import MergeIncomeForm from '../components/income/MergeIncomeForm'
+import ApplicationTable from '../components/applications/ApplicationTable'
+import ApplicationForm from '../components/applications/ApplicationForm'
+import ApplicationSummary from '../components/applications/ApplicationSummary'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
@@ -29,6 +33,7 @@ const TABS = [
   { key: 'summary', label: '📊 Resumen' },
   { key: 'expenses', label: '💰 Gastos' },
   { key: 'income', label: '📈 Ingresos' },
+  { key: 'applications', label: '🧪 Insumos' },
 ]
 
 export default function CropDetailPage() {
@@ -45,6 +50,9 @@ export default function CropDetailPage() {
   const [deletingExpense, setDeletingExpense] = useState(null)
   const [deletingIncome, setDeletingIncome] = useState(null)
   const [mergeSelection, setMergeSelection] = useState(null)
+  const [showApplicationForm, setShowApplicationForm] = useState(false)
+  const [editingApplication, setEditingApplication] = useState(null)
+  const [deletingApplication, setDeletingApplication] = useState(null)
   const [formLoading, setFormLoading] = useState(false)
   const [contributorSummary, setContributorSummary] = useState([])
   const [loadingContributors, setLoadingContributors] = useState(true)
@@ -56,6 +64,10 @@ export default function CropDetailPage() {
   const { incomes, totalAmount: totalIncomes, loading: loadingIncomes,
     create: createIncome, update: updateIncome, remove: removeIncome, merge: mergeIncome } =
     useIncome({ crop: id, limit: 50 })
+
+  const { applications, summary: applicationSummary, loading: loadingApplications, loadingSummary: loadingApplicationSummary,
+    create: createApplication, update: updateApplication, remove: removeApplication } =
+    useApplications({ crop: id, limit: 50 })
 
   // Lista de TODOS los cultivos del usuario — se usa solo para el selector
   // opcional "¿Pagado con plata de otro cultivo?" dentro del formulario de gastos.
@@ -141,6 +153,27 @@ export default function CropDetailPage() {
   const handleDeleteIncome = async () => {
     setFormLoading(true)
     try { await removeIncome(deletingIncome._id); setDeletingIncome(null) }
+    catch (err) { toast.error(err.response?.data?.message || 'Error al eliminar') }
+    finally { setFormLoading(false) }
+  }
+
+  const handleApplicationSubmit = async (data) => {
+    setFormLoading(true)
+    try {
+      if (editingApplication) await updateApplication(editingApplication._id, data)
+      else await createApplication(data)
+      setShowApplicationForm(false)
+      setEditingApplication(null)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al guardar el insumo')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  const handleDeleteApplication = async () => {
+    setFormLoading(true)
+    try { await removeApplication(deletingApplication._id); setDeletingApplication(null) }
     catch (err) { toast.error(err.response?.data?.message || 'Error al eliminar') }
     finally { setFormLoading(false) }
   }
@@ -242,6 +275,38 @@ export default function CropDetailPage() {
         </div>
       )}
 
+      {activeTab === 'applications' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-[15px] font-bold text-white/90">Insumos y aplicaciones</h3>
+              <p className="text-xs text-white/40 mt-0.5">Abonos, fumigaciones y dosis aplicadas a este cultivo</p>
+            </div>
+            <Button size="sm" onClick={() => { setEditingApplication(null); setShowApplicationForm(true) }}>+ Registrar insumo</Button>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-[13px] font-semibold text-white/70">Total usado por producto</h4>
+            <ApplicationSummary summary={applicationSummary} loading={loadingApplicationSummary} />
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-[13px] font-semibold text-white/70">Historial de aplicaciones</h4>
+            <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
+              <ApplicationTable applications={applications} loading={loadingApplications}
+                onEdit={(a) => { setEditingApplication(a); setShowApplicationForm(true) }}
+                onDelete={(a) => setDeletingApplication(a)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Modal isOpen={showApplicationForm} onClose={() => { setShowApplicationForm(false); setEditingApplication(null) }}
+        title={editingApplication ? 'Editar insumo' : 'Registrar insumo'} size="lg">
+        <ApplicationForm defaultValues={editingApplication} cropId={id} onSubmit={handleApplicationSubmit}
+          onCancel={() => { setShowApplicationForm(false); setEditingApplication(null) }} loading={formLoading} />
+      </Modal>
+
       <Modal isOpen={showExpenseForm} onClose={() => { setShowExpenseForm(false); setEditingExpense(null) }}
         title={editingExpense ? 'Editar gasto' : 'Registrar gasto'} size="lg">
         <ExpenseForm defaultValues={editingExpense} cropId={id} crops={allCrops} onSubmit={handleExpenseSubmit}
@@ -271,6 +336,9 @@ export default function CropDetailPage() {
 
       <ConfirmDialog isOpen={!!deletingIncome} onClose={() => setDeletingIncome(null)}
         onConfirm={handleDeleteIncome} title="Eliminar ingreso" message="¿Seguro que deseas eliminar este ingreso?" loading={formLoading} />
+
+      <ConfirmDialog isOpen={!!deletingApplication} onClose={() => setDeletingApplication(null)}
+        onConfirm={handleDeleteApplication} title="Eliminar insumo" message="¿Seguro que deseas eliminar este registro de insumo?" loading={formLoading} />
     </div>
   )
 }

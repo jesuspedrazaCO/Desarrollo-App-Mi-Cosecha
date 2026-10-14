@@ -52,6 +52,20 @@ export const INCOME_TYPES = [
   { value: 'otro', label: 'Otro ingreso' },
 ]
 
+export const APPLICATION_TYPES = [
+  { value: 'fertilizacion', label: 'Fertilización / abono', icon: '🧪' },
+  { value: 'fumigacion', label: 'Fumigación', icon: '💦' },
+  { value: 'riego', label: 'Riego', icon: '💧' },
+  { value: 'otro', label: 'Otro', icon: '📦' },
+]
+
+// Sugerencias de unidad para la cantidad de producto aplicado (no es una lista
+// cerrada — el campo sigue siendo texto libre, esto solo alimenta el datalist).
+export const APPLICATION_UNIT_SUGGESTIONS = ['bultos', 'kg', 'litros', 'ml', 'g', 'unidades']
+
+// Sugerencias de unidad para el volumen del tanque/caneca usado al fumigar/regar.
+export const TANK_UNIT_SUGGESTIONS = ['L', 'galones', 'm3']
+
 // Estos íconos se renderizan dentro de <Badge> (JSX normal), por eso sí
 // pueden ser componentes de lucide-react en vez de emoji.
 export const EVENT_TYPES = {
