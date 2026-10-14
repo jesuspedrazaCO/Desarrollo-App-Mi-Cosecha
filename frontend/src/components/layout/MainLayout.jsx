@@ -5,7 +5,7 @@ import Navbar from './Navbar'
 import BottomNav from './BottomNav'
 
 // Rutas que ya tienen su propio acceso directo en la barra inferior
-const BOTTOM_NAV_ROUTES = ['/', '/crops', '/asesor', '/reports']
+const BOTTOM_NAV_ROUTES = ['/', '/crops', '/reports']
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)

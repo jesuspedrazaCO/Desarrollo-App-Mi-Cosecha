@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Sprout, Sparkles, BarChart3, Menu } from 'lucide-react'
+import { LayoutDashboard, Sprout, BarChart3, Menu } from 'lucide-react'
 
 const tabs = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { to: '/crops', label: 'Cultivos', icon: Sprout },
-  { to: '/asesor', label: 'Asesor IA', icon: Sparkles },
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
 ]
 
