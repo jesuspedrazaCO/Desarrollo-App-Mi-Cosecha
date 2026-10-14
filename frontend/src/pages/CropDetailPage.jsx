@@ -282,7 +282,7 @@ export default function CropDetailPage() {
               <h3 className="text-[15px] font-bold text-white/90">Insumos y aplicaciones</h3>
               <p className="text-xs text-white/40 mt-0.5">Abonos, fumigaciones y dosis aplicadas a este cultivo</p>
             </div>
-            <Button size="sm" onClick={() => { setEditingApplication(null); setShowApplicationForm(true) }}>+ Registrar insumo</Button>
+            <Button size="sm" onClick={() => { setEditingApplication(null); setShowApplicationForm(true) }}>+ Registrar aplicación</Button>
           </div>
 
           <div className="space-y-2">
@@ -302,7 +302,7 @@ export default function CropDetailPage() {
       )}
 
       <Modal isOpen={showApplicationForm} onClose={() => { setShowApplicationForm(false); setEditingApplication(null) }}
-        title={editingApplication ? 'Editar insumo' : 'Registrar insumo'} size="lg">
+        title={editingApplication ? 'Editar aplicación' : 'Registrar aplicación'} size="lg">
         <ApplicationForm defaultValues={editingApplication} cropId={id} onSubmit={handleApplicationSubmit}
           onCancel={() => { setShowApplicationForm(false); setEditingApplication(null) }} loading={formLoading} />
       </Modal>
@@ -338,7 +338,7 @@ export default function CropDetailPage() {
         onConfirm={handleDeleteIncome} title="Eliminar ingreso" message="¿Seguro que deseas eliminar este ingreso?" loading={formLoading} />
 
       <ConfirmDialog isOpen={!!deletingApplication} onClose={() => setDeletingApplication(null)}
-        onConfirm={handleDeleteApplication} title="Eliminar insumo" message="¿Seguro que deseas eliminar este registro de insumo?" loading={formLoading} />
+        onConfirm={handleDeleteApplication} title="Eliminar aplicación" message="¿Seguro que deseas eliminar esta aplicación y todos sus productos?" loading={formLoading} />
     </div>
   )
 }
