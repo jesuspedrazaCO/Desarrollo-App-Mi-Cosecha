@@ -7,17 +7,33 @@ export const useDashboard = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetch = async () => {
+    let active = true
+
+    const fetch = async (silent = false) => {
       try {
         const res = await getDashboardStats()
-        setData(res.data)
+        if (active) setData(res.data)
       } catch {
-        toast.error('Error al cargar el panel principal')
+        if (!silent) toast.error('Error al cargar el panel principal')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
     fetch()
+
+    // Si la app se queda abierta en segundo plano (muy común en el celular) y se
+    // vuelve a ella, se refrescan los totales sin tener que recargar la página.
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') fetch(true)
+    }
+    document.addEventListener('visibilitychange', refreshOnReturn)
+    window.addEventListener('focus', refreshOnReturn)
+
+    return () => {
+      active = false
+      document.removeEventListener('visibilitychange', refreshOnReturn)
+      window.removeEventListener('focus', refreshOnReturn)
+    }
   }, [])
 
   return { data, loading }

@@ -88,6 +88,18 @@ export default function CropDetailPage() {
     load()
   }, [id])
 
+  // Los totales (invertido, vendido, ganancia neta) vienen del backend junto con el
+  // cultivo y solo se cargaban al entrar. Cada vez que cambia la lista de gastos o
+  // ingresos (crear, editar, eliminar) se vuelven a pedir, en silencio y sin spinner.
+  useEffect(() => {
+    if (loadingExpenses || loadingIncomes) return
+    let cancelled = false
+    getCropById(id)
+      .then((res) => { if (!cancelled) setCropData(res.data) })
+      .catch(() => { /* silencioso — los totales se actualizan en el próximo cambio */ })
+    return () => { cancelled = true }
+  }, [id, expenses, incomes]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const loadContributors = async () => {
       setLoadingContributors(true)
