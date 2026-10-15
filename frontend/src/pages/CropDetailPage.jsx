@@ -324,6 +324,7 @@ export default function CropDetailPage() {
         {mergeSelection && (
           <MergeIncomeForm
             selected={mergeSelection}
+            cropType={crop?.type}
             onCancel={() => setMergeSelection(null)}
             onConfirm={handleMergeConfirm}
             loading={formLoading}

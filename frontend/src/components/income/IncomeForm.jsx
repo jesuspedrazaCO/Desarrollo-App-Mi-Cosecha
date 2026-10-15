@@ -1,4 +1,4 @@
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
 import { incomeSchema } from '../../validators/incomeSchema'
@@ -6,6 +6,7 @@ import { toInputDate } from '../../utils/formatDate'
 import { INCOME_TYPES } from '../../utils/constants'
 import { getCropFieldPreset } from '../../utils/cropFieldPresets'
 import Input from '../common/Input'
+import VarietySelect from './VarietySelect'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
 
@@ -180,12 +181,17 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, cropType
                   <div className="flex-1 min-w-0">
                     <div className={`grid ${itemsGridClass} gap-2.5`}>
                       <div className="col-span-2 sm:col-span-1">
-                        <Input
-                          label="Producto / variedad"
-                          list="variety-suggestions"
-                          placeholder={preset.varieties[0] ? `${preset.varieties[0]}...` : 'Ej: Producto...'}
-                          error={errors.items?.[index]?.variety?.message}
-                          {...register(`items.${index}.variety`)}
+                        <Controller
+                          control={control}
+                          name={`items.${index}.variety`}
+                          render={({ field }) => (
+                            <VarietySelect
+                              value={field.value}
+                              onChange={field.onChange}
+                              varieties={preset.varieties}
+                              error={errors.items?.[index]?.variety?.message}
+                            />
+                          )}
                         />
                       </div>
                       <Input
@@ -240,9 +246,6 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, cropType
           })}
         </div>
 
-        <datalist id="variety-suggestions">
-          {preset.varieties.map(v => <option key={v} value={v} />)}
-        </datalist>
         <datalist id="unit-suggestions">
           {preset.unitSuggestions.map(u => <option key={u} value={u} />)}
         </datalist>

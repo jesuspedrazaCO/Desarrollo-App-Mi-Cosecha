@@ -10,7 +10,7 @@
 // que agregar una entrada aquí — no hay que tocar el formulario ni el modelo.
 export const CROP_FIELD_PRESETS = {
   'Piña': {
-    varieties: ['Piña gruesa', 'Piña pareja', 'Pipo', 'Riche', 'Racha'],
+    varieties: ['Piña gruesa', 'Piña pareja', 'Piña pipo', 'Piña riche', 'Piña racha'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas', 'unidades'],
     showCrates: true,
@@ -22,19 +22,19 @@ export const CROP_FIELD_PRESETS = {
     showCrates: true,
   },
   'Patilla': {
-    varieties: ['Patilla rayada', 'Patilla negra', 'Patilla baby'],
+    varieties: ['Patilla rayada', 'Patilla negra', 'Patilla baby', 'Patilla sin semilla'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'unidades'],
     showCrates: true,
   },
   'Mango': {
-    varieties: ['Mango de azúcar', 'Mango Tommy', 'Mango Keitt', 'Mango criollo'],
+    varieties: ['Mango de azúcar', 'Mango Tommy', 'Mango Keitt', 'Mango Kent', 'Mango criollo'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas', 'unidades'],
     showCrates: true,
   },
   'Aguacate': {
-    varieties: ['Aguacate Hass', 'Aguacate papelillo', 'Aguacate criollo'],
+    varieties: ['Aguacate Hass', 'Aguacate Lorena', 'Aguacate papelillo', 'Aguacate criollo'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas', 'unidades'],
     showCrates: true,
@@ -58,13 +58,13 @@ export const CROP_FIELD_PRESETS = {
     showCrates: false,
   },
   'Papa': {
-    varieties: ['Papa pastusa', 'Papa criolla', 'Papa R12', 'Papa única'],
+    varieties: ['Papa pastusa', 'Papa criolla', 'Papa capira', 'Papa R12', 'Papa única'],
     defaultUnit: 'bultos',
     unitSuggestions: ['bultos', 'kg', 'arrobas'],
     showCrates: false,
   },
   'Café': {
-    varieties: ['Café pergamino', 'Café cereza', 'Café excelso'],
+    varieties: ['Café pergamino', 'Café cereza', 'Café excelso', 'Café pasilla'],
     defaultUnit: 'arrobas',
     unitSuggestions: ['arrobas', 'kg', 'bultos'],
     showCrates: false,
@@ -76,13 +76,13 @@ export const CROP_FIELD_PRESETS = {
     showCrates: false,
   },
   'Arroz': {
-    varieties: ['Arroz blanco', 'Arroz paddy'],
+    varieties: ['Arroz paddy verde', 'Arroz paddy seco', 'Arroz blanco'],
     defaultUnit: 'bultos',
     unitSuggestions: ['bultos', 'kg', 'toneladas'],
     showCrates: false,
   },
   'Tabaco': {
-    varieties: ['Tabaco negro', 'Tabaco rubio'],
+    varieties: ['Tabaco negro', 'Tabaco rubio', 'Tabaco burley'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'bultos'],
     showCrates: false,

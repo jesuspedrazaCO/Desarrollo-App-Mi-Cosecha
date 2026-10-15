@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { formatDate } from '../../utils/formatDate'
 import { formatCurrency } from '../../utils/formatCurrency'
 import Input from '../common/Input'
+import VarietySelect from './VarietySelect'
+import { getCropFieldPreset } from '../../utils/cropFieldPresets'
 import Button from '../common/Button'
 
-export default function MergeIncomeForm({ selected, onConfirm, onCancel, loading }) {
+export default function MergeIncomeForm({ selected, cropType, onConfirm, onCancel, loading }) {
+  const preset = getCropFieldPreset(cropType)
   const [items, setItems] = useState(
     selected.flatMap((income) => {
       if (Array.isArray(income.items) && income.items.length > 0) {
@@ -74,11 +77,10 @@ export default function MergeIncomeForm({ selected, onConfirm, onCancel, loading
             >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div className="col-span-2 sm:col-span-1">
-                  <Input
-                    label="Producto / variedad"
-                    placeholder="Ej: Piña gruesa"
+                  <VarietySelect
                     value={item.variety}
-                    onChange={(e) => updateItem(index, 'variety', e.target.value)}
+                    onChange={(v) => updateItem(index, 'variety', v)}
+                    varieties={preset.varieties}
                   />
                 </div>
                 <Input
