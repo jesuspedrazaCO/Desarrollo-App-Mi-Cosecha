@@ -21,9 +21,14 @@ const categorize = (name) => {
   return 'otros';
 };
 
+// El sitio escribe el precio seguido de la fecha/hora en la misma celda
+// (ej: "$1.500   15/10/2026 07:01"). Se toma solo el primer número (el precio)
+// para que la fecha no se pegue al valor.
 const parseMoneyToNumber = (str) => {
   if (!str) return 0;
-  return Number(String(str).replace(/[^\d]/g, '')) || 0;
+  const match = String(str).match(/\d[\d.]*/);
+  if (!match) return 0;
+  return Number(match[0].replace(/\./g, '')) || 0;
 };
 
 const parsePercent = (str) => {

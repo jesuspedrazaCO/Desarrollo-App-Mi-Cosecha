@@ -36,9 +36,15 @@ const fetchPage = (pageNum) => {
   });
 };
 
+// El sitio escribe el precio seguido de la fecha/hora en la misma celda
+// (ej: "$1.500   15/10/2026 07:01"). Antes se borraba todo lo que no fuera
+// dígito y la fecha se pegaba al precio ($1.500.151.020.260.701). Ahora se toma
+// solo el primer número, que es el precio, con sus puntos de miles.
 const parseMoneyToNumber = (str) => {
   if (!str) return 0;
-  return Number(String(str).replace(/[^\d]/g, '')) || 0;
+  const match = String(str).match(/\d[\d.]*/);
+  if (!match) return 0;
+  return Number(match[0].replace(/\./g, '')) || 0;
 };
 
 const parsePercent = (str) => {
