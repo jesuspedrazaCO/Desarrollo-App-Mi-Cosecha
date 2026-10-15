@@ -16,9 +16,9 @@ function findCanonical(value, varieties) {
   }) || null
 }
 
-// Menú de variedades según el cultivo. Si el cultivo no tiene lista (ej: "Otro")
-// o la variedad no está en el menú, se puede elegir "Otra variedad" y escribirla.
-export default function VarietySelect({ value, onChange, varieties = [], error, label = 'Producto / variedad' }) {
+// Menú de calidad / clasificación según el cultivo (ej: Piña pareja, Mango de primera). Si el cultivo no tiene lista (ej: "Otro")
+// o la calidad no está en el menú, se puede elegir "Otra calidad…" y escribirla.
+export default function VarietySelect({ value, onChange, varieties = [], error, label = 'Calidad / tipo' }) {
   const hasMenu = varieties.length > 0
   const canonical = findCanonical(value, varieties)
   const [custom, setCustom] = useState(() => !!value && !canonical)
@@ -32,7 +32,7 @@ export default function VarietySelect({ value, onChange, varieties = [], error, 
     return (
       <Input
         label={label}
-        placeholder="Escribe la variedad o producto"
+        placeholder="Escribe la calidad o tipo"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         error={error}
@@ -70,16 +70,16 @@ export default function VarietySelect({ value, onChange, varieties = [], error, 
         label={label}
         value={selectValue}
         onChange={handleSelect}
-        placeholder="Seleccionar variedad"
+        placeholder="Seleccionar calidad"
         options={[
           ...varieties.map((v) => ({ value: v, label: v })),
-          { value: OTHER, label: 'Otra variedad…' },
+          { value: OTHER, label: 'Otra calidad…' },
         ]}
         error={!custom ? error : undefined}
       />
       {custom && (
         <Input
-          placeholder="Escribe la variedad"
+          placeholder="Escribe la calidad"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
           onBlur={handleCustomBlur}

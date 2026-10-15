@@ -1,5 +1,8 @@
 // Ficha de campos de venta por tipo de cultivo.
 //
+// `varieties` es el menú de CALIDAD / clasificación del producto al vender
+// (ej: Piña pareja, Mango de primera). Se llama así en el código por historia.
+//
 // El modelo de datos (Income) ya es genérico — `variety`, `unit` y `crates`
 // son campos de texto libre, no un esquema distinto por fruta — así que esto
 // NO cambia nada en el backend ni en los datos ya guardados. Solo cambia qué
@@ -16,31 +19,31 @@ export const CROP_FIELD_PRESETS = {
     showCrates: true,
   },
   'Tomate': {
-    varieties: ['Tomate chonto', 'Tomate milano', 'Tomate larga vida', 'Tomate cherry', 'Tomate riñón'],
+    varieties: ['Tomate de primera', 'Tomate de segunda', 'Tomate de tercera'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas'],
     showCrates: true,
   },
   'Patilla': {
-    varieties: ['Patilla rayada', 'Patilla negra', 'Patilla baby', 'Patilla sin semilla'],
+    varieties: ['Patilla de primera', 'Patilla de segunda', 'Patilla de tercera'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'unidades'],
     showCrates: true,
   },
   'Mango': {
-    varieties: ['Mango de azúcar', 'Mango Tommy', 'Mango Keitt', 'Mango Kent', 'Mango criollo'],
+    varieties: ['Mango de primera', 'Mango de segunda', 'Mango de tercera'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas', 'unidades'],
     showCrates: true,
   },
   'Aguacate': {
-    varieties: ['Aguacate Hass', 'Aguacate Lorena', 'Aguacate papelillo', 'Aguacate criollo'],
+    varieties: ['Aguacate de primera', 'Aguacate de segunda', 'Aguacate de tercera'],
     defaultUnit: 'kg',
     unitSuggestions: ['kg', 'canastillas', 'unidades'],
     showCrates: true,
   },
   'Plátano': {
-    varieties: ['Plátano verde', 'Plátano maduro', 'Plátano hartón', 'Plátano dominico'],
+    varieties: ['Plátano de primera', 'Plátano de segunda', 'Plátano de tercera'],
     defaultUnit: 'racimos',
     unitSuggestions: ['racimos', 'kg', 'unidades'],
     showCrates: false,
@@ -52,13 +55,13 @@ export const CROP_FIELD_PRESETS = {
     showCrates: false,
   },
   'Yuca': {
-    varieties: ['Yuca brasilera', 'Yuca llanera', 'Yuca criolla'],
+    varieties: ['Yuca de primera', 'Yuca de segunda', 'Yuca de tercera'],
     defaultUnit: 'bultos',
     unitSuggestions: ['bultos', 'kg', 'arrobas'],
     showCrates: false,
   },
   'Papa': {
-    varieties: ['Papa pastusa', 'Papa criolla', 'Papa capira', 'Papa R12', 'Papa única'],
+    varieties: ['Papa de primera', 'Papa de segunda', 'Papa de tercera'],
     defaultUnit: 'bultos',
     unitSuggestions: ['bultos', 'kg', 'arrobas'],
     showCrates: false,
