@@ -75,8 +75,8 @@ export default function MergeIncomeForm({ selected, cropType, onConfirm, onCance
               className="rounded-2xl p-3.5"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="col-span-2 sm:col-span-1">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                <div className="col-span-2">
                   <VarietySelect
                     value={item.variety}
                     onChange={(v) => updateItem(index, 'variety', v)}

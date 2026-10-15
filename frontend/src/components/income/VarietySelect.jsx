@@ -70,7 +70,7 @@ export default function VarietySelect({ value, onChange, varieties = [], error, 
         label={label}
         value={selectValue}
         onChange={handleSelect}
-        placeholder="Seleccionar calidad"
+        placeholder={'\u00A0'}
         options={[
           ...varieties.map((v) => ({ value: v, label: v })),
           { value: OTHER, label: 'Otra calidad…' },

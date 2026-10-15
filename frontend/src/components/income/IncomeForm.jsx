@@ -78,7 +78,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, cropType
 
   const totalCrates = (items || []).reduce((sum, it) => sum + (Number(it?.crates) || 0), 0)
 
-  const itemsGridClass = preset.showCrates ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'
+  const itemsGridClass = preset.showCrates ? 'grid-cols-2 sm:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -180,7 +180,7 @@ export default function IncomeForm({ defaultValues, crops = [], cropId, cropType
 
                   <div className="flex-1 min-w-0">
                     <div className={`grid ${itemsGridClass} gap-2.5`}>
-                      <div className="col-span-2 sm:col-span-1">
+                      <div className="col-span-2">
                         <Controller
                           control={control}
                           name={`items.${index}.variety`}
