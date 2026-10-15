@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
 const Crop = require('../models/Crop');
 
@@ -40,8 +41,13 @@ const getExpenses = async (req, res, next) => {
       .skip(skip)
       .limit(Number(limit));
 
+    // aggregate() no convierte textos a ObjectId como sí hace find(). Sin esto, el filtro
+    // por cultivo no coincide con ningún registro y el total sale siempre en $0.
+    const matchQuery = { ...query };
+    if (crop && mongoose.Types.ObjectId.isValid(crop)) matchQuery.crop = new mongoose.Types.ObjectId(crop);
+
     const totalAmount = await Expense.aggregate([
-      { $match: query },
+      { $match: matchQuery },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
