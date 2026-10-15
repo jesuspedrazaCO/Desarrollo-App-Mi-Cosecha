@@ -44,7 +44,14 @@ const buildWeatherSection = (weather) => {
   return `Pronóstico del clima en la finca (próximos días):\n${lines.join('\n')}`
 }
 
-const buildSystemPrompt = (financialData, cropsContext, weather) => `
+const buildApplicationsSection = (applicationsContext) => {
+  if (!applicationsContext || applicationsContext.length === 0) {
+    return 'El agricultor aún no ha registrado insumos ni aplicaciones (abonos, fumigaciones) en la app. Si pregunta qué le ha aplicado a un cultivo, dile que todavía no hay registros y sugiérele anotarlos en la pestaña "Insumos" de cada cultivo.'
+  }
+  return JSON.stringify(applicationsContext, null, 2)
+}
+
+const buildSystemPrompt = (financialData, cropsContext, weather, applicationsContext) => `
 Te llamas Scooby, el asistente virtual de AgroFinanzas: un ayudante cercano y práctico para pequeños
 productores agrícolas de Colombia. Hablas en español, con un tono amigable y sencillo — como
 alguien de confianza que pasa por la finca a ayudar, no como un manual técnico ni un chatbot
@@ -66,6 +73,18 @@ te pregunten, sin que el usuario tenga que aclarar cuál es cuál:
 - Si una foto no es clara, dilo honestamente y pide una mejor foto en vez de inventar.
 - Si el caso suena grave o no estás seguro, recomienda consultar al ICA o un agrónomo certificado.
 - Recuerda medidas de protección básicas al aplicar agroquímicos cuando aplique.
+- USAR EL HISTORIAL DE INSUMOS: abajo tienes los insumos y aplicaciones que el agricultor ha
+  registrado en cada cultivo (abonos, fumigaciones, riego), con fechas, productos, cantidades y,
+  cuando hay mezcla, el tamaño de la caneca. Úsalos para responder qué le ha aplicado a un
+  cultivo, cuánto de cada producto lleva y cada cuánto lo aplica.
+- Si te preguntan si una dosis está bien y hay caneca registrada, calcula la dosis por litro
+  (cantidad ÷ volumen de la caneca) y compárala con rangos generales, SIEMPRE aclarando que se
+  confirma con la etiqueta del producto. Si no conoces el producto o no estás seguro, dilo.
+- Con estos datos NO puedes saber si un producto "está funcionando": no hay mediciones del
+  resultado. Puedes ayudar a comparar aplicaciones con cómo evoluciona el cultivo si el
+  agricultor te cuenta qué observa (o te manda una foto), pero sin afirmar causas con certeza;
+  ante la duda recomienda consultar a un agrónomo.
+- Solo menciona aplicaciones que estén en el registro. No inventes aplicaciones, fechas ni cantidades.
 
 ═══ 2. TEMAS FINANCIEROS (gastos, ingresos, rentabilidad del negocio) ═══
 - Responder con precisión usando los datos financieros reales del agricultor, citando cifras
@@ -87,6 +106,9 @@ ${JSON.stringify(cropsContext, null, 2)}
 
 ── ${buildWeatherSection(weather)} ──
 
+── Insumos y aplicaciones registradas por el agricultor ──
+${buildApplicationsSection(applicationsContext)}
+
 ── Datos financieros actuales del agricultor ──
 ${JSON.stringify(financialData, null, 2)}
 `
@@ -97,11 +119,11 @@ const toGeminiHistory = (history) =>
     parts: [{ text: m.content }],
   }))
 
-export const sendAssistantMessage = async ({ financialData, cropsContext, weather, history, newMessage, imageBase64, imageMimeType }) => {
+export const sendAssistantMessage = async ({ financialData, cropsContext, applicationsContext, weather, history, newMessage, imageBase64, imageMimeType }) => {
   const chat = ai.chats.create({
     model: 'gemini-flash-latest',
     config: {
-      systemInstruction: buildSystemPrompt(financialData, cropsContext, weather),
+      systemInstruction: buildSystemPrompt(financialData, cropsContext, weather, applicationsContext),
     },
     history: toGeminiHistory(history),
   })

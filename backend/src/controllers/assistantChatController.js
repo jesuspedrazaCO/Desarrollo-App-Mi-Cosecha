@@ -1,6 +1,7 @@
 import Crop from '../models/Crop.js'
 import Expense from '../models/Expense.js'
 import Income from '../models/Income.js'
+import Application from '../models/Application.js'
 import HouseholdExpense from '../models/HouseholdExpense.js'
 import AssistantConversation from '../models/AssistantConversation.js'
 import { sendAssistantMessage } from '../services/assistantChatService.js'
@@ -61,6 +62,50 @@ const buildFinancialSummary = ({ crops, expenses, incomes, householdExpenses }) 
   }
 }
 
+// Insumos y aplicaciones (abonos, fumigaciones, riego) agrupados por cultivo.
+// Incluye el detalle de las más recientes y el total usado de cada producto.
+// Los registros antiguos (un producto por registro) se leen igual que los nuevos.
+const MAX_APPLICATIONS_PER_CROP = 20
+
+const getApplicationLines = (a) => {
+  if (Array.isArray(a.items) && a.items.length > 0) {
+    return a.items.map((it) => ({ producto: it.product, cantidad: it.quantity, unidad: it.unit }))
+  }
+  if (a.product) return [{ producto: a.product, cantidad: a.quantity, unidad: a.unit }]
+  return []
+}
+
+const buildApplicationsContext = (crops, applications) =>
+  crops
+    .map((c) => {
+      const cropApps = applications.filter((a) => String(a.crop) === String(c._id))
+      if (cropApps.length === 0) return null
+
+      const totales = {}
+      cropApps.forEach((a) => {
+        getApplicationLines(a).forEach((l) => {
+          const key = `${String(l.producto).trim().toLowerCase()}|${String(l.unidad || '').trim().toLowerCase()}`
+          if (!totales[key]) totales[key] = { producto: l.producto, unidad: l.unidad, cantidadTotal: 0, aplicaciones: 0 }
+          totales[key].cantidadTotal += Number(l.cantidad) || 0
+          totales[key].aplicaciones += 1
+        })
+      })
+
+      return {
+        cultivo: c.name,
+        tipo: c.type,
+        totalPorProducto: Object.values(totales),
+        aplicacionesRecientes: cropApps.slice(0, MAX_APPLICATIONS_PER_CROP).map((a) => ({
+          fecha: a.date ? new Date(a.date).toISOString().slice(0, 10) : null,
+          labor: a.type,
+          caneca: a.tankVolume ? `${a.tankVolume} ${a.tankUnit || 'L'}` : null,
+          productos: getApplicationLines(a),
+          notas: a.observations || null,
+        })),
+      }
+    })
+    .filter(Boolean)
+
 export const getAssistantConversation = async (req, res, next) => {
   try {
     let conversation = await AssistantConversation.findOne({ user: req.user.id }).sort({ updatedAt: -1 })
@@ -88,15 +133,17 @@ export const postAssistantMessage = async (req, res, next) => {
 
     const userId = req.user.id
 
-    const [crops, expenses, incomes, householdExpenses] = await Promise.all([
+    const [crops, expenses, incomes, householdExpenses, applications] = await Promise.all([
       Crop.find({ owner: userId }),
       Expense.find({ owner: userId }).sort({ date: -1 }).limit(150),
       Income.find({ owner: userId }).sort({ date: -1 }).limit(150),
       HouseholdExpense.find({ owner: userId }).sort({ date: -1 }).limit(150),
+      Application.find({ owner: userId }).sort({ date: -1 }).limit(150),
     ])
 
     const cropsContext = buildCropsContext(crops)
     const financialData = buildFinancialSummary({ crops, expenses, incomes, householdExpenses })
+    const applicationsContext = buildApplicationsContext(crops, applications)
     const weather = await getWeatherForecast(req.user.lat, req.user.lng)
 
     const recentHistory = conversation.messages.slice(-20)
@@ -104,6 +151,7 @@ export const postAssistantMessage = async (req, res, next) => {
     const reply = await sendAssistantMessage({
       financialData,
       cropsContext,
+      applicationsContext,
       weather,
       history: recentHistory,
       newMessage: message || '',
