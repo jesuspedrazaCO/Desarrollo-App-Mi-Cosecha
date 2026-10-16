@@ -255,3 +255,48 @@ export const analyzeLot = async (points, exclusionZones = [], options = {}) => {
   if (result) result.requested = grid.length
   return result
 }
+
+// ── Surcos sobre el terreno ──────────────────────────────────────────────────
+
+const EARTH_R = 6371000
+
+// Las líneas de la simulación de surcos están en metros "locales" (ver projectPlotSpace
+// en rowLayout.js). Esto las devuelve a coordenadas del mapa para dibujarlas sobre el
+// terreno 3D. Usa la misma fórmula que projectPlotSpace, al revés.
+export const canonicalToLatLng = (points) => {
+  const refLat = points.reduce((sum, [lat]) => sum + lat, 0) / points.length
+  const cosRef = Math.cos((refLat * Math.PI) / 180)
+  const local = points.map(([lat, lng]) => [((lng * Math.PI) / 180) * EARTH_R * cosRef, -((lat * Math.PI) / 180) * EARTH_R])
+  const minX = Math.min(...local.map((p) => p[0]))
+  const minY = Math.min(...local.map((p) => p[1]))
+  return ([x, y]) => [
+    (-(y + minY) / EARTH_R) * (180 / Math.PI), // lat
+    ((x + minX) / (EARTH_R * cosRef)) * (180 / Math.PI), // lng
+  ]
+}
+
+// Convierte los surcos de la simulación a GeoJSON ([lng, lat]) para el mapa.
+// "tone" alterna el color por grupo de surcos, igual que la simulación plana.
+export const rowsToGeoJson = (points, rowSegments = [], rowsPerGroup = 1) => {
+  if (points.length < 3 || !rowSegments.length) return { type: 'FeatureCollection', features: [] }
+  const toLatLng = canonicalToLatLng(points)
+  const perGroup = Math.max(1, rowsPerGroup)
+  const features = []
+  rowSegments.forEach((row, i) => {
+    if (!row.segments.length) return
+    const lines = row.segments.map(([x1, y1, x2, y2]) => {
+      const [lat1, lng1] = toLatLng([x1, y1])
+      const [lat2, lng2] = toLatLng([x2, y2])
+      return [[lng1, lat1], [lng2, lat2]]
+    })
+    features.push({
+      type: 'Feature',
+      properties: { tone: Math.floor(i / perGroup) % 2 },
+      geometry: { type: 'MultiLineString', coordinates: lines },
+    })
+  })
+  return { type: 'FeatureCollection', features }
+}
+
+// Área real sobre el suelo inclinado a partir del área horizontal y la pendiente (%).
+export const surfaceArea = (horizontalM2, slopePct) => horizontalM2 * Math.sqrt(1 + (slopePct / 100) ** 2)

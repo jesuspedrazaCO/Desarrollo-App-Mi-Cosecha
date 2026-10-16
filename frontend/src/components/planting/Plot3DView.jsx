@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { Mountain, RotateCcw, Layers } from 'lucide-react'
-import { DEM_TILES_URL, IMAGERY_TILES_URL, analyzeLot } from '../../utils/terrain'
+import { Mountain, RotateCcw, Layers, Sprout } from 'lucide-react'
+import { DEM_TILES_URL, IMAGERY_TILES_URL, analyzeLot, rowsToGeoJson, surfaceArea } from '../../utils/terrain'
 
 const EMPTY = { type: 'FeatureCollection', features: [] }
 
@@ -46,6 +46,9 @@ const fmt = (n, d = 0) => Number(n).toLocaleString('es-CO', { minimumFractionDig
 export default function Plot3DView({
   points,
   exclusionZones = [],
+  rowSegments = [],
+  rowsPerGroup = 1,
+  areaM2 = 0,
   demUrl = DEM_TILES_URL,
   imageryUrl = IMAGERY_TILES_URL,
   onSuggestOrientation,
@@ -53,14 +56,15 @@ export default function Plot3DView({
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const loadedRef = useRef(false)
-  const latestRef = useRef({ points, exclusionZones, analysis: null })
+  const latestRef = useRef({ points, exclusionZones, analysis: null, rowSegments, rowsPerGroup })
   const [exaggeration, setExaggeration] = useState(1.5)
   const [hillshade, setHillshade] = useState(false)
+  const [showRows, setShowRows] = useState(true)
   const [webglError, setWebglError] = useState(false)
   const [analysis, setAnalysis] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ok' | 'error'
 
-  latestRef.current = { points, exclusionZones, analysis }
+  latestRef.current = { points, exclusionZones, analysis, rowSegments, rowsPerGroup }
 
   const fitToLot = (animate = true) => {
     const map = mapRef.current
@@ -147,9 +151,23 @@ export default function Plot3DView({
       map.addSource('lot', { type: 'geojson', data: lotGeoJson(latestRef.current.points) })
       map.addSource('zones', { type: 'geojson', data: zonesGeoJson(latestRef.current.exclusionZones) })
       map.addSource('extremes', { type: 'geojson', data: extremesGeoJson(latestRef.current.analysis) })
+      map.addSource('rows', {
+        type: 'geojson',
+        data: rowsToGeoJson(latestRef.current.points, latestRef.current.rowSegments, latestRef.current.rowsPerGroup),
+      })
 
       map.addLayer({ id: 'lot-fill', type: 'fill', source: 'lot', paint: { 'fill-color': '#4ade80', 'fill-opacity': 0.18 } })
       map.addLayer({ id: 'lot-line', type: 'line', source: 'lot', paint: { 'line-color': '#4ade80', 'line-width': 3 } })
+      map.addLayer({
+        id: 'rows-line',
+        type: 'line',
+        source: 'rows',
+        paint: {
+          'line-color': ['match', ['get', 'tone'], 0, '#4ade80', '#bbf7d0'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.6, 17, 1.4, 19, 3],
+          'line-opacity': 0.95,
+        },
+      })
       map.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones', paint: { 'fill-color': '#f87171', 'fill-opacity': 0.35 } })
       map.addLayer({ id: 'zones-line', type: 'line', source: 'zones', paint: { 'line-color': '#f87171', 'line-width': 2, 'line-dasharray': [2, 1] } })
       map.addLayer({
@@ -183,6 +201,13 @@ export default function Plot3DView({
     map.getSource('lot')?.setData(lotGeoJson(points))
     map.getSource('zones')?.setData(zonesGeoJson(exclusionZones))
   }, [points, exclusionZones])
+
+  // Dibuja los surcos de la simulación sobre el terreno y los actualiza si cambian.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    map.getSource('rows')?.setData(rowsToGeoJson(points, rowSegments, rowsPerGroup))
+  }, [points, rowSegments, rowsPerGroup])
 
   // Calcula alturas y pendiente (con una pequeña espera por si se sigue editando).
   useEffect(() => {
@@ -219,6 +244,13 @@ export default function Plot3DView({
     const map = mapRef.current
     if (map && loadedRef.current) map.getSource('extremes')?.setData(extremesGeoJson(analysis))
   }, [analysis])
+
+  const handleRows = () => {
+    const next = !showRows
+    setShowRows(next)
+    const map = mapRef.current
+    if (map && loadedRef.current) map.setLayoutProperty('rows-line', 'visibility', next ? 'visible' : 'none')
+  }
 
   const handleExaggeration = (value) => {
     setExaggeration(value)
@@ -260,6 +292,9 @@ export default function Plot3DView({
               aria-label="Exageración del relieve"
             />
           </label>
+          <button type="button" onClick={handleRows} style={{ ...chipStyle, ...(showRows ? chipActiveStyle : null) }}>
+            <Sprout size={13} /> Surcos
+          </button>
           <button type="button" onClick={handleHillshade} style={{ ...chipStyle, ...(hillshade ? chipActiveStyle : null) }}>
             <Layers size={13} /> Sombras
           </button>
@@ -289,6 +324,13 @@ export default function Plot3DView({
                 label="El terreno baja hacia"
                 value={analysis.downhillName || 'Sin dirección clara'}
               />
+              {areaM2 > 0 && analysis.slopePct >= 3 && (
+                <Stat
+                  label="Área real sobre la pendiente"
+                  value={`${fmt(surfaceArea(areaM2, analysis.slopePct) / 10000, 3)} ha`}
+                  sub={`+${fmt((surfaceArea(areaM2, analysis.slopePct) / areaM2 - 1) * 100, 1)} % vs. área en mapa`}
+                />
+              )}
             </div>
 
             <p style={{ margin: '12px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.85)' }}>{analysis.category.tip}</p>
@@ -304,7 +346,8 @@ export default function Plot3DView({
             )}
 
             <p style={{ margin: '12px 0 0', fontSize: '11px', lineHeight: 1.5, color: 'rgba(255,255,255,0.45)' }}>
-              Alturas sobre el nivel del mar con datos de ~30 m de resolución: sirven para ver la tendencia general del
+              El total de plantas se calcula con distancias horizontales (lo normal para densidad de siembra); hasta ~10 %
+              de pendiente la diferencia con la distancia sobre el suelo es menor a 1 %. Alturas sobre el nivel del mar con datos de ~30 m de resolución: sirven para ver la tendencia general del
               terreno. Diferencias de pocos metros no son confiables; para terrazas, drenajes u obras confirma con GPS o
               topografía. Puntos del mapa: naranja = más alto, azul = más bajo.
             </p>
