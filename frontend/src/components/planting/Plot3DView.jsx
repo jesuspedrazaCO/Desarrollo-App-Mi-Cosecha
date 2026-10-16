@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { Mountain, RotateCcw, Layers, Sprout } from 'lucide-react'
-import { DEM_TILES_URL, IMAGERY_TILES_URL, analyzeLot, rowsToGeoJson, surfaceArea } from '../../utils/terrain'
+import { Mountain, RotateCcw, RotateCw, Rotate3d, ChevronsUp, ChevronsDown, Layers, Sprout } from 'lucide-react'
+import { DEM_TILES_URL, IMAGERY_TILES_URL, analyzeLot, rowsToGeoJson, surfaceArea, densifyLine, meshPolygon } from '../../utils/terrain'
 
 const EMPTY = { type: 'FeatureCollection', features: [] }
+
+const DEFAULT_PITCH = 68 // más inclinado = se notan mejor los desniveles
+const DEFAULT_BEARING = -20
+const DEFAULT_EXAGGERATION = 2
+
+const verticesGeoJson = (pts) => ({
+  type: 'FeatureCollection',
+  features: pts.map(([lat, lng]) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lng, lat] } })),
+})
 
 // El mapa maneja [lng, lat]; el resto de la página maneja [lat, lng].
 const ring = (pts) => {
@@ -12,17 +21,30 @@ const ring = (pts) => {
   return [...coords, coords[0]]
 }
 
+// Borde del lote con puntos intermedios para que se pegue al relieve.
 const lotGeoJson = (points) =>
   points.length >= 3
-    ? { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring(points)] } }
+    ? { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [densifyLine(ring(points))] } }
     : EMPTY
 
 const zonesGeoJson = (zones) => ({
   type: 'FeatureCollection',
   features: zones
     .filter((z) => z.length >= 3)
-    .map((z) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring(z)] } })),
+    .map((z) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [densifyLine(ring(z))] } })),
 })
+
+// Relleno hecho de celdas pequeñas: así también sigue el terreno y no queda como una lámina plana.
+const meshGeoJson = (rings, targetCells) => ({
+  type: 'FeatureCollection',
+  features: rings
+    .filter((r) => r.length >= 3)
+    .flatMap((r) => meshPolygon(ring(r), targetCells))
+    .map((coordinates) => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates } })),
+})
+
+const lotMeshGeoJson = (points) => (points.length >= 3 ? meshGeoJson([points], 1200) : EMPTY)
+const zonesMeshGeoJson = (zones) => meshGeoJson(zones, 300)
 
 const extremesGeoJson = (analysis) =>
   analysis
@@ -55,16 +77,18 @@ export default function Plot3DView({
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
-  const loadedRef = useRef(false)
-  const latestRef = useRef({ points, exclusionZones, analysis: null, rowSegments, rowsPerGroup })
-  const [exaggeration, setExaggeration] = useState(1.5)
+  const latestRef = useRef({ points, exclusionZones, analysis: null, rowSegments, rowsPerGroup, exaggeration: DEFAULT_EXAGGERATION, hillshade: false, showRows: true })
+  const [exaggeration, setExaggeration] = useState(DEFAULT_EXAGGERATION)
   const [hillshade, setHillshade] = useState(false)
   const [showRows, setShowRows] = useState(true)
+  const [dragMode, setDragMode] = useState('pan') // 'pan' = mover | 'orbit' = girar (solo mouse)
   const [webglError, setWebglError] = useState(false)
+  const [mapKey, setMapKey] = useState(0) // subir este número vuelve a crear el mapa (botón Reintentar)
+  const [slow, setSlow] = useState(false)
   const [analysis, setAnalysis] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ok' | 'error'
 
-  latestRef.current = { points, exclusionZones, analysis, rowSegments, rowsPerGroup }
+  latestRef.current = { points, exclusionZones, analysis, rowSegments, rowsPerGroup, exaggeration, hillshade, showRows }
 
   const fitToLot = (animate = true) => {
     const map = mapRef.current
@@ -72,17 +96,32 @@ export default function Plot3DView({
     if (!map || pts.length < 3) return
     map.fitBounds(boundsOf(pts), {
       padding: 60,
-      pitch: 60,
-      bearing: -20,
+      pitch: DEFAULT_PITCH,
+      bearing: DEFAULT_BEARING,
       maxZoom: 18,
       duration: animate ? 1200 : 0,
     })
   }
 
-  // Crea el mapa una sola vez.
+  // Vuelve a pintar en el mapa lo último que recibió el componente (lote, zonas, surcos, puntos extremos).
+  const syncData = (map) => {
+    const { points: pts, exclusionZones: zones, analysis: an, rowSegments: segs, rowsPerGroup: rpg } = latestRef.current
+    map.getSource('lot')?.setData(lotGeoJson(pts))
+    map.getSource('lot-mesh')?.setData(lotMeshGeoJson(pts))
+    map.getSource('zones')?.setData(zonesGeoJson(zones))
+    map.getSource('zones-mesh')?.setData(zonesMeshGeoJson(zones))
+    map.getSource('vertices')?.setData(verticesGeoJson(pts))
+    map.getSource('rows')?.setData(rowsToGeoJson(pts, segs, rpg))
+    map.getSource('extremes')?.setData(extremesGeoJson(an))
+  }
+
+  // Crea el mapa. Las capas del lote van DENTRO del estilo inicial (no se esperan al evento "load"),
+  // así el lote aparece aunque algunas imágenes o alturas tarden en bajar o fallen la primera vez.
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return undefined
+    if (!containerRef.current) return undefined
     const coarse = window.matchMedia?.('(pointer: coarse)').matches
+    const cur = latestRef.current
+    const hasLot = cur.points.length >= 3
 
     let map
     try {
@@ -113,6 +152,13 @@ export default function Plot3DView({
               maxzoom: 14,
               encoding: 'terrarium',
             },
+            lot: { type: 'geojson', data: lotGeoJson(cur.points) },
+            'lot-mesh': { type: 'geojson', data: lotMeshGeoJson(cur.points) },
+            zones: { type: 'geojson', data: zonesGeoJson(cur.exclusionZones) },
+            'zones-mesh': { type: 'geojson', data: zonesMeshGeoJson(cur.exclusionZones) },
+            vertices: { type: 'geojson', data: verticesGeoJson(cur.points) },
+            rows: { type: 'geojson', data: rowsToGeoJson(cur.points, cur.rowSegments, cur.rowsPerGroup) },
+            extremes: { type: 'geojson', data: extremesGeoJson(cur.analysis) },
           },
           layers: [
             { id: 'imagery', type: 'raster', source: 'imagery' },
@@ -120,17 +166,58 @@ export default function Plot3DView({
               id: 'hillshade',
               type: 'hillshade',
               source: 'dem-shade',
-              layout: { visibility: 'none' },
+              layout: { visibility: cur.hillshade ? 'visible' : 'none' },
               paint: { 'hillshade-exaggeration': 0.6, 'hillshade-shadow-color': '#0b1f12' },
             },
+            { id: 'lot-fill', type: 'fill', source: 'lot-mesh', paint: { 'fill-color': '#4ade80', 'fill-opacity': 0.22 } },
+            {
+              id: 'rows-line',
+              type: 'line',
+              source: 'rows',
+              layout: { visibility: cur.showRows ? 'visible' : 'none' },
+              paint: {
+                'line-color': ['match', ['get', 'tone'], 0, '#4ade80', '#bbf7d0'],
+                'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.6, 17, 1.4, 19, 3],
+                'line-opacity': 0.95,
+              },
+            },
+            { id: 'zones-fill', type: 'fill', source: 'zones-mesh', paint: { 'fill-color': '#f87171', 'fill-opacity': 0.35 } },
+            { id: 'zones-line', type: 'line', source: 'zones', paint: { 'line-color': '#f87171', 'line-width': 2, 'line-dasharray': [2, 1] } },
+            // Borde blanco debajo del verde: la forma del lote se lee bien sobre cualquier imagen.
+            { id: 'lot-casing', type: 'line', source: 'lot', layout: { 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.9 } },
+            { id: 'lot-line', type: 'line', source: 'lot', layout: { 'line-join': 'round' }, paint: { 'line-color': '#16a34a', 'line-width': 3 } },
+            {
+              id: 'vertices',
+              type: 'circle',
+              source: 'vertices',
+              paint: {
+                'circle-radius': 4.5,
+                'circle-color': '#ffffff',
+                'circle-stroke-color': '#16a34a',
+                'circle-stroke-width': 2,
+              },
+            },
+            {
+              id: 'extremes',
+              type: 'circle',
+              source: 'extremes',
+              paint: {
+                'circle-radius': 7,
+                'circle-color': ['match', ['get', 'kind'], 'alto', '#fb923c', '#38bdf8'],
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 2,
+              },
+            },
           ],
-          terrain: { source: 'dem', exaggeration: 1.5 },
+          terrain: { source: 'dem', exaggeration: cur.exaggeration },
         },
-        center: [-73.1227, 7.1193],
-        zoom: 15,
-        pitch: 60,
-        bearing: -20,
-        maxPitch: 80,
+        // El encuadre sobre el lote también es inmediato (no depende de que termine de cargar).
+        ...(hasLot
+          ? { bounds: boundsOf(cur.points), fitBoundsOptions: { padding: 60, maxZoom: 18 } }
+          : { center: [-73.1227, 7.1193], zoom: 15 }),
+        pitch: DEFAULT_PITCH,
+        bearing: DEFAULT_BEARING,
+        maxPitch: 85,
         cooperativeGestures: !!coarse, // en celular: un dedo mueve la página, dos mueven el mapa
         locale: {
           'CooperativeGesturesHandler.WindowsHelpText': 'Usa Ctrl + rueda del mouse para acercar el mapa',
@@ -144,70 +231,33 @@ export default function Plot3DView({
     }
 
     mapRef.current = map
+    setWebglError(false)
+    setSlow(false)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
-    map.on('load', () => {
-      map.addSource('lot', { type: 'geojson', data: lotGeoJson(latestRef.current.points) })
-      map.addSource('zones', { type: 'geojson', data: zonesGeoJson(latestRef.current.exclusionZones) })
-      map.addSource('extremes', { type: 'geojson', data: extremesGeoJson(latestRef.current.analysis) })
-      map.addSource('rows', {
-        type: 'geojson',
-        data: rowsToGeoJson(latestRef.current.points, latestRef.current.rowSegments, latestRef.current.rowsPerGroup),
-      })
-
-      map.addLayer({ id: 'lot-fill', type: 'fill', source: 'lot', paint: { 'fill-color': '#4ade80', 'fill-opacity': 0.18 } })
-      map.addLayer({ id: 'lot-line', type: 'line', source: 'lot', paint: { 'line-color': '#4ade80', 'line-width': 3 } })
-      map.addLayer({
-        id: 'rows-line',
-        type: 'line',
-        source: 'rows',
-        paint: {
-          'line-color': ['match', ['get', 'tone'], 0, '#4ade80', '#bbf7d0'],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.6, 17, 1.4, 19, 3],
-          'line-opacity': 0.95,
-        },
-      })
-      map.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones', paint: { 'fill-color': '#f87171', 'fill-opacity': 0.35 } })
-      map.addLayer({ id: 'zones-line', type: 'line', source: 'zones', paint: { 'line-color': '#f87171', 'line-width': 2, 'line-dasharray': [2, 1] } })
-      map.addLayer({
-        id: 'extremes',
-        type: 'circle',
-        source: 'extremes',
-        paint: {
-          'circle-radius': 7,
-          'circle-color': ['match', ['get', 'kind'], 'alto', '#fb923c', '#38bdf8'],
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-        },
-      })
-
-      loadedRef.current = true
-      fitToLot(false)
-    })
+    // Por si algún dato llegó antes de que el estilo estuviera listo.
+    map.once('load', () => syncData(map))
+    // Si pasan 12 s y el mapa sigue cargando, se ofrece reintentar (en vez de dejarlo en blanco).
+    const slowTimer = setTimeout(() => {
+      if (!map.loaded()) setSlow(true)
+    }, 12000)
+    map.on('idle', () => setSlow(false))
 
     return () => {
-      loadedRef.current = false
+      clearTimeout(slowTimer)
       map.remove()
       mapRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [mapKey])
 
-  // Mantiene el dibujo del lote al día si cambian los puntos.
+  // Mantiene el dibujo del lote al día si cambian los puntos o los surcos.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !loadedRef.current) return
-    map.getSource('lot')?.setData(lotGeoJson(points))
-    map.getSource('zones')?.setData(zonesGeoJson(exclusionZones))
-  }, [points, exclusionZones])
-
-  // Dibuja los surcos de la simulación sobre el terreno y los actualiza si cambian.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !loadedRef.current) return
-    map.getSource('rows')?.setData(rowsToGeoJson(points, rowSegments, rowsPerGroup))
-  }, [points, rowSegments, rowsPerGroup])
+    if (map) syncData(map)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, exclusionZones, rowSegments, rowsPerGroup])
 
   // Calcula alturas y pendiente (con una pequeña espera por si se sigue editando).
   useEffect(() => {
@@ -224,8 +274,6 @@ export default function Plot3DView({
         }
         setAnalysis(result)
         setStatus('ok')
-        const map = mapRef.current
-        if (map && loadedRef.current) map.getSource('extremes')?.setData(extremesGeoJson(result))
       } catch {
         if (!cancelled) {
           setAnalysis(null)
@@ -242,14 +290,67 @@ export default function Plot3DView({
   // Si el análisis llegó antes de que el mapa terminara de cargar, pone los puntos extremos al cargar.
   useEffect(() => {
     const map = mapRef.current
-    if (map && loadedRef.current) map.getSource('extremes')?.setData(extremesGeoJson(analysis))
+    if (map) map.getSource('extremes')?.setData(extremesGeoJson(analysis))
   }, [analysis])
+
+  const isTouch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+
+  // Modo "Girar": con el mouse, arrastrar con el botón izquierdo gira (izq/der) e inclina (arriba/abajo).
+  // En el celular no hace falta: dos dedos giran e inclinan el mapa.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return undefined
+    if (dragMode !== 'orbit') {
+      map.dragPan.enable()
+      return undefined
+    }
+    map.dragPan.disable()
+    const el = map.getCanvasContainer()
+    let last = null
+    const down = (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return
+      last = { x: e.clientX, y: e.clientY }
+      el.setPointerCapture?.(e.pointerId)
+      el.style.cursor = 'grabbing'
+    }
+    const move = (e) => {
+      if (!last) return
+      const dx = e.clientX - last.x
+      const dy = e.clientY - last.y
+      last = { x: e.clientX, y: e.clientY }
+      map.jumpTo({
+        bearing: map.getBearing() - dx * 0.4,
+        pitch: Math.max(0, Math.min(85, map.getPitch() - dy * 0.3)),
+      })
+    }
+    const up = () => {
+      last = null
+      el.style.cursor = ''
+    }
+    el.addEventListener('pointerdown', down)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+      el.style.cursor = ''
+      map.dragPan.enable()
+    }
+  }, [dragMode, mapKey])
+
+  const rotateBy = (deg) => mapRef.current?.easeTo({ bearing: mapRef.current.getBearing() + deg, duration: 350 })
+  const tiltBy = (deg) =>
+    mapRef.current?.easeTo({ pitch: Math.max(0, Math.min(85, mapRef.current.getPitch() + deg)), duration: 350 })
+  const lookFromAbove = () => mapRef.current?.easeTo({ pitch: 0, bearing: 0, duration: 600 })
 
   const handleRows = () => {
     const next = !showRows
     setShowRows(next)
     const map = mapRef.current
-    if (map && loadedRef.current) map.setLayoutProperty('rows-line', 'visibility', next ? 'visible' : 'none')
+    if (map?.getLayer('rows-line')) map.setLayoutProperty('rows-line', 'visibility', next ? 'visible' : 'none')
   }
 
   const handleExaggeration = (value) => {
@@ -261,7 +362,7 @@ export default function Plot3DView({
     const next = !hillshade
     setHillshade(next)
     const map = mapRef.current
-    if (map && loadedRef.current) map.setLayoutProperty('hillshade', 'visibility', next ? 'visible' : 'none')
+    if (map?.getLayer('hillshade')) map.setLayoutProperty('hillshade', 'visibility', next ? 'visible' : 'none')
   }
 
   if (webglError) {
@@ -276,6 +377,15 @@ export default function Plot3DView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
         <div ref={containerRef} style={{ width: '100%', height: '440px' }} />
+
+        {slow && (
+          <div style={slowBannerStyle}>
+            <span>El mapa está tardando en cargar. Revisa tu conexión.</span>
+            <button type="button" onClick={() => setMapKey((k) => k + 1)} style={{ ...chipStyle, ...chipActiveStyle }}>
+              <RotateCcw size={13} /> Reintentar
+            </button>
+          </div>
+        )}
 
         <div style={controlsStyle}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#fff' }}>
@@ -300,6 +410,34 @@ export default function Plot3DView({
           </button>
           <button type="button" onClick={() => fitToLot(true)} style={chipStyle}>
             <RotateCcw size={13} /> Reiniciar vista
+          </button>
+        </div>
+
+        <div style={viewBarStyle}>
+          {!isTouch && (
+            <button
+              type="button"
+              onClick={() => setDragMode((m) => (m === 'orbit' ? 'pan' : 'orbit'))}
+              style={{ ...chipStyle, ...(dragMode === 'orbit' ? chipActiveStyle : null) }}
+              title="Con el mouse: arrastra para girar e inclinar el mapa"
+            >
+              <Rotate3d size={13} /> {dragMode === 'orbit' ? 'Girando: arrastra' : 'Girar con el mouse'}
+            </button>
+          )}
+          <button type="button" onClick={() => rotateBy(-30)} style={chipStyle} aria-label="Girar a la izquierda">
+            <RotateCcw size={13} /> Girar
+          </button>
+          <button type="button" onClick={() => rotateBy(30)} style={chipStyle} aria-label="Girar a la derecha">
+            <RotateCw size={13} /> Girar
+          </button>
+          <button type="button" onClick={() => tiltBy(10)} style={chipStyle} aria-label="Inclinar más">
+            <ChevronsUp size={13} /> Inclinar
+          </button>
+          <button type="button" onClick={() => tiltBy(-10)} style={chipStyle} aria-label="Inclinar menos">
+            <ChevronsDown size={13} /> Enderezar
+          </button>
+          <button type="button" onClick={lookFromAbove} style={chipStyle}>
+            Desde arriba
           </button>
         </div>
       </div>
@@ -390,6 +528,40 @@ const controlsStyle = {
   gap: '8px',
   padding: '8px 10px',
   maxWidth: 'calc(100% - 70px)',
+  borderRadius: '12px',
+  background: 'rgba(10,25,15,0.72)',
+  backdropFilter: 'blur(6px)',
+  zIndex: 2,
+}
+
+const slowBannerStyle = {
+  position: 'absolute',
+  left: '50%',
+  top: '50%',
+  transform: 'translate(-50%, -50%)',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '10px',
+  padding: '14px 18px',
+  maxWidth: 'calc(100% - 40px)',
+  textAlign: 'center',
+  borderRadius: '14px',
+  background: 'rgba(10,25,15,0.85)',
+  color: '#fff',
+  fontSize: '13px',
+  zIndex: 3,
+}
+
+const viewBarStyle = {
+  position: 'absolute',
+  left: '10px',
+  bottom: '40px',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
+  padding: '6px 8px',
+  maxWidth: 'calc(100% - 20px)',
   borderRadius: '12px',
   background: 'rgba(10,25,15,0.72)',
   backdropFilter: 'blur(6px)',

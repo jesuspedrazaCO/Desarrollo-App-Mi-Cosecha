@@ -31,7 +31,7 @@ const tileUrl = (template, z, x, y) =>
   template.replace('{z}', z).replace('{x}', x).replace('{y}', y)
 
 // Descarga un tile y devuelve sus pixeles ({ data, width, height }) o null si no existe.
-const loadTilePixels = (url) =>
+const loadTileOnce = (url) =>
   new Promise((resolve) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -51,6 +51,16 @@ const loadTilePixels = (url) =>
     img.onerror = () => resolve(null)
     img.src = url
   })
+
+// Si un tile falla (conexión lenta, servidor ocupado) se reintenta un par de veces antes de rendirse.
+const loadTilePixels = async (url, attempts = 3) => {
+  for (let i = 0; i < attempts; i++) {
+    const pixels = await loadTileOnce(i === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${i}`)
+    if (pixels) return pixels
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 700 * (i + 1)))
+  }
+  return null
+}
 
 // Altura de un pixel global usando los tiles ya cargados (null si falta el tile).
 const pixelElevation = (tiles, gx, gy, zoom) => {
