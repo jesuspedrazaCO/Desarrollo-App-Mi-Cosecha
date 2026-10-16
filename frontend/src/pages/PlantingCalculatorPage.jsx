@@ -9,6 +9,13 @@ import { PLANTING_PRESETS } from '../utils/plantingPresets'
 import { createPlantingPlot } from '../services/plantingPlotService'
 import Button from '../components/common/Button'
 
+// Nombre del tipo de cultivo tal como lo maneja la sección Cultivos
+// ("Patilla (sandía)" → "Patilla", "Otro / personalizado" → "Otro").
+const cropTypeFromKey = (key) => {
+  const label = PLANTING_PRESETS[key]?.label || 'Otro'
+  return label.split(/[(/]/)[0].trim() || 'Otro'
+}
+
 export default function PlantingCalculatorPage() {
   const navigate = useNavigate()
   const [points, setPoints] = useState([])
@@ -22,6 +29,7 @@ export default function PlantingCalculatorPage() {
   const [interGroupSpacing, setInterGroupSpacing] = useState(1.2)
   const [plantSpacing, setPlantSpacing] = useState(0.3)
   const [plotName, setPlotName] = useState('')
+  const [createCrop, setCreateCrop] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const areaM2 = calculateAreaM2(points)
@@ -80,9 +88,11 @@ export default function PlantingCalculatorPage() {
     }
     setSaving(true)
     try {
-      await createPlantingPlot({
+      const res = await createPlantingPlot({
         name: plotName.trim(),
         cropKey,
+        cropType: cropTypeFromKey(cropKey),
+        createCrop,
         points,
         exclusionZones,
         orientation,
@@ -98,8 +108,14 @@ export default function PlantingCalculatorPage() {
         plantsPerRow: layout.plantsPerRow,
         estimatedPlants: layout.totalPlants,
       })
-      toast.success('Lote guardado correctamente')
-      navigate(-1)
+      const newCropId = res?.data?.crop?._id
+      if (newCropId) {
+        toast.success('Lote guardado y cultivo creado')
+        navigate(`/crops/${newCropId}`)
+      } else {
+        toast.success('Lote guardado correctamente')
+        navigate(-1)
+      }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'No se pudo guardar el lote')
     } finally {
@@ -312,6 +328,23 @@ export default function PlantingCalculatorPage() {
             {saving ? 'Guardando...' : 'Guardar lote'}
           </Button>
         </div>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.7)',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={createCrop}
+            onChange={(e) => setCreateCrop(e.target.checked)}
+          />
+          Crear también el cultivo con este lote (nombre, tipo y área)
+        </label>
       </div>
     </div>
   )
