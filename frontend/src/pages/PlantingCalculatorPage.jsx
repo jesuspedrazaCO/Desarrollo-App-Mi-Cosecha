@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sprout, Save } from 'lucide-react'
+import { ArrowLeft, Sprout, Save, Mountain } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PlantingMap, { calculateAreaM2 } from '../components/planting/PlantingMap'
 import RowSimulation from '../components/planting/RowSimulation'
@@ -8,6 +8,9 @@ import { projectPlotSpace, computeRowLayout } from '../utils/rowLayout'
 import { PLANTING_PRESETS } from '../utils/plantingPresets'
 import { createPlantingPlot } from '../services/plantingPlotService'
 import Button from '../components/common/Button'
+
+// La vista 3D trae MapLibre (pesado): solo se descarga cuando se abre.
+const Plot3DView = lazy(() => import('../components/planting/Plot3DView'))
 
 // Nombre del tipo de cultivo tal como lo maneja la sección Cultivos
 // ("Patilla (sandía)" → "Patilla", "Otro / personalizado" → "Otro").
@@ -30,6 +33,7 @@ export default function PlantingCalculatorPage() {
   const [plantSpacing, setPlantSpacing] = useState(0.3)
   const [plotName, setPlotName] = useState('')
   const [createCrop, setCreateCrop] = useState(true)
+  const [show3D, setShow3D] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const areaM2 = calculateAreaM2(points)
@@ -183,6 +187,45 @@ export default function PlantingCalculatorPage() {
           <Stat label="Surcos" value={`${layout.totalRows ?? 0}`} />
           <Stat label="Plantas por surco (aprox.)" value={`${layout.plantsPerRow ?? 0}`} />
           <Stat label="Total estimado" value={`${layout.totalPlants ?? 0} plantas`} />
+        </div>
+
+        {/* Vista 3D del terreno */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            padding: '16px',
+            borderRadius: '14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontWeight: 700 }}>
+                <Mountain size={18} color="#4ade80" /> Vista 3D del terreno
+              </div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+                {points.length >= 3
+                  ? 'Mira tu lote con relieve y revisa desnivel y pendiente.'
+                  : 'Marca el lote en el mapa (mínimo 3 puntos) para verlo en 3D.'}
+              </div>
+            </div>
+            <Button onClick={() => setShow3D((v) => !v)} disabled={points.length < 3}>
+              {show3D ? 'Ocultar 3D' : 'Ver en 3D'}
+            </Button>
+          </div>
+
+          {show3D && points.length >= 3 && (
+            <Suspense fallback={<div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Cargando mapa 3D…</div>}>
+              <Plot3DView
+                points={points}
+                exclusionZones={exclusionZones}
+                onSuggestOrientation={setOrientation}
+              />
+            </Suspense>
+          )}
         </div>
 
         {/* Configuración de siembra */}
