@@ -1,3 +1,5 @@
+import * as turf from '@turf/turf'
+
 // Utilidades de relieve para la vista 3D de la calculadora de siembra.
 //
 // Las alturas salen de "tiles" de elevación gratuitos en formato Terrarium
@@ -275,24 +277,102 @@ export const canonicalToLatLng = (points) => {
   ]
 }
 
+// MapLibre pone cada vértice a la altura del terreno, pero entre dos vértices la línea va
+// recta. Una línea o un polígono con pocos puntos queda "flotando" o enterrado en las lomas.
+// Estas funciones agregan puntos intermedios (cada ~stepM metros) para que se peguen al relieve.
+const metersPerDeg = (lat) => ({ lat: 110540, lng: 111320 * Math.cos((lat * Math.PI) / 180) })
+
+const segmentLengthM = ([lng1, lat1], [lng2, lat2]) => {
+  const m = metersPerDeg((lat1 + lat2) / 2)
+  return Math.hypot((lng2 - lng1) * m.lng, (lat2 - lat1) * m.lat)
+}
+
+// coords: [[lng, lat], ...] (línea abierta o anillo cerrado). Conserva los puntos originales.
+export const densifyLine = (coords, stepM = 6) => {
+  if (coords.length < 2) return coords
+  const out = [coords[0]]
+  for (let i = 1; i < coords.length; i++) {
+    const [lng1, lat1] = coords[i - 1]
+    const [lng2, lat2] = coords[i]
+    const n = Math.max(1, Math.ceil(segmentLengthM(coords[i - 1], coords[i]) / stepM))
+    for (let k = 1; k < n; k++) {
+      const t = k / n
+      out.push([lng1 + (lng2 - lng1) * t, lat1 + (lat2 - lat1) * t])
+    }
+    out.push(coords[i])
+  }
+  return out
+}
+
+// Parte un polígono en celdas pequeñas (una malla). Como MapLibre solo conoce la altura en
+// los vértices, un relleno hecho con unos pocos triángulos grandes queda plano y no sigue el
+// terreno; con la malla cada pedacito se acomoda a su altura.
+// ringLngLat: anillo cerrado [[lng, lat], ...]. Devuelve una lista de polígonos GeoJSON (coordinates).
+export const meshPolygon = (ringLngLat, targetCells = 1200) => {
+  let poly
+  try {
+    poly = turf.polygon([ringLngLat])
+  } catch {
+    return [[ringLngLat]]
+  }
+  const lngs = ringLngLat.map((p) => p[0])
+  const lats = ringLngLat.map((p) => p[1])
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const m = metersPerDeg((minLat + maxLat) / 2)
+  const widthM = (maxLng - minLng) * m.lng
+  const heightM = (maxLat - minLat) * m.lat
+  const cellM = Math.max(6, Math.sqrt((widthM * heightM) / targetCells))
+  const dLng = cellM / m.lng
+  const dLat = cellM / m.lat
+
+  const out = []
+  for (let lat = minLat; lat < maxLat; lat += dLat) {
+    for (let lng = minLng; lng < maxLng; lng += dLng) {
+      const cell = turf.bboxPolygon([lng, lat, Math.min(lng + dLng, maxLng), Math.min(lat + dLat, maxLat)])
+      let part = null
+      try {
+        part = turf.intersect(turf.featureCollection([cell, poly]))
+      } catch {
+        part = null
+      }
+      if (!part) continue
+      if (part.geometry.type === 'Polygon') out.push(part.geometry.coordinates)
+      else part.geometry.coordinates.forEach((c) => out.push(c))
+    }
+  }
+  return out.length ? out : [[ringLngLat]]
+}
+
 // Convierte los surcos de la simulación a GeoJSON ([lng, lat]) para el mapa.
 // "tone" alterna el color por grupo de surcos, igual que la simulación plana.
+// Cada surco se llena de puntos intermedios para que siga el relieve (ver densifyLine).
 export const rowsToGeoJson = (points, rowSegments = [], rowsPerGroup = 1) => {
   if (points.length < 3 || !rowSegments.length) return { type: 'FeatureCollection', features: [] }
   const toLatLng = canonicalToLatLng(points)
   const perGroup = Math.max(1, rowsPerGroup)
-  const features = []
-  rowSegments.forEach((row, i) => {
-    if (!row.segments.length) return
-    const lines = row.segments.map(([x1, y1, x2, y2]) => {
+
+  const rows = rowSegments.map((row) =>
+    row.segments.map(([x1, y1, x2, y2]) => {
       const [lat1, lng1] = toLatLng([x1, y1])
       const [lat2, lng2] = toLatLng([x2, y2])
       return [[lng1, lat1], [lng2, lat2]]
     })
+  )
+
+  // En lotes enormes se espacian más los puntos para no pasar de ~20.000 vértices.
+  const totalLen = rows.reduce((sum, segs) => sum + segs.reduce((s2, [a, b]) => s2 + segmentLengthM(a, b), 0), 0)
+  const stepM = Math.max(6, totalLen / 20000)
+
+  const features = []
+  rows.forEach((segs, i) => {
+    if (!segs.length) return
     features.push({
       type: 'Feature',
       properties: { tone: Math.floor(i / perGroup) % 2 },
-      geometry: { type: 'MultiLineString', coordinates: lines },
+      geometry: { type: 'MultiLineString', coordinates: segs.map((seg) => densifyLine(seg, stepM)) },
     })
   })
   return { type: 'FeatureCollection', features }
