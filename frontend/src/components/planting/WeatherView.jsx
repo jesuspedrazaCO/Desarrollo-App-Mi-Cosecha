@@ -60,7 +60,8 @@ function createSky(canvas, getState, reduceMotion) {
   }
 
   const draw = (dt) => {
-    const { cloud, rain, prob, wind, windDir } = getState()
+    const { cloud: cloud0, rain, prob, wind, windDir, near } = getState()
+    const cloud = cloud0 * near // al alejarse el mapa, el efecto se desvanece (el pronóstico es de un punto)
     ctx.clearRect(0, 0, w, h)
     if (!w || !h) return
     // El viento viene DE windDir; las nubes van hacia el lado contrario (norte arriba en pantalla).
@@ -106,8 +107,8 @@ function createSky(canvas, getState, reduceMotion) {
     }
 
     // Lluvia: cantidad de gotas según los mm de esa hora.
-    if (rain >= 0.05) {
-      const intensity = clamp(rain / 6, 0, 1)
+    if (rain >= 0.05 && near > 0.05) {
+      const intensity = clamp(rain / 6, 0, 1) * near
       const n = Math.round(Math.max(18, DROP_COUNT * intensity))
       const slant = clamp((ux * wind) / 60, -0.6, 0.6)
       ctx.lineWidth = 1.2
@@ -129,14 +130,14 @@ function createSky(canvas, getState, reduceMotion) {
     }
 
     // Flechas de viento (apuntan hacia donde va el viento).
-    if (wind >= 6) {
+    if (wind >= 6 && near > 0.05) {
       const len = clamp(14 + wind * 1.1, 16, 58)
       const cols = w < 520 ? 3 : 5
       const rows = 3
       ctx.lineWidth = 2
       ctx.lineCap = 'round'
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)'
-      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.strokeStyle = `rgba(255,255,255,${0.7 * near})`
+      ctx.fillStyle = `rgba(255,255,255,${0.7 * near})`
       ctx.shadowColor = 'rgba(0,0,0,0.45)'
       ctx.shadowBlur = 4
       const sway = reduceMotion ? 0 : Math.sin(t * 2) * 4
@@ -190,6 +191,8 @@ export default function WeatherView({ points }) {
   const canvasRef = useRef(null)
   const skyRef = useRef(null)
   const stateRef = useRef({ cloud: 0, rain: 0, prob: 0, wind: 0, windDir: 0 })
+  const nearRef = useRef(1) // 0 = mapa muy lejos (sin efecto), 1 = cerca (efecto completo)
+  const [far, setFar] = useState(false)
 
   const [forecast, setForecast] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ok' | 'error'
@@ -295,6 +298,15 @@ export default function WeatherView({ points }) {
         }, 700)
       })
       map.on('remove', () => clearTimeout(timer))
+      // El cielo animado solo tiene sentido de cerca; de lejos se desvanece y se avisa.
+      const updateNear = () => {
+        const z = map.getZoom()
+        nearRef.current = clamp((z - 9) / 3, 0, 1)
+        setFar(z < 10)
+        skyRef.current?.redraw()
+      }
+      map.on('zoom', updateNear)
+      updateNear()
     } catch {
       map = null // sin WebGL el cielo igual se dibuja sobre un fondo oscuro
     }
@@ -311,7 +323,7 @@ export default function WeatherView({ points }) {
     const canvas = canvasRef.current
     if (!canvas) return undefined
     const reduce = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const sky = createSky(canvas, () => stateRef.current, reduce)
+    const sky = createSky(canvas, () => ({ ...stateRef.current, near: nearRef.current }), reduce)
     skyRef.current = sky
     const ro = new ResizeObserver(() => sky.resize())
     ro.observe(canvas)
@@ -401,6 +413,11 @@ export default function WeatherView({ points }) {
         )}
 
         {(status === 'loading' || loading) && <div style={overlayMsg}>{forecast ? 'Actualizando pronóstico de esta zona…' : 'Cargando pronóstico…'}</div>}
+        {far && status === 'ok' && (
+          <div style={{ ...zoneBar, left: 'auto', right: '10px', bottom: '74px', maxWidth: '60%' }}>
+            Estás muy lejos: el pronóstico es de un punto. Acércate para ver nubes, lluvia y viento.
+          </div>
+        )}
         {notice && !loading && <div style={overlayMsg}><AlertTriangle size={16} /> {notice}</div>}
         {status === 'error' && (
           <div style={overlayMsg}>
