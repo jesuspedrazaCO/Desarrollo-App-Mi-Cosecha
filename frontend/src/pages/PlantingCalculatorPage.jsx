@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sprout, Save, Mountain } from 'lucide-react'
+import { ArrowLeft, Sprout, Save, Mountain, CloudSun } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PlantingMap, { calculateAreaM2 } from '../components/planting/PlantingMap'
 import RowSimulation from '../components/planting/RowSimulation'
@@ -10,6 +10,7 @@ import { createPlantingPlot } from '../services/plantingPlotService'
 import Button from '../components/common/Button'
 
 import Plot3DBoundary from '../components/planting/Plot3DBoundary'
+import WeatherView from '../components/planting/WeatherView'
 import Plot3DView from '../components/planting/Plot3DView' // import directo: evita fallos de descarga del módulo al abrir la vista
 
 
@@ -34,7 +35,7 @@ export default function PlantingCalculatorPage() {
   const [plantSpacing, setPlantSpacing] = useState(0.3)
   const [plotName, setPlotName] = useState('')
   const [createCrop, setCreateCrop] = useState(true)
-  const [simView, setSimView] = useState('flat') // 'flat' | '3d'
+  const [simView, setSimView] = useState('flat') // 'flat' | '3d' | 'weather'
   const [plot3dKey, setPlot3dKey] = useState(0)
   const [saving, setSaving] = useState(false)
 
@@ -317,9 +318,16 @@ export default function PlantingCalculatorPage() {
             >
               <Mountain size={15} /> Vista 3D del terreno
             </ViewTab>
+            <ViewTab
+              active={simView === 'weather'}
+              disabled={points.length < 3}
+              onClick={() => setSimView('weather')}
+            >
+              <CloudSun size={15} /> Clima del día
+            </ViewTab>
             {points.length < 3 && (
               <span style={{ alignSelf: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>
-                Marca el lote (mínimo 3 puntos) para verlo en 3D.
+                Marca el lote (mínimo 3 puntos) para ver el 3D y el clima.
               </span>
             )}
           </div>
@@ -334,6 +342,10 @@ export default function PlantingCalculatorPage() {
                   areaM2={areaM2}
                   onSuggestOrientation={setOrientation}
               />
+            </Plot3DBoundary>
+          ) : simView === 'weather' && points.length >= 3 ? (
+            <Plot3DBoundary key={`w${plot3dKey}`} onRetry={retryPlot3D}>
+              <WeatherView points={points} />
             </Plot3DBoundary>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center' }}>
