@@ -194,28 +194,61 @@ export default function WeatherView({ points }) {
   const [forecast, setForecast] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ok' | 'error'
   const [fetchKey, setFetchKey] = useState(0)
-  const [idx, setIdx] = useState(0)
+  const [loading, setLoading] = useState(false) // true mientras se baja un pronóstico nuevo
+  const mapRef = useRef(null)
+  const cacheRef = useRef(new Map()) // pronósticos ya bajados, por zona
+  const [idxState, setIdx] = useState(null) // null = aún no se eligió hora (se usa la actual)
+  const [notice, setNotice] = useState('')
+  const hasForecast = useRef(false)
   const [playing, setPlaying] = useState(false)
 
-  const [lat, lng] = useMemo(() => centroid(points), [points])
-  const coordKey = `${lat.toFixed(2)},${lng.toFixed(2)}`
+  const [lotLat, lotLng] = useMemo(() => centroid(points), [points])
+  const lotKey = `${lotLat.toFixed(2)},${lotLng.toFixed(2)}`
+  // Zona del pronóstico: arranca en el lote y sigue al centro del mapa cuando la persona lo mueve.
+  const [spot, setSpot] = useState({ lat: lotLat, lng: lotLng })
+  const spotKey = `${(Math.round(spot.lat * 10) / 10).toFixed(2)},${(Math.round(spot.lng * 10) / 10).toFixed(2)}` // celdas de ~11 km, como la resolución del pronóstico
+  const awayFromLot = Math.abs(spot.lat - lotLat) > 0.05 || Math.abs(spot.lng - lotLng) > 0.05
 
-  // Descarga del pronóstico (se repite si cambia el lote de sitio o se pulsa Reintentar).
+  // Si el lote cambia de sitio, el pronóstico vuelve al lote.
   useEffect(() => {
+    setSpot({ lat: lotLat, lng: lotLng })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lotKey])
+
+  // Descarga del pronóstico de la zona que se está mirando (con memoria para no repetir llamadas).
+  useEffect(() => {
+    const cached = cacheRef.current.get(spotKey)
+    if (cached) {
+      hasForecast.current = true
+      setNotice('')
+      setForecast(cached)
+      setIdx((i) => (i === null ? cached.nowIndex : Math.min(i, cached.hours.length - 1)))
+      setStatus('ok')
+      setLoading(false)
+      return undefined
+    }
     const ctrl = new AbortController()
-    setStatus('loading')
-    fetchForecast(lat, lng, ctrl.signal)
+    setLoading(true)
+    fetchForecast(spot.lat, spot.lng, ctrl.signal)
       .then((f) => {
+        cacheRef.current.set(spotKey, f)
+        hasForecast.current = true
+        setNotice('')
         setForecast(f)
-        setIdx(f.nowIndex)
+        // Solo la primera vez se pone la hora actual; al cambiar de zona se conserva la hora elegida.
+        setIdx((i) => (i === null ? f.nowIndex : Math.min(i, f.hours.length - 1)))
         setStatus('ok')
+        setLoading(false)
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') setStatus('error')
+        if (err.name === 'AbortError') return
+        setLoading(false)
+        if (hasForecast.current) setNotice('No se pudo actualizar el pronóstico de esta zona.')
+        else setStatus('error')
       })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordKey, fetchKey])
+  }, [spotKey, fetchKey])
 
   // Mapa satelital con el lote (sin relieve: aquí lo importante es el cielo).
   useEffect(() => {
@@ -252,12 +285,26 @@ export default function WeatherView({ points }) {
         },
       })
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
+      // Cuando la persona mueve el mapa a otra zona, el clima sigue al centro del mapa.
+      let timer = 0
+      map.on('moveend', () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          const c = map.getCenter()
+          setSpot({ lat: c.lat, lng: c.lng })
+        }, 700)
+      })
+      map.on('remove', () => clearTimeout(timer))
     } catch {
       map = null // sin WebGL el cielo igual se dibuja sobre un fondo oscuro
     }
-    return () => map?.remove()
+    mapRef.current = map
+    return () => {
+      map?.remove()
+      mapRef.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordKey])
+  }, [lotKey])
 
   // Canvas del cielo.
   useEffect(() => {
@@ -276,6 +323,7 @@ export default function WeatherView({ points }) {
   }, [])
 
   const hours = forecast?.hours
+  const idx = hours ? Math.min(idxState ?? forecast.nowIndex, hours.length - 1) : 0
   const cur = hours?.[idx]
   const days = useMemo(() => (hours ? groupByDay(hours) : []), [hours])
   const dayIndex = cur ? Math.max(0, days.findIndex((d) => d.day === cur.day)) : 0
@@ -293,7 +341,8 @@ export default function WeatherView({ points }) {
   useEffect(() => {
     if (!playing || !hours) return undefined
     const id = setInterval(() => {
-      setIdx((i) => {
+      setIdx((cur0) => {
+        const i = cur0 ?? forecast.nowIndex
         if (i >= hours.length - 1) {
           setPlaying(false)
           return i
@@ -302,7 +351,7 @@ export default function WeatherView({ points }) {
       })
     }, PLAY_MS)
     return () => clearInterval(id)
-  }, [playing, hours])
+  }, [playing, hours, forecast])
 
   const goToDay = (i) => {
     const d = days[i]
@@ -314,6 +363,25 @@ export default function WeatherView({ points }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', background: '#0b1f12', border: '1px solid rgba(255,255,255,0.1)' }}>
+        {status === 'ok' && (
+          <div style={zoneBar}>
+            <span>{awayFromLot ? 'Pronóstico de la zona que estás viendo' : 'Pronóstico del lote'} · {spot.lat.toFixed(3)}, {spot.lng.toFixed(3)}</span>
+            {awayFromLot && (
+              <button
+                type="button"
+                style={retryBtn}
+                onClick={() => {
+                  const b = new maplibregl.LngLatBounds()
+                  points.forEach(([la, ln]) => b.extend([ln, la]))
+                  mapRef.current?.fitBounds(b, { padding: 70, maxZoom: 17, duration: 800 })
+                  setSpot({ lat: lotLat, lng: lotLng })
+                }}
+              >
+                Volver al lote
+              </button>
+            )}
+          </div>
+        )}
         <div ref={mapBoxRef} style={{ width: '100%', height: 'clamp(320px, 52vh, 500px)' }} />
         <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }} />
 
@@ -332,7 +400,8 @@ export default function WeatherView({ points }) {
           </div>
         )}
 
-        {status === 'loading' && <div style={overlayMsg}>Cargando pronóstico…</div>}
+        {(status === 'loading' || loading) && <div style={overlayMsg}>{forecast ? 'Actualizando pronóstico de esta zona…' : 'Cargando pronóstico…'}</div>}
+        {notice && !loading && <div style={overlayMsg}><AlertTriangle size={16} /> {notice}</div>}
         {status === 'error' && (
           <div style={overlayMsg}>
             <AlertTriangle size={16} /> No se pudo traer el pronóstico (revisa tu conexión).
@@ -485,10 +554,27 @@ const hudStyle = {
   backdropFilter: 'blur(6px)',
 }
 const nowBadge = { marginLeft: '6px', padding: '1px 7px', borderRadius: '99px', fontSize: '11px', background: 'rgba(74,222,128,0.3)', border: '1px solid rgba(74,222,128,0.7)' }
+const zoneBar = {
+  position: 'absolute',
+  left: '10px',
+  bottom: '34px',
+  zIndex: 3,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'wrap',
+  maxWidth: 'calc(100% - 20px)',
+  padding: '6px 10px',
+  borderRadius: '10px',
+  background: 'rgba(10,25,15,0.72)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  color: '#fff',
+  fontSize: '12px',
+}
 const overlayMsg = {
   position: 'absolute',
   left: '50%',
-  bottom: '14px',
+  bottom: '74px',
   transform: 'translateX(-50%)',
   zIndex: 3,
   display: 'flex',
