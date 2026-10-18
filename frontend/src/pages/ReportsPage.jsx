@@ -9,6 +9,7 @@ import CategoryPieChart from '../components/reports/CategoryPieChart'
 import Spinner from '../components/common/Spinner'
 import Tabs from '../components/common/Tabs'
 import ExportPDFButton from '../components/common/ExportPDFButton'
+import ProfitabilityTab from '../components/reports/ProfitabilityTab'
 import { formatCurrency } from '../utils/formatCurrency'
 import { exportResumenGeneral, exportHouseholdReport } from '../utils/pdfExport'
 import { useAuth } from '../hooks/useAuth'
@@ -16,6 +17,7 @@ import toast from 'react-hot-toast'
 
 const TABS = [
   { key: 'crops', label: '🌾 Cultivos' },
+  { key: 'profit', label: '💹 Rentabilidad' },
   { key: 'household', label: '🏠 Hogar' },
 ]
 
@@ -58,16 +60,20 @@ export default function ReportsPage() {
           <h1 className="page-title">Reportes y estadísticas 📊</h1>
           <p className="text-white/50 text-sm mt-1">Analiza el desempeño financiero de tu finca</p>
         </div>
-        <ExportPDFButton
-          onExport={activeTab === 'crops' ? handleExportGeneral : handleExportHousehold}
-          label={activeTab === 'crops' ? 'Exportar resumen general' : 'Exportar gastos del hogar'}
-        />
+        {activeTab !== 'profit' && (
+          <ExportPDFButton
+            onExport={activeTab === 'crops' ? handleExportGeneral : handleExportHousehold}
+            label={activeTab === 'crops' ? 'Exportar resumen general' : 'Exportar gastos del hogar'}
+          />
+        )}
       </div>
 
-      <ReportFilters crops={crops} onFilter={handleFilter} />
+      {activeTab !== 'profit' && <ReportFilters crops={crops} onFilter={handleFilter} />}
       <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {loading ? (
+      {activeTab === 'profit' ? (
+        <ProfitabilityTab crops={crops} user={user} />
+      ) : loading ? (
         <Spinner size="lg" className="mt-16" />
       ) : (
         <>

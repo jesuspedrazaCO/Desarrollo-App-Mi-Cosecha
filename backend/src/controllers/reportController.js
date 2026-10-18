@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const Income = require('../models/Income');
 const HouseholdExpense = require('../models/HouseholdExpense');
 const { calculateCropSummary, groupByMonth, groupByCategory } = require('../utils/financialCalculations');
+const { buildCropProfitability, buildTotals } = require('../utils/profitability');
 
 // @desc    Comparación de rentabilidad entre cultivos
 // @route   GET /api/reports/crops-comparison
@@ -128,7 +129,40 @@ const getHouseholdReport = async (req, res, next) => {
   }
 };
 
+// @desc    Rentabilidad detallada por cultivo (ROI, margen, costo por kg, punto de equilibrio, por hectárea)
+// @route   GET /api/reports/profitability?crop=<id>&startDate=&endDate=
+const getProfitabilityReport = async (req, res, next) => {
+  try {
+    const { crop, startDate, endDate } = req.query;
+    const ownerId = req.user._id;
+
+    const cropQuery = { owner: ownerId };
+    if (crop) cropQuery._id = crop;
+    const crops = await Crop.find(cropQuery);
+
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+    const withDates = startDate || endDate;
+
+    const rows = await Promise.all(
+      crops.map(async (c) => {
+        const q = { owner: ownerId, crop: c._id };
+        if (withDates) q.date = dateFilter;
+        const [expenses, incomes] = await Promise.all([Expense.find(q).lean(), Income.find(q).lean()]);
+        return buildCropProfitability(c, expenses, incomes);
+      })
+    );
+
+    rows.sort((a, b) => b.netProfit - a.netProfit);
+    res.json({ crops: rows, totals: buildTotals(rows) });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  getProfitabilityReport,
   getCropsComparison,
   getAgroExpensesReport,
   getAgroIncomeReport,

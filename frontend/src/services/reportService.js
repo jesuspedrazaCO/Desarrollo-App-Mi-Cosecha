@@ -3,3 +3,4 @@ export const getCropsComparison = (params) => api.get('/reports/crops-comparison
 export const getAgroExpensesReport = (params) => api.get('/reports/agro-expenses', { params })
 export const getAgroIncomeReport = (params) => api.get('/reports/agro-income', { params })
 export const getHouseholdReport = (params) => api.get('/reports/household', { params })
+export const getProfitabilityReport = (params) => api.get('/reports/profitability', { params })

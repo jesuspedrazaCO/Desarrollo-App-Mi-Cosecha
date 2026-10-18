@@ -538,3 +538,142 @@ export const exportHouseholdReport = (items, totalAmount, user, period = '') => 
   drawFooter(doc)
   doc.save(`AgroFinanzas_Hogar_${new Date().toISOString().split('T')[0]}.pdf`)
 }
+
+// ══════════════════════════════════════════════
+// REPORTE: Informe de rentabilidad (un cultivo o todos)
+// ══════════════════════════════════════════════
+const fmtPct = (v) => (v === null || v === undefined ? '—' : `${Number(v).toLocaleString('es-CO')}%`)
+const fmtMonth = (m) => {
+  const [y, mo] = String(m).split('-')
+  return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })
+}
+const CATEGORY_LABEL = (c) => String(c || 'otros').replace(/_/g, ' ')
+
+const VERDICT_TEXT = {
+  muy_rentable: 'Cultivo muy rentable: la ganancia supera el 30% de lo invertido.',
+  rentable: 'Cultivo rentable: ya recuperó la inversión y deja ganancia.',
+  por_recuperar: 'Aún no recupera toda la inversión.',
+  sin_ventas: 'Todavía sin ventas registradas.',
+  sin_datos: 'Sin movimientos registrados.',
+}
+
+export const exportProfitabilityReport = (report, user) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const { crops = [], totals } = report
+  const single = crops.length === 1 ? crops[0] : null
+
+  let y = drawHeader(doc, 'Informe de Rentabilidad', single ? single.crop.name : 'Todos los cultivos', user)
+
+  if (single) {
+    const c = single
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dark)
+    doc.text(c.crop.name, 14, y)
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.gray)
+    doc.text(`${c.crop.type || '—'} - ${c.crop.location || '—'} - Estado: ${c.crop.status}`, 14, y + 6)
+    doc.text(`Inicio: ${formatDate(c.crop.startDate)}   Terreno: ${c.hectares ? `${c.hectares} ha` : '—'}`, 14, y + 12)
+    y += 20
+
+    y = drawKPICards(doc, [
+      { label: 'Total invertido', value: formatCOP(c.totalInvested), negative: false },
+      { label: 'Total vendido', value: formatCOP(c.totalSold), negative: false },
+      { label: 'Ganancia neta', value: formatCOP(c.netProfit), negative: c.netProfit < 0 },
+      { label: 'Rentabilidad (ROI)', value: fmtPct(c.roi), negative: c.roi < 0 },
+    ], y)
+
+    doc.setFontSize(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(...C.dark)
+    doc.text(VERDICT_TEXT[c.verdict] || '', 14, y - 4)
+    y += 4
+
+    doc.autoTable({
+      startY: y,
+      head: [['Indicador', 'Valor']],
+      body: [
+        ['Margen sobre ventas', fmtPct(c.margin)],
+        ['Kilos vendidos', c.kgSold ? `${c.kgSold.toLocaleString('es-CO')} kg` : '—'],
+        ['Precio promedio de venta por kg', c.avgPricePerKg ? formatCOP(c.avgPricePerKg) : '—'],
+        ['Costo de producir cada kg', c.costPerKg ? formatCOP(c.costPerKg) : '—'],
+        ['Kilos para cubrir la inversión (al precio promedio)', c.breakEvenKg ? `${c.breakEvenKg.toLocaleString('es-CO')} kg` : '—'],
+        ['Inversión por hectárea', c.perHectare ? formatCOP(c.perHectare.invested) : '—'],
+        ['Ganancia por hectárea', c.perHectare ? formatCOP(c.perHectare.netProfit) : '—'],
+        ['Mes en que se recuperó la inversión', c.recoveredMonth ? fmtMonth(c.recoveredMonth) : 'Aún no'],
+      ],
+      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8.5, textColor: C.dark },
+      alternateRowStyles: { fillColor: C.greenLight },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      margin: { left: 14, right: 14 },
+      styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+    })
+    y = doc.lastAutoTable.finalY + 10
+
+    if (c.byCategory.length > 0) {
+      if (y > 220) { doc.addPage(); y = 20 }
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dark)
+      doc.text('En qué se fue la inversión', 14, y); y += 4
+      doc.autoTable({
+        startY: y,
+        head: [['Categoria', 'Valor', '% de la inversion']],
+        body: c.byCategory.map((k) => [CATEGORY_LABEL(k.category), formatCOP(k.total), `${k.percent}%`]),
+        headStyles: { fillColor: C.orange, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8, textColor: C.dark },
+        alternateRowStyles: { fillColor: C.orangeLight },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'right' } },
+        margin: { left: 14, right: 14 },
+        styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+      })
+      y = doc.lastAutoTable.finalY + 10
+    }
+
+    if (c.monthly.length > 0) {
+      if (y > 200) { doc.addPage(); y = 20 }
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dark)
+      doc.text('Flujo de caja por mes', 14, y); y += 4
+      doc.autoTable({
+        startY: y,
+        head: [['Mes', 'Gastos', 'Ventas', 'Neto', 'Acumulado']],
+        body: c.monthly.map((m) => [fmtMonth(m.month), formatCOP(m.expenses), formatCOP(m.income), formatCOP(m.net), formatCOP(m.cumulative)]),
+        headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8, textColor: C.dark },
+        alternateRowStyles: { fillColor: C.grayLight },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+        margin: { left: 14, right: 14 },
+        styles: { cellPadding: 2.2, lineColor: [229, 231, 235], lineWidth: 0.2 },
+      })
+      y = doc.lastAutoTable.finalY + 10
+    }
+  } else {
+    y = drawKPICards(doc, [
+      { label: 'Total invertido', value: formatCOP(totals?.totalInvested), negative: false },
+      { label: 'Total vendido', value: formatCOP(totals?.totalSold), negative: false },
+      { label: 'Ganancia neta', value: formatCOP(totals?.netProfit), negative: (totals?.netProfit || 0) < 0 },
+      { label: 'Rentabilidad (ROI)', value: fmtPct(totals?.roi), negative: (totals?.roi || 0) < 0 },
+    ], y)
+    doc.autoTable({
+      startY: y,
+      head: [['Cultivo', 'Invertido', 'Vendido', 'Ganancia', 'ROI', 'Costo/kg', 'Ganancia/ha']],
+      body: crops.map((c) => [
+        c.crop.name, formatCOP(c.totalInvested), formatCOP(c.totalSold), formatCOP(c.netProfit), fmtPct(c.roi),
+        c.costPerKg ? formatCOP(c.costPerKg) : '—', c.perHectare ? formatCOP(c.perHectare.netProfit) : '—',
+      ]),
+      headStyles: { fillColor: C.green, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: C.dark },
+      alternateRowStyles: { fillColor: C.greenLight },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
+      margin: { left: 14, right: 14 },
+      styles: { cellPadding: 2.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+    })
+    y = doc.lastAutoTable.finalY + 10
+  }
+
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(...C.gray)
+  const note = doc.splitTextToSize(
+    'Informe elaborado con los gastos y ventas registrados por el productor en AgroFinanzas. Es informativo y no constituye una certificacion contable.',
+    doc.internal.pageSize.width - 28
+  )
+  if (y > doc.internal.pageSize.height - 30) { doc.addPage(); y = 20 }
+  doc.text(note, 14, y)
+
+  drawFooter(doc)
+  const name = single ? single.crop.name : 'todos-los-cultivos'
+  doc.save(`rentabilidad-${name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`)
+}
