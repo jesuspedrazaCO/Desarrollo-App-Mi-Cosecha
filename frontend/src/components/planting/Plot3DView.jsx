@@ -7,6 +7,7 @@ import { DEM_TILES_URL, IMAGERY_TILES_URL, analyzeLot, rowsToGeoJson, surfaceAre
 const EMPTY = { type: 'FeatureCollection', features: [] }
 
 const DEFAULT_PITCH = 68 // más inclinado = se notan mejor los desniveles
+const TILT_ZOOM_OUT = 0.6 // cuánto se aleja la cámara al encuadrar con inclinación
 const DEFAULT_BEARING = -20
 const DEFAULT_EXAGGERATION = 2
 
@@ -90,17 +91,17 @@ export default function Plot3DView({
 
   latestRef.current = { points, exclusionZones, analysis, rowSegments, rowsPerGroup, exaggeration, hillshade, showRows }
 
+  // Encuadra el lote. Con la cámara inclinada, fitBounds se queda demasiado cerca del suelo
+  // (calcula el zoom como si se mirara desde arriba), por eso se aleja un poco más.
   const fitToLot = (animate = true) => {
     const map = mapRef.current
     const pts = latestRef.current.points
     if (!map || pts.length < 3) return
-    map.fitBounds(boundsOf(pts), {
-      padding: 60,
-      pitch: DEFAULT_PITCH,
-      bearing: DEFAULT_BEARING,
-      maxZoom: 18,
-      duration: animate ? 1200 : 0,
-    })
+    const cam = map.cameraForBounds(boundsOf(pts), { padding: 60, bearing: DEFAULT_BEARING, maxZoom: 18 })
+    if (!cam) return
+    const target = { center: cam.center, zoom: Math.max(1, cam.zoom - TILT_ZOOM_OUT), bearing: DEFAULT_BEARING, pitch: DEFAULT_PITCH }
+    if (animate) map.easeTo({ ...target, duration: 1200 })
+    else map.jumpTo(target)
   }
 
   // Vuelve a pintar en el mapa lo último que recibió el componente (lote, zonas, surcos, puntos extremos).
@@ -231,6 +232,7 @@ export default function Plot3DView({
     }
 
     mapRef.current = map
+    fitToLot(false) // encuadre inmediato, sin esperar a que bajen las imágenes
     setWebglError(false)
     setSlow(false)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
@@ -238,6 +240,13 @@ export default function Plot3DView({
 
     // Por si algún dato llegó antes de que el estilo estuviera listo.
     map.once('load', () => syncData(map))
+    // Reencuadra (sin animación) cuando el mapa ya conoce su tamaño real, hasta que la persona lo mueva.
+    let touched = false
+    const markTouched = () => { touched = true }
+    ;['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, markTouched))
+    const refit = () => { if (!touched && mapRef.current === map) fitToLot(false) }
+    map.once('load', refit)
+    map.on('resize', refit)
     // Si pasan 12 s y el mapa sigue cargando, se ofrece reintentar (en vez de dejarlo en blanco).
     const slowTimer = setTimeout(() => {
       if (!map.loaded()) setSlow(true)
