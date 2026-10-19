@@ -1,6 +1,7 @@
 // Pronóstico por hora desde Open-Meteo (gratis, sin clave, permite llamadas desde el navegador).
 // Es un PRONÓSTICO (resolución de ~10 km), no una medición exacta sobre el lote.
 
+export const RAIN_MIN_MM = 0.3
 const API = 'https://api.open-meteo.com/v1/forecast'
 const HOURLY = [
   'temperature_2m',
@@ -93,6 +94,7 @@ export const windLabel = (kmh) => {
 
 export const rainLabel = (mm) => {
   if (mm < 0.1) return 'sin lluvia'
+  if (mm < RAIN_MIN_MM) return 'trazas (casi nada)'
   if (mm < 2.5) return 'llovizna / lluvia ligera'
   if (mm < 7.6) return 'lluvia moderada'
   return 'lluvia fuerte'
@@ -105,7 +107,8 @@ export const dayRainLabel = (mm) => {
   return 'lluvia fuerte'
 }
 
-const isRainy = (h) => h.rain >= 0.2 || h.prob >= 60
+// Hora con lluvia que se nota: al menos 0.3 mm. Una probabilidad alta con 0.1 mm es casi nada.
+const isRainy = (h) => h.rain >= RAIN_MIN_MM
 
 // Tramos seguidos de horas con lluvia probable dentro de un día.
 export const rainWindows = (dayHours) => {

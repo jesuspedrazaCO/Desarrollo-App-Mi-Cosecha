@@ -13,10 +13,12 @@ import {
   windFrom,
   windLabel,
   dayRainLabel,
+  RAIN_MIN_MM,
 } from '../../utils/weather'
 
 const EMPTY = { type: 'FeatureCollection', features: [] }
-const CLOUD_COUNT = 16
+const CLOUD_COUNT = 36
+const RAIN_VISIBLE_MM = 0.3 // por debajo de esto (mm por hora) no se dibujan gotas: casi no se nota
 const DROP_COUNT = 450
 const PLAY_MS = 550 // cada cuánto avanza una hora al darle play
 
@@ -45,8 +47,8 @@ function createSky(canvas, getState, reduceMotion) {
   const clouds = Array.from({ length: CLOUD_COUNT }, (_, i) => ({
     x: rand(i + 1),
     y: rand(i + 50) * 0.8 + 0.05,
-    r: 0.1 + rand(i + 100) * 0.14,
-    puffs: Array.from({ length: 5 }, (_, k) => ({ dx: (rand(i * 7 + k) - 0.5) * 1.3, dy: (rand(i * 11 + k) - 0.5) * 0.5, s: 0.55 + rand(i * 13 + k) * 0.6 })),
+    r: 0.04 + rand(i + 100) * 0.06,
+    puffs: Array.from({ length: 6 }, (_, k) => ({ dx: (rand(i * 7 + k) - 0.5) * 1.7, dy: (rand(i * 11 + k) - 0.5) * 0.35, s: 0.5 + rand(i * 13 + k) * 0.5 })),
   }))
   const drops = Array.from({ length: DROP_COUNT }, (_, i) => ({ x: rand(i + 300), y: rand(i + 700), l: 10 + rand(i + 900) * 14, s: 0.7 + rand(i + 1100) * 0.6 }))
 
@@ -72,14 +74,14 @@ function createSky(canvas, getState, reduceMotion) {
 
     // Oscurecimiento: más gris cuanta más lluvia/probabilidad haya.
     const wet = clamp(rain / 4 + prob / 250, 0, 1)
-    const shade = Math.round(255 - wet * 120)
+    const shade = Math.round(250 - wet * 120)
     const cloudColor = `${shade},${shade},${Math.min(255, shade + 8)}`
     const visible = Math.ceil((cloud / 100) * CLOUD_COUNT)
-    const alpha = cloud <= 0 ? 0 : 0.2 + (cloud / 100) * 0.42
+    const alpha = cloud <= 0 ? 0 : 0.1 + (cloud / 100) * 0.2
 
     // Velo general: con cielo cubierto el mapa se ve más apagado.
     if (cloud > 0) {
-      ctx.fillStyle = `rgba(${Math.round(40 + wet * 10)},${Math.round(55 + wet * 5)},${Math.round(75 + wet * 10)},${(cloud / 100) * 0.28 + wet * 0.12})`
+      ctx.fillStyle = `rgba(${Math.round(40 + wet * 10)},${Math.round(55 + wet * 5)},${Math.round(75 + wet * 10)},${(cloud / 100) * 0.1 + wet * 0.08})`
       ctx.fillRect(0, 0, w, h)
     }
 
@@ -98,6 +100,7 @@ function createSky(canvas, getState, reduceMotion) {
         const pr = r * p.s
         const g = ctx.createRadialGradient(px, py, 0, px, py, pr)
         g.addColorStop(0, `rgba(${cloudColor},${alpha})`)
+        g.addColorStop(0.55, `rgba(${cloudColor},${alpha * 0.45})`)
         g.addColorStop(1, `rgba(${cloudColor},0)`)
         ctx.fillStyle = g
         ctx.beginPath()
@@ -107,8 +110,8 @@ function createSky(canvas, getState, reduceMotion) {
     }
 
     // Lluvia: cantidad de gotas según los mm de esa hora.
-    if (rain >= 0.05 && near > 0.05) {
-      const intensity = clamp(rain / 6, 0, 1) * near
+    if (rain >= RAIN_VISIBLE_MM && near > 0.05) {
+      const intensity = clamp((rain - RAIN_VISIBLE_MM) / 6 + 0.1, 0, 1) * near
       const n = Math.round(Math.max(18, DROP_COUNT * intensity))
       const slant = clamp((ux * wind) / 60, -0.6, 0.6)
       ctx.lineWidth = 1.2
@@ -404,7 +407,7 @@ export default function WeatherView({ points }) {
               {idx === forecast.nowIndex && <span style={nowBadge}>ahora</span>}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '12px', marginTop: '4px' }}>
-              <span><CloudRain size={12} style={{ verticalAlign: '-2px' }} /> {cur.rain.toFixed(1)} mm · {cur.prob}%</span>
+              <span><CloudRain size={12} style={{ verticalAlign: '-2px' }} /> {cur.rain.toFixed(1)} mm · {cur.prob}%{cur.rain < RAIN_MIN_MM && cur.prob >= 50 ? ' (casi nada)' : ''}</span>
               <span><Cloud size={12} style={{ verticalAlign: '-2px' }} /> {Math.round(cur.cloud)}%</span>
               <span><Wind size={12} style={{ verticalAlign: '-2px' }} /> {Math.round(cur.wind)} km/h</span>
               <span><Thermometer size={12} style={{ verticalAlign: '-2px' }} /> {Math.round(cur.temp)}°</span>
@@ -468,7 +471,9 @@ export default function WeatherView({ points }) {
             <div style={{ fontWeight: 800 }}>Resumen del día</div>
             <p style={para}>
               {summary.windows.length === 0
-                ? 'No se espera lluvia importante en el día.'
+                ? summary.maxProb >= 60
+                  ? `La probabilidad llega a ${summary.maxProb}%, pero con cantidades mínimas (menos de ${RAIN_MIN_MM} mm por hora): casi no se notaría.`
+                  : 'No se espera lluvia importante en el día.'
                 : summary.windows
                     .map((w) => `Lluvia probable de ${formatHour(w.from)} a ${formatHour(w.to + 1)} (${w.mm.toFixed(1)} mm, hasta ${w.maxProb}% de probabilidad)`)
                     .join('. ') + '.'}{' '}
