@@ -1,9 +1,24 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
+import { downloadFile } from '../../utils/downloadFile'
 
 export default function ReceiptViewer({ receipt, onClose }) {
   if (!receipt) return null
   const isImage = receipt.fileType?.startsWith('image/')
   const fileUrl = receipt.fileUrl || receipt.fileName
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadFile(fileUrl, receipt.originalName)
+    } catch {
+      toast.error('No se pudo descargar. Se abrirá la foto para que la guardes desde ahí.')
+      window.open(fileUrl, '_blank', 'noopener,noreferrer')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -44,16 +59,15 @@ export default function ReceiptViewer({ receipt, onClose }) {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <a
-              href={fileUrl}
-              download={receipt.originalName}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-full"
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-full disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg,#258a4e,#1a6e3c)', whiteSpace: 'nowrap' }}
             >
-              ⬇️ Descargar
-            </a>
+              {downloading ? 'Descargando...' : '⬇️ Descargar'}
+            </button>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
