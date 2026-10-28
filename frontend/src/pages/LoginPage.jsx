@@ -102,11 +102,6 @@ export default function LoginPage() {
               </Link>
             </p>
 
-            <div className="mt-5 p-3.5 rounded-2xl text-xs text-white/40"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="font-bold text-white/55 mb-1">Usuario de prueba</p>
-              <p>📧 productor@agrofinanzas.com / agro123</p>
-            </div>
           </div>
         </div>
       </div>

@@ -26,9 +26,12 @@ const errorHandler = (err, req, res, next) => {
     return res.status(400).json({ message: `Error al subir archivo: ${err.message}` });
   }
 
-  res.status(err.statusCode || 500).json({
-    message: err.message || 'Error interno del servidor.',
-  });
+  // En producción los errores 500 no muestran el mensaje interno (puede revelar detalles de la base de datos o del código).
+  const status = err.statusCode || 500;
+  const message = status >= 500 && process.env.NODE_ENV === 'production'
+    ? 'Error interno del servidor.'
+    : err.message || 'Error interno del servidor.';
+  res.status(status).json({ message });
 };
 
 const notFound = (req, res, next) => {

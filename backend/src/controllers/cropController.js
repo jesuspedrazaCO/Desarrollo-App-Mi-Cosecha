@@ -2,6 +2,7 @@ const Crop = require('../models/Crop');
 const Expense = require('../models/Expense');
 const Income = require('../models/Income');
 const { calculateCropSummary } = require('../utils/financialCalculations');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 // @desc    Listar cultivos del usuario
 // @route   GET /api/crops
@@ -12,10 +13,11 @@ const getCrops = async (req, res, next) => {
 
     if (status) query.status = status;
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { type: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { type: { $regex: safeSearch, $options: 'i' } },
+        { location: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 

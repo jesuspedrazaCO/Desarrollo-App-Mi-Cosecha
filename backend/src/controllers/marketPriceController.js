@@ -1,11 +1,12 @@
 const MarketPrice = require('../models/MarketPrice');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const getMarketPrices = async (req, res, next) => {
   try {
     const { search, category, limit = 100 } = req.query;
     const query = {};
     if (category) query.category = category;
-    if (search) query.product = { $regex: search, $options: 'i' };
+    if (search) query.product = { $regex: escapeRegex(search), $options: 'i' };
     const prices = await MarketPrice.find(query).sort({ product: 1 }).limit(Number(limit));
     const lastUpdated = await MarketPrice.findOne().sort({ lastUpdated: -1 }).select('lastUpdated');
     res.json({ prices, total: prices.length, lastUpdated: lastUpdated?.lastUpdated || null });

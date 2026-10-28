@@ -28,12 +28,18 @@ import assistantRoutes from './routes/assistantRoutes.js';
 
 // Middlewares locales (También con .js)
 import { errorHandler, notFound } from './middlewares/errorMiddleware.js';
+import { sanitizeInput } from './middlewares/sanitizeMiddleware.js';
+import { verifyToken } from './config/jwt.js';
 
 // Configuración para simular __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Render pone un proxy delante de la app. Sin esto todos los usuarios parecen tener la misma IP
+// y los límites de intentos (login, etc.) se comparten entre todos.
+app.set('trust proxy', 1);
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -55,13 +61,43 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+// Límite por usuario para las funciones de IA (cada mensaje gasta cuota de Gemini).
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  skip: (req) => req.method !== 'POST',
+  keyGenerator: (req) => {
+    try {
+      const token = (req.headers.authorization || '').split(' ')[1];
+      return `user:${verifyToken(token).id}`;
+    } catch {
+      return req.ip;
+    }
+  },
+  message: { message: 'Has enviado muchos mensajes seguidos. Intenta de nuevo en un rato.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// FRONTEND_URL puede traer una o varias direcciones separadas por coma (p. ej. el dominio nuevo y el anterior).
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin) ? (origin || true) : false),
+  credentials: true,
+}));
 app.use(express.json({ limit: '2mb' }));
-app.use(morgan('dev'));
+app.use(sanitizeInput);
+// El token de recuperación de contraseña viaja en la URL: no se guarda en los logs.
+morgan.token('safe-url', (req) => req.originalUrl.replace(/(reset-password\/)[^/?#]+/, '$1[oculto]'));
+app.use(morgan(':method :safe-url :status :response-time ms'));
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
+app.use(['/api/ai', '/api/agro', '/api/assistant'], aiLimiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

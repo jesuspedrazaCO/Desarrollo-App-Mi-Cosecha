@@ -13,8 +13,8 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres')
+    if (password.length < 8) {
+      toast.error('La contraseña debe tener al menos 8 caracteres')
       return
     }
     if (password !== confirmPassword) {

@@ -5,11 +5,12 @@ const { register, login, getMe, updateMe, updateAvatar, forgotPassword, resetPas
 const { protect } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validate');
 const upload = require('../middlewares/uploadMiddleware');
+const { passwordRules } = require('../utils/passwordPolicy');
 
 router.post('/register', [
   body('name').trim().notEmpty().withMessage('El nombre es obligatorio').isLength({ min: 2, max: 80 }),
   body('email').isEmail().withMessage('Correo inválido').normalizeEmail(),
-  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+  passwordRules('password'),
 ], validate, register);
 
 router.post('/login', [
@@ -27,7 +28,7 @@ router.post('/forgot-password', [
 ], validate, forgotPassword);
 
 router.post('/reset-password/:token', [
-  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+  passwordRules('password'),
 ], validate, resetPassword);
 
 module.exports = router;

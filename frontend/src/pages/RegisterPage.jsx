@@ -60,7 +60,7 @@ export default function RegisterPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Input label="Nombre completo" required placeholder="Tu nombre" error={errors.name?.message} {...register('name')} />
               <Input label="Correo electrónico" type="email" required placeholder="tucorreo@ejemplo.com" error={errors.email?.message} {...register('email')} />
-              <Input label="Contraseña" type="password" required placeholder="Mínimo 6 caracteres" error={errors.password?.message} {...register('password')} />
+              <Input label="Contraseña" type="password" required placeholder="Mínimo 8 caracteres" error={errors.password?.message} {...register('password')} />
               <Input label="Nombre de la finca" placeholder="Ej: Finca La Esperanza" error={errors.farmName?.message} {...register('farmName')} />
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Ubicación" placeholder="Vereda, municipio" error={errors.location?.message} {...register('location')} />

@@ -9,6 +9,13 @@ const HouseholdExpense = require('../models/HouseholdExpense');
 const CalendarEvent = require('../models/CalendarEvent');
 
 const seed = async () => {
+  // Este script BORRA todos los usuarios y datos. Solo corre contra una base local, o si lo autorizas a propósito.
+  const uri = process.env.MONGO_URI || '';
+  const isLocal = /localhost|127\.0\.0\.1/.test(uri);
+  if (process.env.NODE_ENV === 'production' || (!isLocal && process.env.ALLOW_SEED !== 'yes')) {
+    console.error('❌ Seed cancelado: MONGO_URI no es una base local. Si de verdad quieres borrar esa base, corre con ALLOW_SEED=yes.');
+    process.exit(1);
+  }
   await connectDB();
 
   await Promise.all([
