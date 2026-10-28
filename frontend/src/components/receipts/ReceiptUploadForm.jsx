@@ -18,7 +18,7 @@ export default function ReceiptUploadForm({ crops = [], onSubmit, onCancel, load
 
   const handleFormSubmit = async (data) => {
     if (!selectedFile) {
-      alert('Debes seleccionar un archivo')
+      alert('Debes seleccionar una foto del comprobante')
       return
     }
     const formData = new FormData()
@@ -33,9 +33,9 @@ export default function ReceiptUploadForm({ crops = [], onSubmit, onCancel, load
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <FileUpload
-        label="Archivo del comprobante"
+        label="Foto del comprobante"
         onFileSelect={setSelectedFile}
-        accept="image/*,.pdf"
+        accept="image/*,.heic,.heif"
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

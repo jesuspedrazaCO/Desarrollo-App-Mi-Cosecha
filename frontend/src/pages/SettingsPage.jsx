@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { useAuth } from '../hooks/useAuth'
 import { updateMe } from '../services/authService'
 import Input from '../components/common/Input'
+import { compressImage } from '../utils/imageCompress'
 import Button from '../components/common/Button'
 import toast from 'react-hot-toast'
 import api from '../services/api'
@@ -25,9 +26,17 @@ export default function SettingsPage() {
   })
 
   const handleAvatarChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 2 * 1024 * 1024) { toast.error('La imagen no debe superar 2MB'); return }
+    const original = e.target.files?.[0]
+    e.target.value = ''
+    if (!original) return
+
+    let file
+    try {
+      file = await compressImage(original, { maxDim: 600, quality: 0.8 })
+    } catch (err) {
+      toast.error(err.message || 'No se pudo leer la foto')
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = () => setAvatarPreview(reader.result)
@@ -93,12 +102,12 @@ export default function SettingsPage() {
                 : <span className="text-white text-xl">📷</span>}
             </div>
           </div>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" onChange={handleAvatarChange} className="hidden" />
           <div>
             <h2 className="font-bold text-white text-lg font-display">{user?.name}</h2>
             <p className="text-white/50 text-sm">{user?.email}</p>
             <p className="text-emerald-400 text-sm font-medium mt-0.5">🌾 {user?.farmName}</p>
-            <p className="text-white/30 text-xs mt-2">Haz clic en la foto para cambiarla · JPG, PNG o WEBP, máx 2MB</p>
+            <p className="text-white/30 text-xs mt-2">Haz clic en la foto para cambiarla · cualquier foto · se comprime sola</p>
           </div>
         </div>
       </div>
