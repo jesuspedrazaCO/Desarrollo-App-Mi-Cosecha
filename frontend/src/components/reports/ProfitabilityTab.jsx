@@ -59,6 +59,75 @@ function CumulativeTooltip({ active, payload, label }) {
   )
 }
 
+const PLANTS_KEY = 'agro.plantsSelection'
+const readSelection = () => {
+  try { const v = JSON.parse(localStorage.getItem(PLANTS_KEY) || 'null'); return Array.isArray(v) ? v : null } catch { return null }
+}
+
+// Total de matas entre varios cultivos: el usuario elige cuáles contar (por defecto, todos).
+function PlantsSummary({ rows }) {
+  const [saved, setSaved] = useState(readSelection) // null = todos
+  const ids = rows.map((r) => r.crop._id)
+  const selected = new Set(saved === null ? ids : saved.filter((id) => ids.includes(id)))
+
+  const save = (next) => {
+    setSaved(next)
+    try { localStorage.setItem(PLANTS_KEY, JSON.stringify(next)) } catch { /* sin almacenamiento: sigue funcionando */ }
+  }
+  const toggle = (id) => {
+    const next = new Set(selected)
+    next.has(id) ? next.delete(id) : next.add(id)
+    save([...next])
+  }
+
+  const chosen = rows.filter((r) => selected.has(r.crop._id))
+  const withPlants = chosen.filter((r) => r.plants > 0)
+  const totalPlants = withPlants.reduce((s, r) => s + r.plants, 0)
+  const invested = withPlants.reduce((s, r) => s + r.totalInvested, 0)
+  const sold = withPlants.reduce((s, r) => s + r.totalSold, 0)
+  const net = sold - invested
+  const missing = chosen.filter((r) => !(r.plants > 0)).length
+
+  return (
+    <div className="rounded-3xl p-5 space-y-4" style={card}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-white font-bold">🌱 Matas sembradas</h3>
+        <div className="flex gap-3 text-xs font-semibold text-primary-300">
+          <button type="button" onClick={() => save(ids)}>Todos</button>
+          <button type="button" onClick={() => save([])}>Ninguno</button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {rows.map((r) => {
+          const on = selected.has(r.crop._id)
+          return (
+            <button key={r.crop._id} type="button" onClick={() => toggle(r.crop._id)} aria-pressed={on}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+              style={{
+                background: on ? 'rgba(34,197,94,0.22)' : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${on ? 'rgba(74,222,128,0.55)' : 'rgba(255,255,255,0.14)'}`,
+                color: on ? '#fff' : 'rgba(255,255,255,0.5)',
+              }}>
+              {on ? '✓ ' : ''}{r.crop.name} · {r.plants > 0 ? r.plants.toLocaleString('es-CO') : 'sin dato'}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Total de matas" value={totalPlants.toLocaleString('es-CO')} hint={`${withPlants.length} ${withPlants.length === 1 ? 'cultivo' : 'cultivos'} contados`} />
+        <Kpi label="Costo por mata" value={totalPlants ? formatCurrency(Math.round(invested / totalPlants)) : '—'} hint="invertido ÷ matas" />
+        <Kpi label="Vendido por mata" value={totalPlants ? formatCurrency(Math.round(sold / totalPlants)) : '—'} hint="ventas ÷ matas" />
+        <Kpi label={net < 0 ? 'Resultado por mata' : 'Ganancia por mata'} value={totalPlants ? formatCurrency(Math.round(net / totalPlants)) : '—'} hint="ganancia neta ÷ matas" />
+      </div>
+      {missing > 0 && (
+        <p className="text-xs text-white/40">{missing} {missing === 1 ? 'cultivo elegido no tiene' : 'cultivos elegidos no tienen'} matas registradas; agrégalas editando el cultivo.</p>
+      )}
+    </div>
+  )
+}
+
 export default function ProfitabilityTab({ crops = [], user = null }) {
   const [cropId, setCropId] = useState('')
   const [data, setData] = useState(null)
@@ -114,6 +183,8 @@ export default function ProfitabilityTab({ crops = [], user = null }) {
             <Kpi label={data.totals.netProfit >= 0 ? '✅ Ganancia neta' : '⚠️ Resultado neto'} value={formatCurrency(data.totals.netProfit)} tone={data.totals.netProfit >= 0 ? good : bad} />
             <Kpi label="📊 Rentabilidad (ROI)" value={pct(data.totals.roi)} hint="ganancia sobre lo invertido" />
           </div>
+
+          <PlantsSummary rows={data.crops} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {data.crops.map((c) => {
