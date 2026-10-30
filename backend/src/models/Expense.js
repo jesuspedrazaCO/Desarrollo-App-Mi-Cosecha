@@ -18,6 +18,7 @@ const EXPENSE_CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = ['efectivo', 'transferencia', 'tarjeta', 'credito', 'otro'];
+const PAYMENT_STATUSES = ['pagado', 'pendiente'];
 
 const expenseSchema = new mongoose.Schema(
   {
@@ -90,12 +91,30 @@ const expenseSchema = new mongoose.Schema(
       ref: 'Crop',
       default: null,
     },
+    // Gastos "por pagar": se compró algo y todavía no se paga. Los gastos existentes no
+    // tienen este campo y se tratan como pagados (valor por defecto), así que nada cambia para ellos.
+    paymentStatus: {
+      type: String,
+      enum: PAYMENT_STATUSES,
+      default: 'pagado',
+      index: true,
+    },
+    // A quién se le debe (ferretería, almacén agrícola, vecino...)
+    supplier: { type: String, trim: true, default: '', maxlength: [100, 'El nombre del proveedor es demasiado largo'] },
+    // Fecha límite para pagar (opcional)
+    dueDate: { type: Date, default: null },
+    // Cuándo se pagó de verdad (se llena al marcarlo como pagado)
+    paidAt: { type: Date, default: null },
+    // Une los gastos que vinieron en una misma compra (4 rollos de manguera + 1 bulto de abono...)
+    orderId: { type: String, default: '', index: true },
   },
   { timestamps: true }
 );
 
 expenseSchema.index({ owner: 1, crop: 1, date: -1 });
+expenseSchema.index({ owner: 1, paymentStatus: 1, dueDate: 1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);
 module.exports.EXPENSE_CATEGORIES = EXPENSE_CATEGORIES;
 module.exports.PAYMENT_METHODS = PAYMENT_METHODS;
+module.exports.PAYMENT_STATUSES = PAYMENT_STATUSES;

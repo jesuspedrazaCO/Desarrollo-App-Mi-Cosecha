@@ -31,6 +31,9 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
       render: (e) => (
         <div>
           <span className="text-sm text-white/80 line-clamp-1">{e.description}</span>
+          {e.paymentStatus === 'pendiente' && (
+            <div className="mt-0.5"><Badge color="amber">⏳ Por pagar{e.supplier ? ` · ${e.supplier}` : ''}</Badge></div>
+          )}
           {e.fundedByCrop && (
             <div className="text-[11px] text-amber-300/90 mt-0.5">
               💸 Pagado con plata de: {e.fundedByCrop.name}
@@ -45,7 +48,7 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
     },
     {
       key: 'paymentMethod', label: 'Pago',
-      render: (e) => <Badge color="gray">{e.paymentMethod}</Badge>,
+      render: (e) => <Badge color="gray">{e.paymentStatus === 'pendiente' ? 'pendiente' : e.paymentMethod}</Badge>,
     },
     {
       key: 'actions', label: '',

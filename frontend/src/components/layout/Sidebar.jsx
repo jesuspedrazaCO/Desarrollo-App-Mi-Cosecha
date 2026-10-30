@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Sprout, Home, ShoppingCart, Receipt,
   CalendarDays, BarChart3, TrendingUp, Settings, Wheat,
-  Map as MapIcon,
+  Map as MapIcon, Clock,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Users } from 'lucide-react'
@@ -15,13 +15,14 @@ const navItems = [
   { to: '/asistente', label: 'Scooby', isImage: true },
   { to: '/crops', label: 'Cultivos', icon: Sprout },
   { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
-  { to: '/reports', label: 'Reportes', icon: BarChart3 },
-  { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
+  { to: '/household', label: 'Gastos del Hogar', icon: Home },
+  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
+  { to: '/pendientes', label: 'Pendientes por pagar', icon: Clock },
   { to: '/receipts', label: 'Comprobantes', icon: Receipt },
   { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+  { to: '/reports', label: 'Reportes', icon: BarChart3 },
+  { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/contributors', label: 'Aportantes', icon: Users },
-  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
-  { to: '/household', label: 'Gastos del Hogar', icon: Home },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {

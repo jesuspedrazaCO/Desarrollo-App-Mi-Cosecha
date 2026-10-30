@@ -21,6 +21,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import PlantingCalculatorPage from './pages/PlantingCalculatorPage'
 import AsistentePage from './pages/AsistentePage'
 import ContributorsPage from './pages/ContributorsPage'
+import PendingPaymentsPage from './pages/PendingPaymentsPage'
 
 
 
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/planting-calculator" element={<PlantingCalculatorPage />} />
           <Route path="/asistente" element={<AsistentePage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
+          <Route path="/pendientes" element={<PendingPaymentsPage />} />
         </Route>
       </Route>
 

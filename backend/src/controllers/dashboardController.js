@@ -84,6 +84,21 @@ const getDashboardStats = async (req, res, next) => {
         amount: p.amount,
       });
     });
+    // Gastos por pagar (compras a crédito sin cancelar)
+    const unpaid = await Expense.find({ owner: ownerId, paymentStatus: 'pendiente' }).select('amount dueDate');
+    if (unpaid.length > 0) {
+      const unpaidTotal = unpaid.reduce((s, e) => s + (e.amount || 0), 0);
+      const overdue = unpaid.filter((e) => e.dueDate && e.dueDate < today).length;
+      const nextDue = unpaid.map((e) => e.dueDate).filter(Boolean).sort((a, b) => a - b)[0];
+      alerts.push({
+        type: 'pago',
+        message: overdue > 0
+          ? `Por pagar: ${unpaid.length} ${unpaid.length === 1 ? 'gasto' : 'gastos'} (${overdue} vencido${overdue === 1 ? '' : 's'})`
+          : `Por pagar: ${unpaid.length} ${unpaid.length === 1 ? 'gasto' : 'gastos'} pendiente${unpaid.length === 1 ? '' : 's'}`,
+        date: nextDue || today,
+        amount: unpaidTotal,
+      });
+    }
     upcomingEvents
       .filter((e) => e.type === 'cosecha')
       .forEach((c) => {

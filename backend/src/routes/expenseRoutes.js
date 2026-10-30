@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { getExpenses, createExpense, updateExpense, deleteExpense } = require('../controllers/expenseController');
+const {
+  getExpenses, createExpense, updateExpense, deleteExpense,
+  getPendingExpenses, createPendingOrder, payExpense, payOrder,
+} = require('../controllers/expenseController');
 const { protect } = require('../middlewares/authMiddleware');
 const { normalizeDateFields } = require('../middlewares/normalizeDates');
 const { validate } = require('../middlewares/validate');
 const { EXPENSE_CATEGORIES, PAYMENT_METHODS } = require('../models/Expense');
 
 router.use(protect);
-router.use(normalizeDateFields(['date']));
+router.use(normalizeDateFields(['date', 'dueDate', 'paidAt']));
 
 const expenseValidation = [
   body('crop').notEmpty().withMessage('El cultivo es obligatorio').isMongoId().withMessage('Cultivo inválido'),
@@ -28,6 +31,30 @@ const expenseValidation = [
   // Acepta vacío/null (significa "no aplica") además de un ID válido.
   body('fundedByCrop').optional({ checkFalsy: true }).isMongoId().withMessage('Cultivo de origen inválido'),
 ];
+
+// Compra por pagar: varios productos de un mismo proveedor, cada uno con su cultivo y categoría
+const pendingOrderValidation = [
+  body('date').notEmpty().withMessage('La fecha es obligatoria').isISO8601().withMessage('Fecha inválida'),
+  body('dueDate').optional({ checkFalsy: true }).isISO8601().withMessage('Fecha límite inválida'),
+  body('supplier').optional().trim().isLength({ max: 100 }).withMessage('El nombre del proveedor es demasiado largo'),
+  body('observations').optional().trim().isLength({ max: 500 }).withMessage('Las observaciones son demasiado largas'),
+  body('items').isArray({ min: 1, max: 50 }).withMessage('Agrega al menos un producto'),
+  body('items.*.crop').notEmpty().withMessage('Cada producto necesita un cultivo').isMongoId().withMessage('Cultivo inválido'),
+  body('items.*.description').trim().notEmpty().withMessage('Cada producto necesita una descripción')
+    .isLength({ max: 200 }).withMessage('La descripción es demasiado larga'),
+  body('items.*.category').isIn(EXPENSE_CATEGORIES).withMessage('Categoría inválida'),
+  body('items.*.amount').isFloat({ gt: 0 }).withMessage('El valor de cada producto debe ser mayor a 0'),
+];
+
+const payValidation = [
+  body('paidAt').optional({ checkFalsy: true }).isISO8601().withMessage('Fecha de pago inválida'),
+  body('paymentMethod').optional({ checkFalsy: true }).isIn(PAYMENT_METHODS).withMessage('Método de pago inválido'),
+];
+
+router.get('/pending', getPendingExpenses);
+router.post('/pending', pendingOrderValidation, validate, createPendingOrder);
+router.post('/pending/order/:orderId/pay', payValidation, validate, payOrder);
+router.patch('/:id/pay', payValidation, validate, payExpense);
 
 router.get('/', getExpenses);
 router.post('/', expenseValidation, validate, createExpense);

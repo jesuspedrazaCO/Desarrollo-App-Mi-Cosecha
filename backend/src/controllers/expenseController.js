@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
 const Crop = require('../models/Crop');
+const { PAYMENT_METHODS } = require('../models/Expense');
 
 // Si vienen aportantes, verifica que la suma coincida con el valor total del gasto
 // (con una pequeña tolerancia de centavos por redondeo). Si no hay aportantes, no valida nada.
@@ -51,10 +53,17 @@ const getExpenses = async (req, res, next) => {
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
+    // Cuánto de ese total todavía está por pagar
+    const pendingAmount = await Expense.aggregate([
+      { $match: { ...matchQuery, paymentStatus: 'pendiente' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+
     res.json({
       expenses,
       total,
       totalAmount: totalAmount[0]?.total || 0,
+      pendingAmount: pendingAmount[0]?.total || 0,
       page: Number(page),
       totalPages: Math.ceil(total / limit),
     });
@@ -140,4 +149,107 @@ const deleteExpense = async (req, res, next) => {
   }
 };
 
-module.exports = { getExpenses, createExpense, updateExpense, deleteExpense };
+// ── Gastos por pagar ─────────────────────────────────────────────────────────
+// Un gasto "por pagar" es un gasto normal del cultivo (cuenta en sus costos desde el primer día)
+// con la etiqueta paymentStatus: 'pendiente'. Al pagarlo pasa a 'pagado' y la etiqueta desaparece.
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+// @desc    Listar gastos por pagar (con totales)
+// @route   GET /api/expenses/pending
+const getPendingExpenses = async (req, res, next) => {
+  try {
+    const expenses = await Expense.find({ owner: req.user._id, paymentStatus: 'pendiente' })
+      .populate('crop', 'name type')
+      .sort({ dueDate: 1, date: -1 });
+
+    const today = startOfToday();
+    const totalAmount = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const overdueCount = expenses.filter((e) => e.dueDate && e.dueDate < today).length;
+
+    res.json({ expenses, count: expenses.length, totalAmount, overdueCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Registrar una compra por pagar (puede traer varios productos)
+// @route   POST /api/expenses/pending
+const createPendingOrder = async (req, res, next) => {
+  try {
+    const { supplier = '', date, dueDate, observations = '', items } = req.body;
+
+    // Todos los cultivos de la compra deben ser del usuario
+    const cropIds = [...new Set(items.map((i) => String(i.crop)))];
+    const ownedCrops = await Crop.countDocuments({ _id: { $in: cropIds }, owner: req.user._id });
+    if (ownedCrops !== cropIds.length) return res.status(404).json({ message: 'Cultivo no encontrado.' });
+
+    const orderId = crypto.randomUUID();
+    const created = await Expense.insertMany(
+      items.map((item) => ({
+        owner: req.user._id,
+        crop: item.crop,
+        date,
+        description: item.description,
+        category: item.category,
+        amount: item.amount,
+        paymentMethod: 'credito', // comprado a crédito, aún sin pagar
+        observations,
+        paymentStatus: 'pendiente',
+        supplier,
+        dueDate: dueDate || null,
+        orderId,
+      }))
+    );
+    res.status(201).json({ orderId, count: created.length, expenses: created });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const paymentData = (body) => ({
+  paymentStatus: 'pagado',
+  paidAt: body.paidAt ? new Date(body.paidAt) : new Date(),
+  // Al pagar, el método ya no es "crédito": es con lo que se pagó de verdad
+  paymentMethod: PAYMENT_METHODS.includes(body.paymentMethod) && body.paymentMethod !== 'credito' ? body.paymentMethod : 'efectivo',
+});
+
+// @desc    Marcar un gasto por pagar como pagado (cancelado)
+// @route   PATCH /api/expenses/:id/pay
+const payExpense = async (req, res, next) => {
+  try {
+    const expense = await Expense.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id, paymentStatus: 'pendiente' },
+      paymentData(req.body),
+      { new: true, runValidators: true }
+    ).populate('crop', 'name type');
+    if (!expense) return res.status(404).json({ message: 'Gasto por pagar no encontrado.' });
+    res.json(expense);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Marcar como pagada toda una compra
+// @route   POST /api/expenses/pending/order/:orderId/pay
+const payOrder = async (req, res, next) => {
+  try {
+    const result = await Expense.updateMany(
+      { owner: req.user._id, orderId: req.params.orderId, paymentStatus: 'pendiente' },
+      paymentData(req.body)
+    );
+    if (!result.matchedCount) return res.status(404).json({ message: 'Compra por pagar no encontrada.' });
+    res.json({ message: 'Compra marcada como pagada.', updated: result.modifiedCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getExpenses, createExpense, updateExpense, deleteExpense,
+  getPendingExpenses, createPendingOrder, payExpense, payOrder,
+};
