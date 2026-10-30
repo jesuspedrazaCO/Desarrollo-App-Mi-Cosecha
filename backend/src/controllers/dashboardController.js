@@ -25,7 +25,7 @@ const getDashboardStats = async (req, res, next) => {
     // ── Resumen por cultivo activo ──
     const cropsSummary = await Promise.all(
       activeCrops.map(async (crop) => {
-        const expenses = allExpenses.filter((e) => e.crop.toString() === crop._id.toString());
+        const expenses = allExpenses.filter((e) => e.crop && e.crop.toString() === crop._id.toString());
         const incomes = allIncomes.filter((i) => i.crop.toString() === crop._id.toString());
         // Plata de ESTE cultivo que se usó para pagar gastos de OTROS cultivos
         const lentExpenses = allExpenses.filter(
