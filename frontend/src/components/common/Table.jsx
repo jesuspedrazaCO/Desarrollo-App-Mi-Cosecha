@@ -1,5 +1,5 @@
-import Spinner from './Spinner'
 import EmptyState from './EmptyState'
+import { SkeletonTableRows } from './Skeleton'
 
 export default function Table({ columns, data, loading, emptyMessage = 'No hay datos', emptyIcon = '📋' }) {
   return (
@@ -17,7 +17,7 @@ export default function Table({ columns, data, loading, emptyMessage = 'No hay d
         </thead>
         <tbody className="divide-y divide-white/10">
           {loading ? (
-            <tr><td colSpan={columns.length} className="py-14"><Spinner className="py-4" /></td></tr>
+            <SkeletonTableRows columns={columns.length} />
           ) : data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-4">

@@ -5,9 +5,9 @@ import MarketListForm from '../components/market/MarketListForm'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
-import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
 import toast from 'react-hot-toast'
+import { SkeletonCards } from '../components/common/Skeleton'
 
 export default function MarketListsPage() {
   const { lists, loading, createList, updateList, removeList } = useMarketLists()
@@ -55,7 +55,7 @@ export default function MarketListsPage() {
       </div>
 
       {loading ? (
-        <Spinner size="lg" className="mt-16" />
+        <SkeletonCards count={6} />
       ) : lists.length === 0 ? (
         <EmptyState
           icon="🛒"

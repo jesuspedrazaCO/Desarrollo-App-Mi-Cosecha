@@ -6,10 +6,10 @@ import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
 import SearchBar from '../components/common/SearchBar'
-import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
 import Tabs from '../components/common/Tabs'
 import toast from 'react-hot-toast'
+import { SkeletonCards } from '../components/common/Skeleton'
 
 const STATUS_TABS = [
   { key: '', label: 'Todos' },
@@ -91,7 +91,7 @@ export default function CropsPage() {
 
       {/* Grid de cultivos */}
       {loading ? (
-        <Spinner size="lg" className="mt-16" />
+        <SkeletonCards count={6} />
       ) : crops.length === 0 ? (
         <EmptyState
           icon="🌱"

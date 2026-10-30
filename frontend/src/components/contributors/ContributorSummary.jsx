@@ -1,6 +1,7 @@
 import { Users } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatCurrency'
 import EmptyState from '../common/EmptyState'
+import { SkeletonList } from '../common/Skeleton'
 
 export default function ContributorSummary({ data = [], loading, title = 'Aportantes' }) {
   const withPayments = data.filter((d) => d.totalPaid > 0)
@@ -10,7 +11,7 @@ export default function ContributorSummary({ data = [], loading, title = 'Aporta
   if (loading) {
     return (
       <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        <p className="text-white/40 text-sm">Cargando aportantes...</p>
+        <SkeletonList rows={3} />
       </div>
     )
   }

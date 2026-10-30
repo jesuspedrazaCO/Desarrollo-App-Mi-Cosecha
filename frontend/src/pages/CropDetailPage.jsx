@@ -20,7 +20,6 @@ import ApplicationSummary from '../components/applications/ApplicationSummary'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
-import Spinner from '../components/common/Spinner'
 import Tabs from '../components/common/Tabs'
 import Badge from '../components/common/Badge'
 import ExportPDFButton from '../components/common/ExportPDFButton'
@@ -28,6 +27,7 @@ import { CROP_STATUS } from '../utils/constants'
 import { formatDate } from '../utils/formatDate'
 import { exportCropReport } from '../utils/pdfExport'
 import toast from 'react-hot-toast'
+import { SkeletonDetail } from '../components/common/Skeleton'
 
 const TABS = [
   { key: 'summary', label: '📊 Resumen' },
@@ -196,7 +196,7 @@ export default function CropDetailPage() {
     toast.success('PDF generado correctamente')
   }
 
-  if (loading) return <Spinner size="lg" className="mt-20" />
+  if (loading) return <SkeletonDetail />
 
   const { crop, summary, lentExpenses = [] } = cropData || {}
   const status = CROP_STATUS[crop?.status] || CROP_STATUS.activo

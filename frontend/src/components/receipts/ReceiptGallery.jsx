@@ -4,12 +4,12 @@ import { formatCurrency } from '../../utils/formatCurrency'
 import ReceiptViewer from './ReceiptViewer'
 import Button from '../common/Button'
 import EmptyState from '../common/EmptyState'
-import Spinner from '../common/Spinner'
+import { SkeletonGallery } from '../common/Skeleton'
 
 export default function ReceiptGallery({ receipts, loading, onDelete }) {
   const [viewing, setViewing] = useState(null)
 
-  if (loading) return <Spinner size="lg" className="mt-16" />
+  if (loading) return <SkeletonGallery />
 
   if (receipts.length === 0) {
     return (

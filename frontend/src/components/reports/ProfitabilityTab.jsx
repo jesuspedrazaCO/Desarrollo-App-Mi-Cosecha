@@ -4,9 +4,9 @@ import toast from 'react-hot-toast'
 import { getProfitabilityReport } from '../../services/reportService'
 import { formatCurrency, formatCurrencyCompact } from '../../utils/formatCurrency'
 import { exportProfitabilityReport } from '../../utils/pdfExport'
-import Spinner from '../common/Spinner'
 import EmptyState from '../common/EmptyState'
 import ExportPDFButton from '../common/ExportPDFButton'
+import { SkeletonReport } from '../common/Skeleton'
 
 const card = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)' }
 const good = { background: 'rgba(21,128,61,0.15)', border: '1px solid rgba(21,128,61,0.3)' }
@@ -170,7 +170,7 @@ export default function ProfitabilityTab({ crops = [], user = null }) {
       </div>
 
       {loading ? (
-        <Spinner size="lg" className="mt-10" />
+        <SkeletonReport />
       ) : !data?.crops?.length ? (
         <EmptyState icon="💹" title="Sin cultivos para analizar" description="Crea un cultivo y registra sus gastos y ventas para ver su rentabilidad" />
       ) : single ? (

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useMarketPrices } from '../hooks/useMarketPrices'
 import SearchBar from '../components/common/SearchBar'
-import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
 import { formatDate } from '../utils/formatDate'
+import { SkeletonList } from '../components/common/Skeleton'
 
 const formatCOP = (val) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0)
@@ -161,7 +161,7 @@ export default function MarketPricesPage() {
 
       {/* Contenido */}
       {loading ? (
-        <Spinner size="lg" className="mt-16" />
+        <SkeletonList rows={8} />
       ) : filteredPrices.length === 0 ? (
         <EmptyState
           icon="📈"

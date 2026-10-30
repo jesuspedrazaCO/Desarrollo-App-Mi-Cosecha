@@ -12,8 +12,8 @@ import { formatDate, toInputDate } from '../utils/formatDate'
 import Modal from '../components/common/Modal'
 import Button from '../components/common/Button'
 import Badge from '../components/common/Badge'
-import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
+import { SkeletonCards } from '../components/common/Skeleton'
 
 const fieldStyle = {
   backgroundColor: 'rgba(255,255,255,0.88)', color: '#1c1917',
@@ -64,7 +64,7 @@ export default function PendingPaymentsPage() {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const isOverdue = (d) => d && new Date(d) < today
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner /></div>
+  if (loading) return <SkeletonCards count={4} />
 
   return (
     <div className="space-y-5">

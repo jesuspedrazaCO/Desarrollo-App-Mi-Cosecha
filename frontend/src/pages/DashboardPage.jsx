@@ -7,15 +7,15 @@ import CropsSummary from '../components/dashboard/CropsSummary'
 import UpcomingEvents from '../components/dashboard/UpcomingEvents'
 import QuickChart from '../components/dashboard/QuickChart'
 import MarketPricesCard from '../components/dashboard/MarketPricesCard'
-import Spinner from '../components/common/Spinner'
 import { formatDateLong } from '../utils/formatDate'
 import { useAuth } from '../hooks/useAuth'
+import { SkeletonDashboard } from '../components/common/Skeleton'
 
 export default function DashboardPage() {
   const { data, loading } = useDashboard()
   const { user } = useAuth()
 
-  if (loading) return <Spinner size="lg" className="mt-20" />
+  if (loading) return <SkeletonDashboard />
 
   const { summary, cropsSummary, upcomingEvents, alerts } = data || {}
   const isProfit = summary?.totalProfit >= 0

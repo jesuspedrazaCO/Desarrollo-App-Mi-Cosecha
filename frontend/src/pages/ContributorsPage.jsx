@@ -6,6 +6,7 @@ import { getFarmWideContributorSummary } from '../services/contributorService'
 import ContributorSummary from '../components/contributors/ContributorSummary'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
+import { SkeletonList } from '../components/common/Skeleton'
 
 export default function ContributorsPage() {
   const { contributors, loading: loadingList, create, remove } = useContributors()
@@ -81,7 +82,7 @@ export default function ContributorsPage() {
         </form>
 
         {loadingList ? (
-          <p className="text-white/40 text-sm">Cargando...</p>
+          <SkeletonList rows={3} />
         ) : contributors.length === 0 ? (
           <p className="text-white/40 text-sm">Aún no has agregado a nadie.</p>
         ) : (

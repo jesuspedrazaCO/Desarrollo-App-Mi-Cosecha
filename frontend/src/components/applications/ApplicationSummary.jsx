@@ -1,12 +1,12 @@
 import { formatDate } from '../../utils/formatDate'
-import Spinner from '../common/Spinner'
 import EmptyState from '../common/EmptyState'
+import { SkeletonCards } from '../common/Skeleton'
 
 // El "contador": cuánto se ha usado de cada producto en total en este cultivo,
 // para saber por ejemplo "15 bultos de Abono Triple 15" sin tener que sumar
 // a mano cada aplicación.
 export default function ApplicationSummary({ summary, loading }) {
-  if (loading) return <Spinner className="py-8" />
+  if (loading) return <SkeletonCards count={3} />
   if (!summary || summary.length === 0) {
     return <EmptyState icon="🧮" title="Aún no hay insumos registrados para contar" />
   }

@@ -6,7 +6,6 @@ import ReportFilters from '../components/reports/ReportFilters'
 import CropComparisonChart from '../components/reports/CropComparisonChart'
 import MonthlyTrendChart from '../components/reports/MonthlyTrendChart'
 import CategoryPieChart from '../components/reports/CategoryPieChart'
-import Spinner from '../components/common/Spinner'
 import Tabs from '../components/common/Tabs'
 import ExportPDFButton from '../components/common/ExportPDFButton'
 import ProfitabilityTab from '../components/reports/ProfitabilityTab'
@@ -14,6 +13,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 import { exportResumenGeneral, exportHouseholdReport } from '../utils/pdfExport'
 import { useAuth } from '../hooks/useAuth'
 import toast from 'react-hot-toast'
+import { SkeletonReport } from '../components/common/Skeleton'
 
 const TABS = [
   { key: 'crops', label: '🌾 Cultivos' },
@@ -74,7 +74,7 @@ export default function ReportsPage() {
       {activeTab === 'profit' ? (
         <ProfitabilityTab crops={crops} user={user} />
       ) : loading ? (
-        <Spinner size="lg" className="mt-16" />
+        <SkeletonReport />
       ) : (
         <>
           {activeTab === 'crops' && (

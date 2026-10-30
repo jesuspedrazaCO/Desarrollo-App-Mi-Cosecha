@@ -2,8 +2,8 @@ import { formatDate } from '../../utils/formatDate'
 import { APPLICATION_TYPES } from '../../utils/constants'
 import Badge from '../common/Badge'
 import Button from '../common/Button'
-import Spinner from '../common/Spinner'
 import EmptyState from '../common/EmptyState'
+import { SkeletonCards } from '../common/Skeleton'
 
 const fmt = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 
@@ -20,7 +20,7 @@ export default function ApplicationTable({ applications, loading, onEdit, onDele
     return []
   }
 
-  if (loading) return <Spinner className="py-10" />
+  if (loading) return <SkeletonCards count={2} />
   if (!applications || applications.length === 0) {
     return <EmptyState icon="🧪" title="No hay aplicaciones registradas" />
   }

@@ -8,12 +8,12 @@ import MarketItemForm from '../components/market/MarketItemForm'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
-import Spinner from '../components/common/Spinner'
 import EmptyState from '../components/common/EmptyState'
 import Badge from '../components/common/Badge'
 import { formatDate } from '../utils/formatDate'
 import { formatCurrency } from '../utils/formatCurrency'
 import toast from 'react-hot-toast'
+import { SkeletonDetail } from '../components/common/Skeleton'
 
 export default function MarketListDetailPage() {
   const { id } = useParams()
@@ -93,7 +93,7 @@ export default function MarketListDetailPage() {
     }
   }
 
-  if (loading) return <Spinner size="lg" className="mt-20" />
+  if (loading) return <SkeletonDetail />
 
   const { list, items = [], totalEstimated } = data || {}
   const purchasedCount = items.filter(i => i.purchased).length

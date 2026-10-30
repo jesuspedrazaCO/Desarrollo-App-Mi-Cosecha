@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, Camera, X } from 'lucide-react'
 import { useAssistantChat } from '../hooks/useAssistantChat'
+import { Skeleton } from '../components/common/Skeleton'
 export default function AssistantChat() {
   const { conversation, loading, sending, send, newChat } = useAssistantChat()
   const [input, setInput] = useState('')
@@ -64,7 +65,14 @@ export default function AssistantChat() {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0">
-        {loading && <p className="text-white/50 text-sm">Cargando conversación...</p>}
+        {loading && (
+          <div role="status" aria-busy="true" className="space-y-3">
+            <span className="sr-only">Cargando conversación…</span>
+            <Skeleton className="h-12 w-2/3" rounded="rounded-2xl" />
+            <Skeleton className="h-16 w-1/2 ml-auto" rounded="rounded-2xl" />
+            <Skeleton className="h-12 w-3/5" rounded="rounded-2xl" />
+          </div>
+        )}
 
         {!loading && conversation?.messages?.length === 0 && (
           <div className="flex items-start gap-2">
