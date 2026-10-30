@@ -5,6 +5,8 @@ import Button from '../common/Button'
 import Spinner from '../common/Spinner'
 import EmptyState from '../common/EmptyState'
 
+const fmt = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 })
+
 // Historial en tarjetas: cada tarjeta es UNA aplicación (ej: una caneca de 200 L)
 // con todos los productos que llevó adentro. (El nombre del archivo se conserva
 // para no cambiar los imports existentes.)
@@ -42,8 +44,12 @@ export default function ApplicationTable({ applications, loading, onEdit, onDele
                 </div>
                 {a.tankVolume ? (
                   <p className="text-xs text-white/55 mt-1.5">
-                    🪣 Caneca de <strong className="text-white/80">{a.tankVolume} {a.tankUnit}</strong>
+                    🪣 {a.tankCount > 1
+                      ? <><strong className="text-white/80">{a.tankCount} canecas</strong> de {fmt(a.tankVolume)} {a.tankUnit} = <strong className="text-white/80">{fmt(a.tankVolume * a.tankCount)} {a.tankUnit}</strong></>
+                      : <>Caneca de <strong className="text-white/80">{fmt(a.tankVolume)} {a.tankUnit}</strong></>}
                   </p>
+                ) : a.tankCount > 1 ? (
+                  <p className="text-xs text-white/55 mt-1.5">🪣 <strong className="text-white/80">{a.tankCount} canecas</strong></p>
                 ) : null}
               </div>
               <div className="flex gap-1 flex-shrink-0">
@@ -60,7 +66,12 @@ export default function ApplicationTable({ applications, loading, onEdit, onDele
                   style={{ background: 'rgba(0,0,0,0.18)' }}
                 >
                   <span className="text-white/85 font-medium truncate">{it.product}</span>
-                  <span className="text-emerald-300 font-semibold flex-shrink-0">{it.quantity} {it.unit}</span>
+                  <span className="text-emerald-300 font-semibold flex-shrink-0 text-right">
+                    {fmt(it.quantity)} {it.unit}
+                    {a.tankCount > 1 && it.perTank > 0 && (
+                      <span className="block text-[10px] font-normal text-white/40">{fmt(it.perTank)} {it.unit} por caneca</span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

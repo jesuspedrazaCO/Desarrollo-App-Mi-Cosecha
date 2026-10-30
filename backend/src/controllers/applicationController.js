@@ -94,6 +94,25 @@ const getApplicationSummary = async (req, res, next) => {
   }
 };
 
+// Si se gastaron varias canecas, el total de cada producto = lo de una caneca × número de canecas.
+// Se calcula aquí (no solo en el formulario) para que el total guardado siempre cuadre.
+const applyTankTotals = (body) => {
+  const out = { ...body };
+  const count = Math.max(1, Math.floor(Number(out.tankCount) || 1));
+  out.tankCount = count;
+  if (Array.isArray(out.items)) {
+    out.items = out.items.map((it) => {
+      const perTank = Number(it.perTank);
+      if (count > 1 && perTank > 0) {
+        return { ...it, perTank, quantity: Math.round(perTank * count * 10000) / 10000 };
+      }
+      const { perTank: _omit, ...rest } = it;
+      return rest;
+    });
+  }
+  return out;
+};
+
 // @desc    Registrar una aplicación/insumo
 // @route   POST /api/applications
 const createApplication = async (req, res, next) => {
@@ -101,7 +120,7 @@ const createApplication = async (req, res, next) => {
     const crop = await Crop.findOne({ _id: req.body.crop, owner: req.user._id });
     if (!crop) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
-    const application = await Application.create({ ...req.body, owner: req.user._id });
+    const application = await Application.create({ ...applyTankTotals(req.body), owner: req.user._id });
     await application.populate('crop', 'name type');
     res.status(201).json(application);
   } catch (error) {
@@ -120,7 +139,7 @@ const updateApplication = async (req, res, next) => {
 
     // Al guardar en el formato nuevo (con `items`), se limpian los campos heredados
     // de un registro antiguo para que el producto no quede duplicado.
-    const body = { ...req.body };
+    const body = applyTankTotals(req.body);
     if (Array.isArray(body.items) && body.items.length > 0) {
       body.product = '';
       body.quantity = 0;

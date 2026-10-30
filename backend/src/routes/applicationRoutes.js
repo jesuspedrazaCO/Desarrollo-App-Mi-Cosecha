@@ -24,6 +24,8 @@ const applicationValidation = [
   body('items.*.quantity').isFloat({ min: 0 }).withMessage('La cantidad debe ser un número positivo'),
   body('items.*.unit').optional().trim().isLength({ max: 20 }).withMessage('La unidad es demasiado larga'),
   body('tankVolume').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('El volumen del tanque debe ser un número positivo'),
+  body('tankCount').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1, max: 1000 }).withMessage('El número de canecas debe ser un entero entre 1 y 1000'),
+  body('items.*.perTank').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('La cantidad por caneca debe ser un número positivo'),
   body('tankUnit').optional().trim().isLength({ max: 20 }).withMessage('La unidad del tanque es demasiado larga'),
   body('observations').optional().trim().isLength({ max: 500 }).withMessage('Las observaciones son demasiado largas'),
 ];

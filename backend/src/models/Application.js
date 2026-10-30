@@ -24,6 +24,9 @@ const applicationItemSchema = new mongoose.Schema(
       default: 'bultos',
       maxlength: [20, 'La unidad es demasiado larga'],
     },
+    // Cuánto se le puso a CADA caneca (opcional). `quantity` siempre es el TOTAL de la aplicación
+    // (perTank × tankCount), así los totales por producto y el historial no cambian.
+    perTank: { type: Number, min: [0, 'La cantidad por caneca no puede ser negativa'], default: undefined },
   },
   { _id: false }
 );
@@ -67,6 +70,12 @@ const applicationSchema = new mongoose.Schema(
       trim: true,
       default: 'L',
       maxlength: [20, 'La unidad del tanque es demasiado larga'],
+    },
+    // Cuántas canecas/tanques se gastaron con esta misma mezcla (los registros viejos cuentan como 1).
+    tankCount: {
+      type: Number,
+      min: [1, 'Debe ser al menos 1 caneca'],
+      default: 1,
     },
     // Campos heredados: registros creados antes de que una aplicación pudiera
     // llevar varios productos (un registro = un producto). Se conservan para

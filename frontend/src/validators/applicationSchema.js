@@ -4,6 +4,7 @@ const applicationItemSchema = z.object({
   product: z.string().min(1, 'Indica el producto'),
   quantity: z.coerce.number().positive('La cantidad debe ser mayor a 0'),
   unit: z.string().min(1, 'Indica la unidad').default('bultos'),
+  perTank: z.any().optional(),
 })
 
 export const applicationSchema = z.object({
@@ -17,6 +18,11 @@ export const applicationSchema = z.object({
     z.coerce.number().min(0, 'El volumen no puede ser negativo').optional()
   ),
   tankUnit: z.string().optional(),
+  // Cuántas canecas se gastaron; vacío = 1
+  tankCount: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? 1 : v),
+    z.coerce.number().int('Debe ser un número entero').min(1, 'Mínimo 1 caneca').max(1000, 'Máximo 1000')
+  ),
   items: z.array(applicationItemSchema).min(1, 'Agrega al menos un producto'),
   observations: z.string().optional(),
 })

@@ -1,4 +1,4 @@
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
 import { applicationSchema } from '../../validators/applicationSchema'
@@ -8,6 +8,8 @@ import Input from '../common/Input'
 import Select from '../common/Select'
 import Textarea from '../common/Textarea'
 import Button from '../common/Button'
+
+const fmt = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 
 const buildEmptyItem = () => ({ product: '', quantity: '', unit: 'bultos' })
 
@@ -19,6 +21,7 @@ function buildDefaultValues(defaultValues, cropId) {
       type: 'fertilizacion',
       tankVolume: '',
       tankUnit: 'L',
+      tankCount: 1,
       items: [buildEmptyItem()],
       observations: '',
     }
@@ -30,7 +33,12 @@ function buildDefaultValues(defaultValues, cropId) {
   // Registros antiguos (un producto por registro) se muestran como una sola línea.
   const hasItems = Array.isArray(defaultValues.items) && defaultValues.items.length > 0
   const items = hasItems
-    ? defaultValues.items.map(({ product, quantity, unit }) => ({ product, quantity, unit }))
+    ? defaultValues.items.map(({ product, quantity, unit, perTank }) => ({
+        product,
+        // Si se gastaron varias canecas, el formulario trabaja con lo de UNA caneca
+        quantity: (defaultValues.tankCount > 1) ? (perTank ?? Math.round((quantity / defaultValues.tankCount) * 10000) / 10000) : quantity,
+        unit,
+      }))
     : [{
         product: defaultValues.product || '',
         quantity: defaultValues.quantity || '',
@@ -43,6 +51,7 @@ function buildDefaultValues(defaultValues, cropId) {
     type: defaultValues.type || 'fertilizacion',
     tankVolume: defaultValues.tankVolume ?? '',
     tankUnit: defaultValues.tankUnit || 'L',
+    tankCount: defaultValues.tankCount || 1,
     items,
     observations: defaultValues.observations || '',
   }
@@ -56,8 +65,27 @@ export default function ApplicationForm({ defaultValues, crops = [], cropId, onS
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
 
+  // Para mostrar al instante cuánto da en total (sin que el usuario haga cuentas)
+  const watched = useWatch({ control })
+  const count = Math.max(1, Math.floor(Number(watched.tankCount) || 1))
+  const multi = count > 1
+  const tankVolume = Number(watched.tankVolume) || 0
+  const tankUnit = (watched.tankUnit || 'L').trim()
+
+  // Con varias canecas, lo que se escribe es "por caneca" y aquí se convierte al total.
+  const submit = (values) => {
+    const n = Math.max(1, Math.floor(Number(values.tankCount) || 1))
+    const items = values.items.map((it) => {
+      const per = Number(it.quantity) || 0
+      return n > 1
+        ? { ...it, perTank: per, quantity: Math.round(per * n * 10000) / 10000 }
+        : { product: it.product, quantity: per, unit: it.unit }
+    })
+    return onSubmit({ ...values, tankCount: n, items })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {!cropId && (
           <div className="sm:col-span-2">
@@ -104,6 +132,15 @@ export default function ApplicationForm({ defaultValues, crops = [], cropId, onS
           placeholder="L"
           error={errors.tankUnit?.message}
           {...register('tankUnit')}
+        />
+        <Input
+          label="¿Cuántas canecas se gastaron?"
+          type="number" min="1" step="1" inputMode="numeric"
+          placeholder="1"
+          hint="Si hiciste la misma mezcla varias veces, pon cuántas. Abajo escribes lo de UNA caneca y se calcula el total."
+          error={errors.tankCount?.message}
+          className="sm:col-span-2"
+          {...register('tankCount')}
         />
       </div>
 
@@ -162,7 +199,7 @@ export default function ApplicationForm({ defaultValues, crops = [], cropId, onS
                       />
                     </div>
                     <Input
-                      label="Cantidad" type="number" min="0" step="0.01"
+                      label={multi ? 'Cantidad por caneca' : 'Cantidad'} type="number" min="0" step="0.01"
                       placeholder="Ej: 200"
                       error={errors.items?.[index]?.quantity?.message}
                       {...register(`items.${index}.quantity`)}
@@ -175,6 +212,12 @@ export default function ApplicationForm({ defaultValues, crops = [], cropId, onS
                       {...register(`items.${index}.unit`)}
                     />
                   </div>
+
+                  {multi && Number(watched.items?.[index]?.quantity) > 0 && (
+                    <p className="mt-2 text-xs text-emerald-300">
+                      Total: {fmt(Number(watched.items[index].quantity) * count)} {watched.items[index].unit} ({count} canecas × {fmt(watched.items[index].quantity)})
+                    </p>
+                  )}
 
                   {fields.length > 1 && (
                     <div className="flex justify-end mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
@@ -201,6 +244,18 @@ export default function ApplicationForm({ defaultValues, crops = [], cropId, onS
           {TANK_UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
         </datalist>
       </div>
+
+      {multi && (
+        <div className="rounded-2xl px-4 py-3 text-sm" style={{ background: 'rgba(22,163,74,0.14)', border: '1px solid rgba(74,222,128,0.30)' }}>
+          <p className="font-bold text-white/90">🪣 {count} canecas{tankVolume > 0 ? ` de ${fmt(tankVolume)} ${tankUnit}` : ''}</p>
+          {tankVolume > 0 && <p className="text-white/75 mt-0.5">Total de mezcla: <strong className="text-emerald-300">{fmt(tankVolume * count)} {tankUnit}</strong></p>}
+          <ul className="mt-1 text-white/75">
+            {(watched.items || []).filter((it) => it?.product && Number(it.quantity) > 0).map((it, i) => (
+              <li key={i}>{it.product}: <strong className="text-emerald-300">{fmt(Number(it.quantity) * count)} {it.unit}</strong></li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <Textarea
         label="Observaciones"

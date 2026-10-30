@@ -6,6 +6,7 @@ import HouseholdExpense from '../models/HouseholdExpense.js'
 import AssistantConversation from '../models/AssistantConversation.js'
 import { sendAssistantMessage } from '../services/assistantChatService.js'
 import { getWeatherForecast } from '../services/weatherService.js'
+import { validateImagePayload } from '../utils/imagePayload.js'
 
 const buildCropsContext = (crops) =>
   crops.map((c) => ({
@@ -99,6 +100,8 @@ const buildApplicationsContext = (crops, applications) =>
           fecha: a.date ? new Date(a.date).toISOString().slice(0, 10) : null,
           labor: a.type,
           caneca: a.tankVolume ? `${a.tankVolume} ${a.tankUnit || 'L'}` : null,
+          canecasGastadas: a.tankCount > 1 ? a.tankCount : undefined,
+          totalMezcla: a.tankVolume && a.tankCount > 1 ? `${a.tankVolume * a.tankCount} ${a.tankUnit || 'L'}` : undefined,
           productos: getApplicationLines(a),
           notas: a.observations || null,
         })),
@@ -125,6 +128,9 @@ export const postAssistantMessage = async (req, res, next) => {
     if (!message?.trim() && !imageBase64) {
       return res.status(400).json({ success: false, message: 'Escribe un mensaje o adjunta una foto' })
     }
+
+    const imageError = validateImagePayload(imageBase64, imageMimeType)
+    if (imageError) return res.status(400).json({ success: false, message: imageError })
 
     const conversation = await AssistantConversation.findOne({ _id: req.params.id, user: req.user.id })
     if (!conversation) {
