@@ -51,6 +51,16 @@ export default function CropCard({ crop, onEdit, onDelete }) {
             }`}>{item.value}</p>
           </div>
         ))}
+
+        {/* Matas sembradas (si no se ha registrado, invita a agregarlas) */}
+        <button type="button" onClick={() => onEdit(crop)} title="Editar número de matas"
+          className="col-span-2 rounded-2xl px-3 py-2 flex items-center justify-between text-left"
+          style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">🌱 Matas sembradas</span>
+          {crop.plantCount > 0
+            ? <span className="text-[13px] font-bold text-white/90">{crop.plantCount.toLocaleString('es-CO')}</span>
+            : <span className="text-[11px] font-semibold text-primary-300">+ Agregar</span>}
+        </button>
       </div>
 
       {/* Ganancia */}
