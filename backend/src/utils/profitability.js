@@ -68,6 +68,17 @@ const buildCropProfitability = (crop, expenses = [], incomes = []) => {
     ? { invested: invested / hectares, sold: sold / hectares, netProfit: base.netProfit / hectares }
     : null;
 
+  // Por mata: solo si el cultivo tiene registrado cuántas plantas hay.
+  const plants = Number(crop.plantCount) || 0;
+  const perPlant = plants > 0
+    ? {
+        invested: round(invested / plants, 0),
+        sold: round(sold / plants, 0),
+        netProfit: round(base.netProfit / plants, 0),
+        kg: kgSold > 0 ? round(kgSold / plants, 2) : null,
+      }
+    : null;
+
   // Gastos por categoría, con porcentaje.
   const byCategory = groupByCategory(expenses, 'amount')
     .map((c) => ({ ...c, percent: invested > 0 ? round((c.total / invested) * 100, 1) : 0 }))
@@ -125,6 +136,7 @@ const buildCropProfitability = (crop, expenses = [], incomes = []) => {
       location: crop.location || '',
       landSize: crop.landSize || 0,
       landSizeUnit: crop.landSizeUnit || 'hectáreas',
+      plantCount: plants,
       startDate: crop.startDate,
       estimatedHarvestDate: crop.estimatedHarvestDate,
     },
@@ -143,6 +155,8 @@ const buildCropProfitability = (crop, expenses = [], incomes = []) => {
       sold: round(perHectare.sold, 0),
       netProfit: round(perHectare.netProfit, 0),
     },
+    plants,
+    perPlant,
     byCategory,
     monthly,
     recoveredMonth,

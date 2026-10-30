@@ -38,6 +38,12 @@ const cropSchema = new mongoose.Schema(
       min: [0, 'El tamaño del terreno no puede ser negativo'],
       default: 0,
     },
+    // Cuántas plantas (matas) hay sembradas. Opcional: se usa para calcular costo y ganancia por mata.
+    plantCount: {
+      type: Number,
+      min: [0, 'El número de plantas no puede ser negativo'],
+      default: 0,
+    },
     landSizeUnit: {
       type: String,
       enum: ['hectáreas', 'metros2', 'cuadras', 'fanegadas'],

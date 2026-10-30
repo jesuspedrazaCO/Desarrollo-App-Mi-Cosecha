@@ -104,6 +104,15 @@ export default function CropForm({ defaultValues, onSubmit, onCancel, loading })
         />
 
         <Input
+          label="Número de plantas (matas)" type="number" min="0" step="1" inputMode="numeric"
+          placeholder="Ej: 25000"
+          hint="Opcional. Sirve para ver costo y ganancia por mata en Rentabilidad."
+          error={errors.plantCount?.message}
+          className="sm:col-span-2"
+          {...register('plantCount')}
+        />
+
+        <Input
           label="Ubicación / Finca"
           placeholder="Ej: Lote norte, Finca La Esperanza"
           error={errors.location?.message}

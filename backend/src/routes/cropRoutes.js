@@ -21,6 +21,7 @@ const cropValidation = [
   body('estimatedHarvestDate').optional({ checkFalsy: true })
     .isISO8601().withMessage('La fecha estimada no es válida'),
   body('landSize').optional().isFloat({ min: 0 }).withMessage('El tamaño debe ser un número positivo'),
+  body('plantCount').optional({ checkFalsy: true }).isInt({ min: 0, max: 100000000 }).withMessage('El número de plantas debe ser un entero positivo'),
   body('status').optional().isIn(['activo', 'finalizado', 'suspendido']).withMessage('Estado inválido'),
 ];
 

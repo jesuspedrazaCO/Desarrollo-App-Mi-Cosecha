@@ -7,6 +7,7 @@ export const cropSchema = z.object({
   estimatedHarvestDate: z.string().optional().or(z.literal('')),
   location: z.string().optional(),
   landSize: z.coerce.number().min(0, 'El tamaño debe ser un número positivo').optional(),
+  plantCount: z.coerce.number().int('Debe ser un número entero').min(0, 'No puede ser negativo').optional(),
   landSizeUnit: z.enum(['hectáreas', 'metros2', 'cuadras', 'fanegadas']).default('hectáreas'),
   status: z.enum(['activo', 'finalizado', 'suspendido']).default('activo'),
   observations: z.string().optional(),

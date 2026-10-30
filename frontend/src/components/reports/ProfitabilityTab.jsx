@@ -137,6 +137,7 @@ export default function ProfitabilityTab({ crops = [], user = null }) {
                   <p className="text-xs text-white/45 mt-2">
                     Invertido {formatCurrencyCompact(c.totalInvested)} · Vendido {formatCurrencyCompact(c.totalSold)}
                     {c.costPerKg ? ` · Costo ${formatCurrency(c.costPerKg)}/kg` : ''}
+                    {c.perPlant ? ` · Ganancia ${formatCurrency(c.perPlant.netProfit)}/mata` : ''}
                   </p>
                 </button>
               )
@@ -169,6 +170,13 @@ function CropDetail({ c }) {
         <Kpi label="Precio promedio de venta" value={c.avgPricePerKg ? formatCurrency(c.avgPricePerKg) : '—'} hint="por kg" />
         <Kpi label="Punto de equilibrio" value={c.breakEvenKg ? `${c.breakEvenKg.toLocaleString('es-CO')} kg` : '—'} hint="kilos para cubrir lo invertido" />
         <Kpi label="Ganancia por hectárea" value={c.perHectare ? formatCurrency(c.perHectare.netProfit) : '—'} hint={c.hectares ? `${c.hectares} ha` : 'agrega el tamaño del terreno'} />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <Kpi label="🌱 Plantas (matas)" value={c.plants ? c.plants.toLocaleString('es-CO') : '—'} hint={c.plants ? 'sembradas' : 'agrégalas editando el cultivo'} />
+        <Kpi label="Costo por mata" value={c.perPlant ? formatCurrency(c.perPlant.invested) : '—'} hint="invertido ÷ plantas" />
+        <Kpi label="Vendido por mata" value={c.perPlant ? formatCurrency(c.perPlant.sold) : '—'} hint={c.perPlant?.kg ? `${c.perPlant.kg.toLocaleString('es-CO')} kg por mata` : 'ventas ÷ plantas'} />
+        <Kpi label={c.perPlant && c.perPlant.netProfit < 0 ? 'Resultado por mata' : 'Ganancia por mata'} value={c.perPlant ? formatCurrency(c.perPlant.netProfit) : '—'} hint="ganancia neta ÷ plantas" />
       </div>
 
       {c.monthly.length > 0 && (
