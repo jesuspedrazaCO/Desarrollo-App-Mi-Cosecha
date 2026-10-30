@@ -39,7 +39,7 @@ const pendingOrderValidation = [
   body('supplier').optional().trim().isLength({ max: 100 }).withMessage('El nombre del proveedor es demasiado largo'),
   body('observations').optional().trim().isLength({ max: 500 }).withMessage('Las observaciones son demasiado largas'),
   body('items').isArray({ min: 1, max: 50 }).withMessage('Agrega al menos un producto'),
-  body('items.*.crop').notEmpty().withMessage('Cada producto necesita un cultivo').isMongoId().withMessage('Cultivo inválido'),
+  body('items.*.crop').optional({ checkFalsy: true }).isMongoId().withMessage('Cultivo inválido'),
   body('items.*.description').trim().notEmpty().withMessage('Cada producto necesita una descripción')
     .isLength({ max: 200 }).withMessage('La descripción es demasiado larga'),
   body('items.*.category').isIn(EXPENSE_CATEGORIES).withMessage('Categoría inválida'),

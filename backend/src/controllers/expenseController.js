@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
 const Crop = require('../models/Crop');
 const { PAYMENT_METHODS } = require('../models/Expense');
+const Receipt = require('../models/Receipt');
 
 // Si vienen aportantes, verifica que la suma coincida con el valor total del gasto
 // (con una pequeña tolerancia de centavos por redondeo). Si no hay aportantes, no valida nada.
@@ -183,16 +184,18 @@ const createPendingOrder = async (req, res, next) => {
   try {
     const { supplier = '', date, dueDate, observations = '', items } = req.body;
 
-    // Todos los cultivos de la compra deben ser del usuario
-    const cropIds = [...new Set(items.map((i) => String(i.crop)))];
-    const ownedCrops = await Crop.countDocuments({ _id: { $in: cropIds }, owner: req.user._id });
-    if (ownedCrops !== cropIds.length) return res.status(404).json({ message: 'Cultivo no encontrado.' });
+    // Los cultivos son opcionales (sin cultivo = gasto general); los que vengan deben ser del usuario
+    const cropIds = [...new Set(items.filter((i) => i.crop).map((i) => String(i.crop)))];
+    if (cropIds.length) {
+      const ownedCrops = await Crop.countDocuments({ _id: { $in: cropIds }, owner: req.user._id });
+      if (ownedCrops !== cropIds.length) return res.status(404).json({ message: 'Cultivo no encontrado.' });
+    }
 
     const orderId = crypto.randomUUID();
     const created = await Expense.insertMany(
       items.map((item) => ({
         owner: req.user._id,
-        crop: item.crop,
+        crop: item.crop || null,
         date,
         description: item.description,
         category: item.category,
@@ -218,6 +221,37 @@ const paymentData = (body) => ({
   paymentMethod: PAYMENT_METHODS.includes(body.paymentMethod) && body.paymentMethod !== 'credito' ? body.paymentMethod : 'efectivo',
 });
 
+// Al pagar, queda un recibo en Comprobantes (con o sin cultivo). Es idempotente por reciboKey.
+// Si falla, no debe tumbar el pago: el gasto ya quedó como pagado.
+const saveRecibo = async (ownerId, key, expenses, paid) => {
+  try {
+    if (!expenses.length) return;
+    const crops = [...new Set(expenses.map((e) => String(e.crop?._id || e.crop || '')))];
+    const first = expenses[0];
+    await Receipt.findOneAndUpdate(
+      { owner: ownerId, reciboKey: key },
+      {
+        owner: ownerId,
+        reciboKey: key,
+        kind: 'recibo',
+        crop: crops.length === 1 && crops[0] ? (first.crop?._id || first.crop) : null,
+        category: 'Compra pagada',
+        description: first.supplier ? `Compra a ${first.supplier}` : 'Compra pagada',
+        date: paid.paidAt,
+        amount: expenses.reduce((s, e) => s + (e.amount || 0), 0),
+        supplier: first.supplier || '',
+        paymentMethod: paid.paymentMethod,
+        items: expenses.map((e) => ({
+          description: e.description, category: e.category, amount: e.amount, cropName: e.crop?.name || '',
+        })),
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } catch (err) {
+    console.error('No se pudo guardar el recibo:', err.message);
+  }
+};
+
 // @desc    Marcar un gasto por pagar como pagado (cancelado)
 // @route   PATCH /api/expenses/:id/pay
 const payExpense = async (req, res, next) => {
@@ -228,6 +262,7 @@ const payExpense = async (req, res, next) => {
       { new: true, runValidators: true }
     ).populate('crop', 'name type');
     if (!expense) return res.status(404).json({ message: 'Gasto por pagar no encontrado.' });
+    await saveRecibo(req.user._id, `exp:${expense._id}`, [expense], expense);
     res.json(expense);
   } catch (error) {
     next(error);
@@ -238,11 +273,12 @@ const payExpense = async (req, res, next) => {
 // @route   POST /api/expenses/pending/order/:orderId/pay
 const payOrder = async (req, res, next) => {
   try {
-    const result = await Expense.updateMany(
-      { owner: req.user._id, orderId: req.params.orderId, paymentStatus: 'pendiente' },
-      paymentData(req.body)
-    );
+    const filter = { owner: req.user._id, orderId: req.params.orderId, paymentStatus: 'pendiente' };
+    const toPay = await Expense.find(filter).populate('crop', 'name');
+    const data = paymentData(req.body);
+    const result = await Expense.updateMany(filter, data);
     if (!result.matchedCount) return res.status(404).json({ message: 'Compra por pagar no encontrada.' });
+    await saveRecibo(req.user._id, `order:${req.params.orderId}`, toPay, data);
     res.json({ message: 'Compra marcada como pagada.', updated: result.modifiedCount });
   } catch (error) {
     next(error);

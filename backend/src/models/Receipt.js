@@ -7,11 +7,25 @@ const receiptSchema = new mongoose.Schema(
     category:    { type: String, trim: true, default: '' },
     description: { type: String, trim: true, default: '' },
     date:        { type: Date, default: Date.now },
-    fileName:    { type: String, required: true },
+    fileName:    { type: String, default: '' },
     fileUrl:     { type: String, default: '' },
-    originalName:{ type: String, required: true },
-    fileType:    { type: String, required: true },
-    fileSize:    { type: Number, required: true },
+    originalName:{ type: String, default: '' },
+    fileType:    { type: String, default: '' },
+    fileSize:    { type: Number, default: 0 },
+    // 'archivo' = foto subida por el usuario (como siempre).
+    // 'recibo'  = comprobante generado automáticamente al pagar una compra pendiente.
+    kind:        { type: String, enum: ['archivo', 'recibo'], default: 'archivo' },
+    amount:      { type: Number, default: 0 },
+    supplier:    { type: String, default: '' },
+    paymentMethod: { type: String, default: '' },
+    reciboKey:   { type: String, default: '', index: true },
+    items: [{
+      _id: false,
+      description: String,
+      category: String,
+      amount: Number,
+      cropName: { type: String, default: '' },
+    }],
   },
   { timestamps: true }
 );

@@ -31,7 +31,9 @@ const expenseSchema = new mongoose.Schema(
     crop: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Crop',
-      required: [true, 'El cultivo es obligatorio'],
+      // Opcional: una compra por pagar puede no pertenecer a ningún cultivo (gasto general).
+      // El formulario normal de gastos sigue exigiéndolo desde expenseRoutes.
+      default: null,
       index: true,
     },
     date: {

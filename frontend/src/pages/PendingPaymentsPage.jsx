@@ -71,7 +71,7 @@ export default function PendingPaymentsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white font-display">Pendientes por pagar</h1>
-          <p className="text-xs text-white/45 mt-0.5">Lo que ya compraste y todavía no pagas. Cuenta como gasto del cultivo desde ya.</p>
+          <p className="text-xs text-white/45 mt-0.5">Lo que ya compraste y todavía no pagas. Cuenta como gasto desde ya; al pagar queda un recibo en Comprobantes.</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus size={16} /> Registrar compra</Button>
       </div>
@@ -116,7 +116,7 @@ export default function PendingPaymentsPage() {
                       <div className="min-w-0">
                         <p className="text-sm text-white/85 truncate">{catInfo(i.category).icon} {i.description}</p>
                         <p className="text-[11px] text-white/40">
-                          Cultivo: {i.crop ? <Link to={`/crops/${i.crop._id}`} className="text-primary-300 hover:underline">{i.crop.name}</Link> : '—'}
+                          {i.crop ? <>Cultivo: <Link to={`/crops/${i.crop._id}`} className="text-primary-300 hover:underline">{i.crop.name}</Link></> : 'Gasto general (sin cultivo)'}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -168,7 +168,6 @@ function OrderModal({ isOpen, onClose, crops, onSaved }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (items.some((i) => !i.crop)) return toast.error('Elige el cultivo de cada producto')
     if (items.some((i) => !i.description.trim())) return toast.error('Escribe qué compraste en cada línea')
     if (items.some((i) => !(Number(i.amount) > 0))) return toast.error('El valor de cada producto debe ser mayor a 0')
     setSaving(true)
@@ -214,7 +213,7 @@ function OrderModal({ isOpen, onClose, crops, onSaved }) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <select style={fieldStyle} value={it.crop} onChange={(e) => setItem(idx, { crop: e.target.value })}>
-                  <option value="">Cultivo...</option>
+                  <option value="">Sin cultivo (gasto general)</option>
                   {crops.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
                 <select style={fieldStyle} value={it.category} onChange={(e) => setItem(idx, { category: e.target.value })}>
@@ -269,7 +268,7 @@ function PayModal({ paying, onClose, onDone }) {
         <div className="space-y-4">
           <p className="text-sm text-white/70">
             {paying.label}: <strong className="text-orange-300">{formatCurrency(paying.total)}</strong>.
-            Quedará solo en los gastos del cultivo, sin la etiqueta de pendiente.
+            Saldrá de pendientes, quedará como gasto (en su cultivo, si tiene) sin la etiqueta, y se guardará un recibo en Comprobantes.
           </p>
           <div><label style={labelStyle}>Fecha de pago</label>
             <input type="date" style={fieldStyle} value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></div>
