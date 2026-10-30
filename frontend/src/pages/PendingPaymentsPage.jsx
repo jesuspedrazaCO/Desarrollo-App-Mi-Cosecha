@@ -90,61 +90,72 @@ export default function PendingPaymentsPage() {
       {orders.length === 0 ? (
         <EmptyState icon="✅" title="No debes nada" description="Cuando compres algo sin pagarlo, regístralo aquí para no olvidarlo." />
       ) : (
-        <div className="space-y-3">
-          {orders.map((o) => {
-            const total = o.items.reduce((s, i) => s + i.amount, 0)
-            const late = isOverdue(o.dueDate)
-            return (
-              <div key={o.key} className="rounded-3xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.09)', border: `1px solid ${late ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.14)'}` }}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-bold text-white/90 truncate">{o.supplier || 'Sin proveedor'}</p>
-                    <p className="text-xs text-white/45 mt-0.5">Compra del {formatDate(o.date)}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      <Badge color={late ? 'red' : 'amber'}>
-                        {late ? <AlertTriangle size={11} /> : <Clock size={11} />}
-                        {o.dueDate ? `${late ? 'Venció' : 'Vence'} ${formatDate(o.dueDate)}` : 'Por pagar'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-lg font-bold text-orange-300">{formatCurrency(total)}</p>
-                </div>
-
-                <ul className="divide-y divide-white/10">
-                  {o.items.map((i) => (
-                    <li key={i._id} className="py-2 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm text-white/85 truncate">{catInfo(i.category).icon} {i.description}</p>
-                        <p className="text-[11px] text-white/40">
-                          {i.crop ? <>Cultivo: <Link to={`/crops/${i.crop._id}`} className="text-primary-300 hover:underline">{i.crop.name}</Link></> : 'Gasto general (sin cultivo)'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-semibold text-white/80">{formatCurrency(i.amount)}</span>
-                        {o.items.length > 1 && (
-                          <button className="text-[11px] font-semibold text-primary-300 hover:text-primary-200"
-                            onClick={() => setPaying({ expense: i, total: i.amount, label: i.description })}>Pagar</button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button size="sm" className="w-full"
-                  onClick={() => setPaying(o.orderId
-                    ? { orderId: o.orderId, total, label: o.supplier || 'esta compra' }
-                    : { expense: o.items[0], total, label: o.items[0].description })}>
-                  <CheckCircle2 size={15} /> Marcar {o.items.length > 1 ? 'toda la compra ' : ''}como pagada
-                </Button>
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 items-start">
+          {orders.map((o) => (
+            <OrderCard key={o.key} o={o} late={isOverdue(o.dueDate)} onPay={setPaying} />
+          ))}
         </div>
       )}
 
       <OrderModal isOpen={showForm} onClose={() => setShowForm(false)} crops={crops}
         onSaved={() => { setShowForm(false); load() }} />
       <PayModal paying={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); load() }} />
+    </div>
+  )
+}
+
+const COLLAPSED = 2
+
+function OrderCard({ o, late, onPay }) {
+  const [open, setOpen] = useState(false)
+  const total = o.items.reduce((s, i) => s + i.amount, 0)
+  const visible = open ? o.items : o.items.slice(0, COLLAPSED)
+  const hidden = o.items.length - COLLAPSED
+  return (
+    <div className="rounded-2xl p-3.5 space-y-2" style={{ background: 'rgba(255,255,255,0.09)', border: `1px solid ${late ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.14)'}` }}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-white/90 truncate">{o.supplier || 'Sin proveedor'}</p>
+          <p className="text-[11px] text-white/45">Compra del {formatDate(o.date)} · {o.items.length} {o.items.length === 1 ? 'producto' : 'productos'}</p>
+        </div>
+        <p className="text-base font-bold text-orange-300 shrink-0">{formatCurrency(total)}</p>
+      </div>
+      <Badge color={late ? 'red' : 'amber'}>
+        {late ? <AlertTriangle size={11} /> : <Clock size={11} />}
+        {o.dueDate ? `${late ? 'Venció' : 'Vence'} ${formatDate(o.dueDate)}` : 'Por pagar'}
+      </Badge>
+
+      <ul className="divide-y divide-white/10">
+        {visible.map((i) => (
+          <li key={i._id} className="py-1.5 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[13px] text-white/85 truncate">{catInfo(i.category).icon} {i.description}</p>
+              <p className="text-[10px] text-white/40 truncate">
+                {i.crop ? <>Cultivo: <Link to={`/crops/${i.crop._id}`} className="text-primary-300 hover:underline">{i.crop.name}</Link></> : 'Gasto general (sin cultivo)'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[13px] font-semibold text-white/80">{formatCurrency(i.amount)}</span>
+              {o.items.length > 1 && (
+                <button className="text-[11px] font-semibold text-primary-300 hover:text-primary-200"
+                  onClick={() => onPay({ expense: i, total: i.amount, label: i.description })}>Pagar</button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {hidden > 0 && (
+        <button className="text-[11px] font-semibold text-white/55 hover:text-white" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Ver menos' : `Ver ${hidden} más`}
+        </button>
+      )}
+
+      <Button size="sm" className="w-full"
+        onClick={() => onPay(o.orderId
+          ? { orderId: o.orderId, total, label: o.supplier || 'esta compra' }
+          : { expense: o.items[0], total, label: o.items[0].description })}>
+        <CheckCircle2 size={14} /> Marcar {o.items.length > 1 ? 'toda la compra ' : ''}como pagada
+      </Button>
     </div>
   )
 }
