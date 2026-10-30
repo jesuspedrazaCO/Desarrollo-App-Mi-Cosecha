@@ -14,15 +14,16 @@ const navItems = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { to: '/asistente', label: 'Scooby', isImage: true },
   { to: '/crops', label: 'Cultivos', icon: Sprout },
-  { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
-  { to: '/household', label: 'Gastos del Hogar', icon: Home },
-  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
   { to: '/pendientes', label: 'Pendientes por pagar', icon: Clock },
-  { to: '/receipts', label: 'Comprobantes', icon: Receipt },
-  { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+  { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/contributors', label: 'Aportantes', icon: Users },
+  { to: '/household', label: 'Gastos del Hogar', icon: Home },
+  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
+  { to: '/receipts', label: 'Comprobantes', icon: Receipt },
+  { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+  
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
