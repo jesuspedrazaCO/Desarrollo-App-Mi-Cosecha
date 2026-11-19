@@ -4,7 +4,7 @@ const { body, param } = require('express-validator');
 const {
   getExpenses, createExpense, updateExpense, deleteExpense,
   getPendingExpenses, createPendingOrder, payExpense, payOrder,
-  addItemsToOrder, updatePendingOrder, deletePendingOrder, updatePendingItem, deletePendingItem,
+  addItemsToOrder, updatePendingOrder, deletePendingOrder, updatePendingLine, deletePendingLine, payLine,
 } = require('../controllers/expenseController');
 const { protect } = require('../middlewares/authMiddleware');
 const { normalizeDateFields } = require('../middlewares/normalizeDates');
@@ -51,12 +51,21 @@ const itemFieldsValidation = (prefix) => [
     .isLength({ max: 20 }).withMessage('La unidad es demasiado larga'),
   body(`${prefix}unitPrice`).optional({ checkFalsy: true })
     .isFloat({ gt: 0, max: 10000000000 }).withMessage('El precio unitario debe ser mayor a 0'),
+  // Reparto del producto entre cultivos: [{ crop, quantity }]
+  body(`${prefix}allocations`).optional().isArray({ max: 20 }).withMessage('El reparto por cultivos es inválido'),
+  body(`${prefix}allocations.*.crop`).optional({ checkFalsy: true }).isMongoId().withMessage('Cultivo inválido'),
+  body(`${prefix}allocations.*.quantity`).isFloat({ gt: 0, max: 1000000 }).withMessage('La cantidad de cada cultivo debe ser mayor a 0'),
   body(`${prefix}amount`).optional({ checkFalsy: true })
     .isFloat({ gt: 0, max: 10000000000 }).withMessage('El valor de cada producto debe ser mayor a 0'),
 ];
 
-// Cada producto debe traer (cantidad y precio unitario) o un valor total
-const hasValue = (i) => (Number(i?.quantity) > 0 && Number(i?.unitPrice) > 0) || Number(i?.amount) > 0;
+// Cada producto debe traer (cantidad y precio unitario), un reparto con precio unitario, o un valor total
+const hasValue = (i) => {
+  if (Array.isArray(i?.allocations) && i.allocations.length > 0) {
+    return Number(i.unitPrice) > 0 && i.allocations.every((a) => Number(a?.quantity) > 0);
+  }
+  return (Number(i?.quantity) > 0 && Number(i?.unitPrice) > 0) || Number(i?.amount) > 0;
+};
 
 // Compra por pagar: varios productos de un mismo proveedor, cada uno con su cultivo y categoría
 const pendingOrderValidation = [
@@ -79,9 +88,9 @@ const addItemsValidation = [
     .withMessage('Cada producto necesita cantidad y precio unitario'),
 ];
 
-// Editar un solo producto
-const itemUpdateValidation = [
-  param('id').isMongoId().withMessage('Producto inválido'),
+// Editar un solo producto (con su reparto entre cultivos)
+const lineUpdateValidation = [
+  param('lineKey').custom(isOrderKey).withMessage('Producto inválido'),
   ...itemFieldsValidation(''),
   body().custom(hasValue).withMessage('El producto necesita cantidad y precio unitario'),
 ];
@@ -105,8 +114,9 @@ router.post('/pending/order/:orderId/pay', payValidation, validate, payOrder);
 router.post('/pending/order/:orderId/items', addItemsValidation, validate, addItemsToOrder);
 router.put('/pending/order/:orderId', orderUpdateValidation, validate, updatePendingOrder);
 router.delete('/pending/order/:orderId', param('orderId').custom(isOrderKey).withMessage('Compra inválida'), validate, deletePendingOrder);
-router.put('/pending/item/:id', itemUpdateValidation, validate, updatePendingItem);
-router.delete('/pending/item/:id', param('id').isMongoId().withMessage('Producto inválido'), validate, deletePendingItem);
+router.put('/pending/line/:lineKey', lineUpdateValidation, validate, updatePendingLine);
+router.delete('/pending/line/:lineKey', param('lineKey').custom(isOrderKey).withMessage('Producto inválido'), validate, deletePendingLine);
+router.post('/pending/line/:lineKey/pay', [param('lineKey').custom(isOrderKey).withMessage('Producto inválido'), ...payValidation], validate, payLine);
 router.patch('/:id/pay', payValidation, validate, payExpense);
 
 router.get('/', getExpenses);

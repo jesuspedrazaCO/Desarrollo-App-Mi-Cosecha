@@ -39,12 +39,65 @@ const buildItemFields = (item) => {
   return { quantity: null, unitPrice: null, unit: '', amount };
 };
 
+// Ids de cultivo que menciona un producto (cultivo único o reparto entre varios)
+const itemCropIds = (item) =>
+  (Array.isArray(item.allocations) && item.allocations.length
+    ? item.allocations.map((a) => a.crop)
+    : [item.crop]
+  ).filter(Boolean).map(String);
+
 // Todos los cultivos que vengan deben ser del usuario
 const cropsAreOwned = async (ownerId, items) => {
-  const cropIds = [...new Set(items.filter((i) => i.crop).map((i) => String(i.crop)))];
+  const cropIds = [...new Set(items.flatMap(itemCropIds))];
   if (!cropIds.length) return true;
   const owned = await Crop.countDocuments({ _id: { $in: cropIds }, owner: ownerId });
   return owned === cropIds.length;
+};
+
+const MAX_ALLOCATIONS = 20;
+const MAX_DOCS_PER_ORDER = 100;
+
+// Convierte un producto del formulario en la lista de gastos que se guardan (uno por cultivo).
+// Con "allocations" ([{crop, quantity}]) el producto se reparte entre cultivos: cada cultivo recibe
+// su cantidad y su gasto (cantidad × precio unitario). Sin "allocations" es un solo gasto.
+// Devuelve null si algo no cuadra (valores, suma del reparto, etc.).
+const buildLineDocs = (item) => {
+  const hasAlloc = Array.isArray(item.allocations) && item.allocations.length > 0;
+  if (!hasAlloc) {
+    const f = buildItemFields(item);
+    return f ? [{ crop: item.crop || null, ...f }] : null;
+  }
+  if (item.allocations.length > MAX_ALLOCATIONS) return null;
+  const unitPrice = Number(item.unitPrice);
+  if (!(unitPrice > 0)) return null;
+  const unit = String(item.unit || '').trim().slice(0, 20) || 'unidad';
+
+  // Si el mismo cultivo aparece dos veces, se suman sus cantidades
+  const merged = new Map();
+  for (const a of item.allocations) {
+    const q = Number(a.quantity);
+    if (!(q > 0)) return null;
+    const key = a.crop ? String(a.crop) : '';
+    merged.set(key, (merged.get(key) || 0) + q);
+  }
+
+  // La cantidad total debe coincidir con la suma del reparto
+  const total = [...merged.values()].reduce((sum, q) => sum + q, 0);
+  const hasQty = item.quantity !== undefined && item.quantity !== null && item.quantity !== '';
+  if (hasQty && Math.abs(total - Number(item.quantity)) > 1e-6) return null;
+
+  const docs = [...merged].map(([crop, quantity]) => ({
+    crop: crop || null, quantity, unit, unitPrice, amount: roundMoney(quantity * unitPrice),
+  }));
+  return docs.every((d) => d.amount > 0) ? docs : null;
+};
+
+// Un producto (con su reparto) se identifica por su lineId (UUID); los gastos viejos sin lineId
+// se identifican por su propio _id.
+const lineFilter = (ownerId, key) => {
+  if (isUUID(key)) return { owner: ownerId, lineId: key, paymentStatus: 'pendiente' };
+  if (isObjectId(key)) return { owner: ownerId, _id: key, paymentStatus: 'pendiente' };
+  return null;
 };
 
 // Una compra se identifica por su orderId (UUID). Las compras viejas sin orderId se identifican
@@ -229,6 +282,23 @@ const getPendingExpenses = async (req, res, next) => {
   }
 };
 
+// Arma los documentos Expense de una lista de productos (cada producto puede repartirse en varios cultivos)
+const docsFromItems = (items, lines, base) =>
+  items.flatMap((item, idx) => {
+    const lineId = crypto.randomUUID();
+    return lines[idx].map((d) => ({
+      ...base,
+      crop: d.crop,
+      description: item.description,
+      category: item.category,
+      quantity: d.quantity,
+      unit: d.unit,
+      unitPrice: d.unitPrice,
+      amount: d.amount,
+      lineId,
+    }));
+  });
+
 // @desc    Registrar una compra por pagar (puede traer varios productos)
 // @route   POST /api/expenses/pending
 const createPendingOrder = async (req, res, next) => {
@@ -238,26 +308,23 @@ const createPendingOrder = async (req, res, next) => {
     // Los cultivos son opcionales (sin cultivo = gasto general); los que vengan deben ser del usuario
     if (!(await cropsAreOwned(req.user._id, items))) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
-    const fields = items.map(buildItemFields);
-    if (fields.some((f) => !f)) return res.status(400).json({ message: 'Cada producto necesita un valor mayor a 0.' });
+    const lines = items.map(buildLineDocs);
+    if (lines.some((l) => !l)) return res.status(400).json({ message: 'Revisa los valores y el reparto por cultivos de cada producto.' });
 
     const orderId = crypto.randomUUID();
-    const created = await Expense.insertMany(
-      items.map((item, idx) => ({
-        owner: req.user._id,
-        crop: item.crop || null,
-        date,
-        description: item.description,
-        category: item.category,
-        ...fields[idx],
-        paymentMethod: 'credito', // comprado a crédito, aún sin pagar
-        observations,
-        paymentStatus: 'pendiente',
-        supplier,
-        dueDate: dueDate || null,
-        orderId,
-      }))
-    );
+    const docs = docsFromItems(items, lines, {
+      owner: req.user._id,
+      date,
+      paymentMethod: 'credito', // comprado a crédito, aún sin pagar
+      observations,
+      paymentStatus: 'pendiente',
+      supplier,
+      dueDate: dueDate || null,
+      orderId,
+    });
+    if (docs.length > MAX_DOCS_PER_ORDER) return res.status(400).json({ message: 'La compra tiene demasiados productos o cultivos.' });
+
+    const created = await Expense.insertMany(docs);
     res.status(201).json({ orderId, count: created.length, expenses: created });
   } catch (error) {
     next(error);
@@ -277,8 +344,8 @@ const addItemsToOrder = async (req, res, next) => {
 
     if (!(await cropsAreOwned(req.user._id, items))) return res.status(404).json({ message: 'Cultivo no encontrado.' });
 
-    const fields = items.map(buildItemFields);
-    if (fields.some((f) => !f)) return res.status(400).json({ message: 'Cada producto necesita un valor mayor a 0.' });
+    const lines = items.map(buildLineDocs);
+    if (lines.some((l) => !l)) return res.status(400).json({ message: 'Revisa los valores y el reparto por cultivos de cada producto.' });
 
     // Compra vieja sin orderId: se le asigna uno para poder agruparla con los productos nuevos
     let orderId = first.orderId;
@@ -287,27 +354,23 @@ const addItemsToOrder = async (req, res, next) => {
       await Expense.updateOne({ _id: first._id, owner: req.user._id }, { orderId });
     }
 
+    const docs = docsFromItems(items, lines, {
+      owner: req.user._id,
+      date: first.date,
+      paymentMethod: 'credito',
+      observations: first.observations,
+      paymentStatus: 'pendiente',
+      supplier: first.supplier,
+      dueDate: first.dueDate,
+      orderId,
+    });
+
     const currentCount = await Expense.countDocuments({ owner: req.user._id, orderId, paymentStatus: 'pendiente' });
-    if (currentCount + items.length > MAX_ITEMS_PER_ORDER) {
-      return res.status(400).json({ message: `Una compra no puede tener más de ${MAX_ITEMS_PER_ORDER} productos.` });
+    if (currentCount + docs.length > MAX_DOCS_PER_ORDER) {
+      return res.status(400).json({ message: 'La compra tiene demasiados productos o cultivos.' });
     }
 
-    const created = await Expense.insertMany(
-      items.map((item, idx) => ({
-        owner: req.user._id,
-        crop: item.crop || null,
-        date: first.date,
-        description: item.description,
-        category: item.category,
-        ...fields[idx],
-        paymentMethod: 'credito',
-        observations: first.observations,
-        paymentStatus: 'pendiente',
-        supplier: first.supplier,
-        dueDate: first.dueDate,
-        orderId,
-      }))
-    );
+    const created = await Expense.insertMany(docs);
     res.status(201).json({ orderId, count: created.length, expenses: created });
   } catch (error) {
     next(error);
@@ -349,39 +412,69 @@ const deletePendingOrder = async (req, res, next) => {
   }
 };
 
-// @desc    Editar un producto de una compra por pagar
-// @route   PUT /api/expenses/pending/item/:id
-const updatePendingItem = async (req, res, next) => {
+// @desc    Editar un producto de una compra por pagar (incluido su reparto entre cultivos)
+// @route   PUT /api/expenses/pending/line/:lineKey
+const updatePendingLine = async (req, res, next) => {
   try {
-    const { description, category, crop } = req.body;
+    const filter = lineFilter(req.user._id, req.params.lineKey);
+    if (!filter) return res.status(400).json({ message: 'Producto inválido.' });
 
-    if (crop && !(await cropsAreOwned(req.user._id, [{ crop }]))) {
-      return res.status(404).json({ message: 'Cultivo no encontrado.' });
+    const existing = await Expense.find(filter);
+    if (!existing.length) return res.status(404).json({ message: 'Producto por pagar no encontrado.' });
+
+    if (!(await cropsAreOwned(req.user._id, [req.body]))) return res.status(404).json({ message: 'Cultivo no encontrado.' });
+
+    const docs = buildLineDocs(req.body);
+    if (!docs) return res.status(400).json({ message: 'Revisa los valores y el reparto por cultivos del producto.' });
+
+    const first = existing[0];
+    const lineId = first.lineId || crypto.randomUUID();
+    const { description, category } = req.body;
+
+    // Se actualizan los gastos de los cultivos que siguen, se crean los nuevos y se borran los
+    // cultivos que ya no están en el reparto. Los gastos que se conservan mantienen su id.
+    const byCrop = new Map(existing.map((e) => [String(e.crop || ''), e]));
+    for (const d of docs) {
+      const key = d.crop ? String(d.crop) : '';
+      const current = byCrop.get(key);
+      const fields = { description, category, crop: d.crop, quantity: d.quantity, unit: d.unit, unitPrice: d.unitPrice, amount: d.amount, lineId };
+      if (current) {
+        await Expense.updateOne({ _id: current._id, owner: req.user._id, paymentStatus: 'pendiente' }, { $set: fields }, { runValidators: true });
+        byCrop.delete(key);
+      } else {
+        await Expense.create({
+          ...fields,
+          owner: req.user._id,
+          date: first.date,
+          paymentMethod: 'credito',
+          observations: first.observations,
+          paymentStatus: 'pendiente',
+          supplier: first.supplier,
+          dueDate: first.dueDate,
+          orderId: first.orderId,
+        });
+      }
     }
-    const fields = buildItemFields(req.body);
-    if (!fields) return res.status(400).json({ message: 'El producto necesita un valor mayor a 0.' });
+    const leftover = [...byCrop.values()].map((e) => e._id);
+    if (leftover.length) {
+      await Expense.deleteMany({ _id: { $in: leftover }, owner: req.user._id, paymentStatus: 'pendiente' });
+    }
 
-    // Solo se permiten estos campos (nada de owner, orderId, paymentStatus, etc.)
-    const expense = await Expense.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user._id, paymentStatus: 'pendiente' },
-      { $set: { description, category, crop: crop || null, ...fields } },
-      { new: true, runValidators: true }
-    ).populate('crop', 'name type');
-
-    if (!expense) return res.status(404).json({ message: 'Gasto por pagar no encontrado.' });
-    res.json(expense);
+    res.json({ message: 'Producto actualizado.' });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Eliminar un producto de una compra por pagar
-// @route   DELETE /api/expenses/pending/item/:id
-const deletePendingItem = async (req, res, next) => {
+// @desc    Eliminar un producto de una compra por pagar (con todos sus cultivos)
+// @route   DELETE /api/expenses/pending/line/:lineKey
+const deletePendingLine = async (req, res, next) => {
   try {
-    const expense = await Expense.findOneAndDelete({ _id: req.params.id, owner: req.user._id, paymentStatus: 'pendiente' });
-    if (!expense) return res.status(404).json({ message: 'Gasto por pagar no encontrado.' });
-    res.json({ message: 'Producto eliminado.' });
+    const filter = lineFilter(req.user._id, req.params.lineKey);
+    if (!filter) return res.status(400).json({ message: 'Producto inválido.' });
+    const result = await Expense.deleteMany(filter);
+    if (!result.deletedCount) return res.status(404).json({ message: 'Producto por pagar no encontrado.' });
+    res.json({ message: 'Producto eliminado.', deleted: result.deletedCount });
   } catch (error) {
     next(error);
   }
@@ -458,8 +551,25 @@ const payOrder = async (req, res, next) => {
   }
 };
 
+// @desc    Marcar como pagado un producto (con todos sus cultivos)
+// @route   POST /api/expenses/pending/line/:lineKey/pay
+const payLine = async (req, res, next) => {
+  try {
+    const filter = lineFilter(req.user._id, req.params.lineKey);
+    if (!filter) return res.status(400).json({ message: 'Producto inválido.' });
+    const toPay = await Expense.find(filter).populate('crop', 'name');
+    const data = paymentData(req.body);
+    const result = await Expense.updateMany(filter, data);
+    if (!result.matchedCount) return res.status(404).json({ message: 'Producto por pagar no encontrado.' });
+    await saveRecibo(req.user._id, `line:${req.params.lineKey}`, toPay, data);
+    res.json({ message: 'Producto marcado como pagado.', updated: result.modifiedCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getExpenses, createExpense, updateExpense, deleteExpense,
   getPendingExpenses, createPendingOrder, payExpense, payOrder,
-  addItemsToOrder, updatePendingOrder, deletePendingOrder, updatePendingItem, deletePendingItem,
+  addItemsToOrder, updatePendingOrder, deletePendingOrder, updatePendingLine, deletePendingLine, payLine,
 };

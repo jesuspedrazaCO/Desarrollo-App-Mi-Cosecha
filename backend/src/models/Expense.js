@@ -113,6 +113,10 @@ const expenseSchema = new mongoose.Schema(
     quantity: { type: Number, min: [0, 'La cantidad no puede ser negativa'], default: null },
     unit: { type: String, trim: true, default: '', maxlength: [20, 'La unidad es demasiado larga'] },
     unitPrice: { type: Number, min: [0, 'El precio unitario no puede ser negativo'], default: null },
+    // Un mismo producto repartido entre varios cultivos (ej: 8 bultos de abono: 5 para un cultivo y
+    // 3 para otro) se guarda como un gasto por cultivo, unidos por este identificador. Así cada
+    // cultivo recibe su gasto, pero en "Pendientes por pagar" se ve como una sola fila.
+    lineId: { type: String, default: '', index: true },
     // Une los gastos que vinieron en una misma compra (4 rollos de manguera + 1 bulto de abono...)
     orderId: { type: String, default: '', index: true },
   },

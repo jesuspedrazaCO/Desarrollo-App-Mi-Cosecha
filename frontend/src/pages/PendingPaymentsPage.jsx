@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Trash2, Pencil, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import {
-  getPendingExpenses, createPendingOrder, payExpense, payOrder,
-  addPendingItems, updatePendingOrder, deletePendingOrder, updatePendingItem, deletePendingItem,
+  getPendingExpenses, createPendingOrder, payOrder,
+  addPendingItems, updatePendingOrder, deletePendingOrder, updatePendingLine, deletePendingLine, payLine,
 } from '../services/expenseService'
 import { getCrops } from '../services/cropService'
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../utils/constants'
@@ -30,47 +30,76 @@ const labelStyle = {
 const UNITS = ['unidad', 'bulto', 'rollo', 'galón', 'litro', 'kg', 'libra', 'metro', 'caja', 'paquete', 'saco']
 const CUSTOM_UNIT = '__otra'
 
-const emptyItem = (crop = '') => ({ description: '', category: 'otros', crop, quantity: '1', unit: 'unidad', unitPrice: '' })
+const emptyItem = (crop = '') => ({
+  description: '', category: 'otros', crop, quantity: '1', unit: 'unidad', unitPrice: '',
+  split: false, allocs: [], // split = repartir el producto entre varios cultivos
+})
 const todayInput = () => toInputDate(new Date())
 const catInfo = (v) => EXPENSE_CATEGORIES.find((c) => c.value === v) || { label: v, icon: '📦' }
 const fmtQty = (n) => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 const itemSubtotal = (i) => (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0)
+const allocsTotal = (allocs) => allocs.reduce((s, a) => s + (Number(a.quantity) || 0), 0)
 
-// Convierte un producto guardado en el estado del formulario.
+// Convierte un producto guardado (una "línea": uno o varios gastos, uno por cultivo) en el estado del formulario.
 // Los productos viejos (solo valor total) se muestran como 1 unidad × ese valor.
-const itemToForm = (i) => ({
-  description: i.description || '',
-  category: i.category || 'otros',
-  crop: i.crop?._id || i.crop || '',
-  quantity: i.quantity > 0 ? String(i.quantity) : '1',
-  unit: i.unit || 'unidad',
-  unitPrice: i.unitPrice > 0 ? String(i.unitPrice) : String(i.amount ?? ''),
-})
+const lineToForm = (line) => {
+  const first = line.items[0]
+  const cropOf = (e) => e.crop?._id || e.crop || ''
+  const hasQty = line.items.every((e) => e.quantity > 0)
+  const base = {
+    description: first.description || '',
+    category: first.category || 'otros',
+    unit: first.unit || 'unidad',
+    unitPrice: first.unitPrice > 0 ? String(first.unitPrice) : String(line.amount ?? ''),
+  }
+  if (line.items.length > 1 && hasQty) {
+    return {
+      ...base, crop: '', split: true,
+      quantity: String(line.items.reduce((s, e) => s + e.quantity, 0)),
+      allocs: line.items.map((e) => ({ crop: cropOf(e), quantity: String(e.quantity) })),
+    }
+  }
+  return { ...base, crop: cropOf(first), split: false, allocs: [], quantity: first.quantity > 0 ? String(first.quantity) : '1' }
+}
 
 // Valida un producto del formulario; devuelve el mensaje de error o null
 const validateItem = (i) => {
   if (!i.description.trim()) return 'Escribe qué compraste en cada línea'
   if (!(Number(i.quantity) > 0)) return 'La cantidad de cada producto debe ser mayor a 0'
   if (!(Number(i.unitPrice) > 0)) return 'El precio unitario de cada producto debe ser mayor a 0'
+  if (i.split) {
+    if (i.allocs.length < 1 || i.allocs.some((a) => !(Number(a.quantity) > 0))) return `Indica la cantidad de cada cultivo en "${i.description.trim()}"`
+    const crops = i.allocs.map((a) => a.crop || '')
+    if (new Set(crops).size !== crops.length) return `En "${i.description.trim()}" hay un cultivo repetido en el reparto`
+    if (Math.abs(allocsTotal(i.allocs) - Number(i.quantity)) > 1e-6) return `El reparto de "${i.description.trim()}" debe sumar ${fmtQty(i.quantity)} ${i.unit}`
+  }
   return null
 }
 
 const toPayload = (i) => ({
   description: i.description.trim(),
   category: i.category,
-  crop: i.crop || null,
   quantity: Number(i.quantity),
   unit: i.unit.trim() || 'unidad',
   unitPrice: Number(i.unitPrice),
+  allocations: i.split
+    ? i.allocs.map((a) => ({ crop: a.crop || null, quantity: Number(a.quantity) }))
+    : [{ crop: i.crop || null, quantity: Number(i.quantity) }],
 })
 
-// Agrupa los gastos por compra (orderId); los que no tienen compra quedan sueltos
+// Agrupa los gastos por compra (orderId) y, dentro de cada compra, por producto (lineId):
+// un producto repartido en varios cultivos son varios gastos, pero se muestra en una sola fila.
 const groupOrders = (expenses) => {
   const map = new Map()
   expenses.forEach((e) => {
     const key = e.orderId || e._id
-    if (!map.has(key)) map.set(key, { key, orderId: e.orderId, supplier: e.supplier, date: e.date, dueDate: e.dueDate, items: [] })
-    map.get(key).items.push(e)
+    if (!map.has(key)) map.set(key, { key, orderId: e.orderId, supplier: e.supplier, date: e.date, dueDate: e.dueDate, lines: [] })
+    const order = map.get(key)
+    const lineKey = e.lineId || e._id
+    let line = order.lines.find((l) => l.key === lineKey)
+    if (!line) { line = { key: lineKey, items: [], amount: 0 }; order.lines.push(line) }
+    line.items.push(e)
+    line.amount += e.amount || 0
   })
   return [...map.values()]
 }
@@ -80,8 +109,8 @@ export default function PendingPaymentsPage() {
   const [crops, setCrops] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [paying, setPaying] = useState(null) // { orderId?, expense?, total, label }
-  const [itemModal, setItemModal] = useState(null) // { order, item? }  (item = editar, sin item = agregar)
+  const [paying, setPaying] = useState(null) // { orderId? | lineKey?, total, label }
+  const [itemModal, setItemModal] = useState(null) // { order, line? }  (line = editar, sin line = agregar)
   const [orderEdit, setOrderEdit] = useState(null) // compra a la que se le editan los datos generales
   const [confirmDel, setConfirmDel] = useState(null) // { type: 'item' | 'order', ... }
 
@@ -134,8 +163,8 @@ export default function PendingPaymentsPage() {
               key={o.key} o={o} late={isOverdue(o.dueDate)}
               onPay={setPaying}
               onAddItem={() => setItemModal({ order: o })}
-              onEditItem={(item) => setItemModal({ order: o, item })}
-              onDeleteItem={(item) => setConfirmDel({ type: 'item', item, onlyOne: o.items.length === 1 })}
+              onEditItem={(line) => setItemModal({ order: o, line })}
+              onDeleteItem={(line) => setConfirmDel({ type: 'item', line, onlyOne: o.lines.length === 1 })}
               onEditOrder={() => setOrderEdit(o)}
               onDeleteOrder={() => setConfirmDel({ type: 'order', order: o })}
             />
@@ -162,15 +191,15 @@ const iconBtn = 'w-7 h-7 rounded-full flex items-center justify-center text-whit
 
 function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEditOrder, onDeleteOrder }) {
   const [open, setOpen] = useState(false)
-  const total = o.items.reduce((s, i) => s + i.amount, 0)
-  const visible = open ? o.items : o.items.slice(0, COLLAPSED)
-  const hidden = o.items.length - COLLAPSED
+  const total = o.lines.reduce((s, l) => s + l.amount, 0)
+  const visible = open ? o.lines : o.lines.slice(0, COLLAPSED)
+  const hidden = o.lines.length - COLLAPSED
   return (
     <div className="rounded-2xl p-3.5 space-y-2" style={{ background: 'rgba(255,255,255,0.09)', border: `1px solid ${late ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.14)'}` }}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-bold text-white/90 truncate">{o.supplier || 'Sin proveedor'}</p>
-          <p className="text-[11px] text-white/45">Compra del {formatDate(o.date)} · {o.items.length} {o.items.length === 1 ? 'producto' : 'productos'}</p>
+          <p className="text-[11px] text-white/45">Compra del {formatDate(o.date)} · {o.lines.length} {o.lines.length === 1 ? 'producto' : 'productos'}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <p className="text-base font-bold text-orange-300 mr-1">{formatCurrency(total)}</p>
@@ -184,30 +213,37 @@ function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEdit
       </Badge>
 
       <ul className="divide-y divide-white/10">
-        {visible.map((i) => (
-          <li key={i._id} className="py-1.5 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[13px] text-white/85 truncate">{catInfo(i.category).icon} {i.description}</p>
-              {i.quantity > 0 && (
-                <p className="text-[11px] text-white/60 truncate">
-                  {fmtQty(i.quantity)} {i.unit} × {formatCurrency(i.unitPrice)} c/u
+        {visible.map((l) => {
+          const first = l.items[0]
+          const qty = l.items.reduce((s, e) => s + (e.quantity || 0), 0)
+          const hasQty = l.items.every((e) => e.quantity > 0)
+          return (
+            <li key={l.key} className="py-1.5 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] text-white/85 truncate">{catInfo(first.category).icon} {first.description}</p>
+                {hasQty && (
+                  <p className="text-[11px] text-white/60 truncate">
+                    {fmtQty(qty)} {first.unit} × {formatCurrency(first.unitPrice)} c/u
+                  </p>
+                )}
+                <p className="text-[10px] text-white/40 truncate">
+                  {l.items.length === 1
+                    ? (first.crop ? <>Cultivo: <Link to={`/crops/${first.crop._id}`} className="text-primary-300 hover:underline">{first.crop.name}</Link></> : 'Gasto general (sin cultivo)')
+                    : `Repartido en ${l.items.length} cultivos`}
                 </p>
-              )}
-              <p className="text-[10px] text-white/40 truncate">
-                {i.crop ? <>Cultivo: <Link to={`/crops/${i.crop._id}`} className="text-primary-300 hover:underline">{i.crop.name}</Link></> : 'Gasto general (sin cultivo)'}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[13px] font-semibold text-white/80 mr-1">{formatCurrency(i.amount)}</span>
-              {o.items.length > 1 && (
-                <button type="button" className="text-[11px] font-semibold text-primary-300 hover:text-primary-200 mr-1"
-                  onClick={() => onPay({ expense: i, total: i.amount, label: i.description })}>Pagar</button>
-              )}
-              <button type="button" aria-label="Editar producto" title="Editar producto" className={iconBtn} onClick={() => onEditItem(i)}><Pencil size={13} /></button>
-              <button type="button" aria-label="Eliminar producto" title="Eliminar producto" className={`${iconBtn} hover:!text-red-300`} onClick={() => onDeleteItem(i)}><Trash2 size={13} /></button>
-            </div>
-          </li>
-        ))}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[13px] font-semibold text-white/80 mr-1">{formatCurrency(l.amount)}</span>
+                {o.lines.length > 1 && (
+                  <button type="button" className="text-[11px] font-semibold text-primary-300 hover:text-primary-200 mr-1"
+                    onClick={() => onPay({ lineKey: l.key, total: l.amount, label: first.description })}>Pagar</button>
+                )}
+                <button type="button" aria-label="Editar producto" title="Editar producto" className={iconBtn} onClick={() => onEditItem(l)}><Pencil size={13} /></button>
+                <button type="button" aria-label="Eliminar producto" title="Eliminar producto" className={`${iconBtn} hover:!text-red-300`} onClick={() => onDeleteItem(l)}><Trash2 size={13} /></button>
+              </div>
+            </li>
+          )
+        })}
       </ul>
       {hidden > 0 && (
         <button type="button" className="text-[11px] font-semibold text-white/55 hover:text-white" onClick={() => setOpen((v) => !v)}>
@@ -221,8 +257,8 @@ function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEdit
       <Button size="sm" className="w-full"
         onClick={() => onPay(o.orderId
           ? { orderId: o.orderId, total, label: o.supplier || 'esta compra' }
-          : { expense: o.items[0], total, label: o.items[0].description })}>
-        <CheckCircle2 size={14} /> Marcar {o.items.length > 1 ? 'toda la compra ' : ''}como pagada
+          : { lineKey: o.lines[0].key, total, label: o.lines[0].items[0].description })}>
+        <CheckCircle2 size={14} /> Marcar {o.lines.length > 1 ? 'toda la compra ' : ''}como pagada
       </Button>
     </div>
   )
@@ -236,15 +272,9 @@ function ItemFields({ it, onChange, crops }) {
     <div className="space-y-2">
       <input style={fieldStyle} placeholder="Ej: Manguera, Abono triple 15..." value={it.description} maxLength={200}
         onChange={(e) => onChange({ description: e.target.value })} />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <select style={fieldStyle} value={it.crop} onChange={(e) => onChange({ crop: e.target.value })}>
-          <option value="">Sin cultivo (gasto general)</option>
-          {crops.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
-        </select>
-        <select style={fieldStyle} value={it.category} onChange={(e) => onChange({ category: e.target.value })}>
-          {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
-        </select>
-      </div>
+      <select style={fieldStyle} value={it.category} onChange={(e) => onChange({ category: e.target.value })}>
+        {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
+      </select>
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label style={labelStyle}>Cantidad</label>
@@ -268,6 +298,54 @@ function ItemFields({ it, onChange, crops }) {
       {isCustomUnit && (
         <input style={fieldStyle} placeholder="Escribe la unidad (ej: tambor, lata...)" value={it.unit} maxLength={20}
           onChange={(e) => onChange({ unit: e.target.value })} />
+      )}
+      {/* Cultivo: uno solo, o repartir la cantidad entre varios */}
+      {!it.split ? (
+        <div className="space-y-1.5">
+          <select style={fieldStyle} value={it.crop} onChange={(e) => onChange({ crop: e.target.value })}>
+            <option value="">Sin cultivo (gasto general)</option>
+            {crops.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+          </select>
+          <button type="button" className="text-[11px] font-semibold text-primary-300 hover:text-primary-200"
+            onClick={() => onChange({ split: true, allocs: [{ crop: it.crop, quantity: it.quantity }, { crop: '', quantity: '' }] })}>
+            Repartir entre varios cultivos
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2 rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <p style={labelStyle}>Repartir entre cultivos</p>
+          {it.allocs.map((a, k) => (
+            <div key={k} className="flex gap-2 items-center">
+              <select style={fieldStyle} value={a.crop}
+                onChange={(e) => onChange({ allocs: it.allocs.map((x, j) => (j === k ? { ...x, crop: e.target.value } : x)) })}>
+                <option value="">Sin cultivo (gasto general)</option>
+                {crops.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </select>
+              <input type="number" inputMode="decimal" min="0" step="any" style={{ ...fieldStyle, width: '110px' }} placeholder="Cant." value={a.quantity}
+                onChange={(e) => onChange({ allocs: it.allocs.map((x, j) => (j === k ? { ...x, quantity: e.target.value } : x)) })} />
+              {it.allocs.length > 1 && (
+                <button type="button" aria-label="Quitar cultivo" className="text-red-300 hover:text-red-200 px-1"
+                  onClick={() => onChange({ allocs: it.allocs.filter((_, j) => j !== k) })}><Trash2 size={16} /></button>
+              )}
+            </div>
+          ))}
+          <div className="flex items-center justify-between">
+            <button type="button" className="text-[11px] font-semibold text-primary-300 hover:text-primary-200"
+              onClick={() => onChange({ allocs: [...it.allocs, { crop: '', quantity: '' }] })}>+ Agregar cultivo</button>
+            {(() => {
+              const diff = (Number(it.quantity) || 0) - allocsTotal(it.allocs)
+              const ok = Math.abs(diff) < 1e-6
+              return (
+                <span className={`text-[11px] font-semibold ${ok ? 'text-green-300' : 'text-orange-300'}`}>
+                  {ok ? `✓ Suma ${fmtQty(it.quantity)} ${it.unit}`
+                    : diff > 0 ? `Faltan ${fmtQty(diff)} por repartir` : `Te pasaste por ${fmtQty(Math.abs(diff))}`}
+                </span>
+              )
+            })()}
+          </div>
+          <button type="button" className="text-[11px] font-semibold text-white/55 hover:text-white"
+            onClick={() => onChange({ split: false, crop: it.allocs[0]?.crop || '', allocs: [] })}>Volver a un solo cultivo</button>
+        </div>
       )}
       <p className="text-xs text-white/55 text-right">
         Subtotal: <strong className="text-orange-300">{formatCurrency(subtotal)}</strong>
@@ -364,12 +442,15 @@ function OrderModal({ isOpen, onClose, crops, onSaved }) {
 function ItemModal({ state, crops, onClose, onSaved }) {
   const [item, setItem] = useState(emptyItem())
   const [saving, setSaving] = useState(false)
-  const editing = !!state?.item
+  const editing = !!state?.line
 
   useEffect(() => {
     if (!state) return
-    if (state.item) setItem(itemToForm(state.item))
-    else setItem(emptyItem(state.order.items[state.order.items.length - 1]?.crop?._id || ''))
+    if (state.line) setItem(lineToForm(state.line))
+    else {
+      const lastLine = state.order.lines[state.order.lines.length - 1]
+      setItem(emptyItem(lastLine?.items.length === 1 ? (lastLine.items[0].crop?._id || '') : ''))
+    }
   }, [state])
 
   const submit = async (e) => {
@@ -379,7 +460,7 @@ function ItemModal({ state, crops, onClose, onSaved }) {
     if (err) return toast.error(err)
     setSaving(true)
     try {
-      if (editing) await updatePendingItem(state.item._id, toPayload(item))
+      if (editing) await updatePendingLine(state.line.key, toPayload(item))
       else await addPendingItems(state.order.key, [toPayload(item)])
       toast.success(editing ? 'Producto actualizado' : 'Producto agregado a la compra')
       onSaved()
@@ -471,7 +552,7 @@ function ConfirmDeleteModal({ state, onClose, onDone }) {
     if (saving) return
     setSaving(true)
     try {
-      if (state.type === 'item') await deletePendingItem(state.item._id)
+      if (state.type === 'item') await deletePendingLine(state.line.key)
       else await deletePendingOrder(state.order.key)
       toast.success(state.type === 'item' ? 'Producto eliminado' : 'Compra eliminada')
       onDone()
@@ -484,11 +565,12 @@ function ConfirmDeleteModal({ state, onClose, onDone }) {
 
   let text = ''
   if (state?.type === 'item') {
-    text = `¿Eliminar "${state.item.description}" (${formatCurrency(state.item.amount)})?`
+    text = `¿Eliminar "${state.line.items[0].description}" (${formatCurrency(state.line.amount)})?`
+    if (state.line.items.length > 1) text += ` Se quitará de los ${state.line.items.length} cultivos entre los que está repartido.`
     if (state.onlyOne) text += ' Es el único producto de la compra, así que la compra también desaparecerá.'
   } else if (state?.type === 'order') {
-    const total = state.order.items.reduce((s, i) => s + i.amount, 0)
-    text = `¿Eliminar toda la compra a ${state.order.supplier || 'proveedor sin nombre'} (${state.order.items.length} ${state.order.items.length === 1 ? 'producto' : 'productos'}, ${formatCurrency(total)})?`
+    const total = state.order.lines.reduce((s, l) => s + l.amount, 0)
+    text = `¿Eliminar toda la compra a ${state.order.supplier || 'proveedor sin nombre'} (${state.order.lines.length} ${state.order.lines.length === 1 ? 'producto' : 'productos'}, ${formatCurrency(total)})?`
   }
 
   return (
@@ -522,7 +604,7 @@ function PayModal({ paying, onClose, onDone }) {
     try {
       const body = { paidAt, paymentMethod: method }
       if (paying.orderId) await payOrder(paying.orderId, body)
-      else await payExpense(paying.expense._id, body)
+      else await payLine(paying.lineKey, body)
       toast.success('Marcado como pagado')
       onDone()
     } catch (err) {
