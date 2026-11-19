@@ -107,6 +107,12 @@ const expenseSchema = new mongoose.Schema(
     dueDate: { type: Date, default: null },
     // Cuándo se pagó de verdad (se llena al marcarlo como pagado)
     paidAt: { type: Date, default: null },
+    // Detalle opcional del producto comprado (ej: 4 rollos a $50.000 c/u).
+    // Compras anteriores no lo tienen (null) y siguen usando solo "amount".
+    // Cuando hay cantidad y precio unitario, amount = quantity * unitPrice (lo calcula el servidor).
+    quantity: { type: Number, min: [0, 'La cantidad no puede ser negativa'], default: null },
+    unit: { type: String, trim: true, default: '', maxlength: [20, 'La unidad es demasiado larga'] },
+    unitPrice: { type: Number, min: [0, 'El precio unitario no puede ser negativo'], default: null },
     // Une los gastos que vinieron en una misma compra (4 rollos de manguera + 1 bulto de abono...)
     orderId: { type: String, default: '', index: true },
   },
