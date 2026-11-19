@@ -5,6 +5,17 @@ import Table from '../common/Table'
 import Badge from '../common/Badge'
 import Button from '../common/Button'
 
+// Texto de quién pagó el gasto. Con una sola persona solo el nombre; con varias, nombre y monto.
+// Los gastos sin aportantes (o con un aportante borrado) simplemente no muestran esta línea.
+const payersLabel = (payers = []) => {
+  const list = payers
+    .filter((p) => p?.contributor?.name)
+    .map((p) => ({ name: p.contributor.name, amount: Number(p.amount) || 0 }))
+  if (!list.length) return ''
+  if (list.length === 1) return list[0].name
+  return list.map((p) => `${p.name} (${formatCurrency(p.amount)})`).join(' · ')
+}
+
 export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
   const getCategoryInfo = (key) =>
     EXPENSE_CATEGORIES.find(c => c.value === key) || { label: key, icon: '📦' }
@@ -33,6 +44,11 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
           <span className="text-sm text-white/80 line-clamp-1">{e.description}</span>
           {e.paymentStatus === 'pendiente' && (
             <div className="mt-0.5"><Badge color="amber">⏳ Por pagar{e.supplier ? ` · ${e.supplier}` : ''}</Badge></div>
+          )}
+          {payersLabel(e.payers) && (
+            <div className="text-[11px] text-primary-300 mt-0.5 line-clamp-2">
+              👤 Pagó: {payersLabel(e.payers)}
+            </div>
           )}
           {e.fundedByCrop && (
             <div className="text-[11px] text-amber-300/90 mt-0.5">
