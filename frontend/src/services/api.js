@@ -1,4 +1,5 @@
 import axios from 'axios'
+import toast from 'react-hot-toast'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -20,6 +21,10 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
+    }
+    // Un lector intentó guardar algo: el servidor lo rechaza y se le explica
+    if (error.response?.status === 403 && error.response.data?.code === 'READ_ONLY') {
+      toast.error(error.response.data.message, { id: 'read-only' })
     }
     return Promise.reject(error)
   }

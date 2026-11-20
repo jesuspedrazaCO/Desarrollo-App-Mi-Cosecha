@@ -22,6 +22,8 @@ import PlantingCalculatorPage from './pages/PlantingCalculatorPage'
 import AsistentePage from './pages/AsistentePage'
 import ContributorsPage from './pages/ContributorsPage'
 import PendingPaymentsPage from './pages/PendingPaymentsPage'
+import MembersPage from './pages/MembersPage'
+import AcceptInvitationPage from './pages/AcceptInvitationPage'
 
 
 
@@ -46,6 +48,9 @@ export default function App() {
       <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
       <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
+      {/* Invitación a la finca: abierta siempre, el token del correo es la credencial */}
+      <Route path="/invitacion/:token" element={<AcceptInvitationPage />} />
+
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />
@@ -63,6 +68,7 @@ export default function App() {
           <Route path="/asistente" element={<AsistentePage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
           <Route path="/pendientes" element={<PendingPaymentsPage />} />
+          <Route path="/members" element={<MembersPage />} />
         </Route>
       </Route>
 

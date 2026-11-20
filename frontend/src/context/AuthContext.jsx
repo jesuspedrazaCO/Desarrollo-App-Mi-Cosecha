@@ -1,5 +1,7 @@
 import { createContext, useState, useEffect } from 'react'
-import { login as loginService, register as registerService } from '../services/authService'
+import {
+  login as loginService, register as registerService, acceptInvitation as acceptInvitationService,
+} from '../services/authService'
 
 export const AuthContext = createContext(null)
 
@@ -34,6 +36,16 @@ export function AuthProvider({ children }) {
     return userData
   }
 
+  // El invitado elige su contraseña con el enlace del correo y entra directo
+  const acceptInvitation = async (invitationToken, password) => {
+    const res = await acceptInvitationService(invitationToken, password)
+    const { token, user: userData } = res.data
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    return userData
+  }
+
   const updateUser = (userData) => {
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
@@ -45,8 +57,14 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  // Las sesiones anteriores no traen "role": se tratan como administrador.
+  // isViewer = lector (solo ve datos y descarga PDF). canEdit = puede registrar/editar/borrar.
+  const isViewer = user?.role === 'viewer'
+  const isAdmin = !!user && !isViewer
+  const canEdit = isAdmin
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvitation, logout, updateUser, isViewer, isAdmin, canEdit }}>
       {children}
     </AuthContext.Provider>
   )

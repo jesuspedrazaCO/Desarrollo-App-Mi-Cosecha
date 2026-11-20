@@ -1,19 +1,9 @@
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
 const resend = require('../config/resend');
 const User = require('../models/User');
-
-const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-
-const userPayload = (user) => ({
-  _id: user._id, name: user.name, email: user.email,
-  farmName: user.farmName, location: user.location,
-  phone: user.phone, avatar: user.avatar,
-  lat: user.lat, lng: user.lng,
-});
+const { signToken, buildPayload } = require('../utils/userPayload');
 
 const uploadToCloudinary = (buffer, folder = 'agrofinanzas/avatars') => {
   return new Promise((resolve, reject) => {
@@ -32,7 +22,7 @@ exports.register = async (req, res, next) => {
     if (existing) return res.status(400).json({ message: 'Ya existe una cuenta con ese correo electrónico.' });
     const user = await User.create({ name, email, password, farmName, location, phone });
     const token = signToken(user._id);
-    res.status(201).json({ token, user: userPayload(user) });
+    res.status(201).json({ token, user: await buildPayload(user) });
   } catch (error) { next(error); }
 };
 
@@ -43,36 +33,45 @@ exports.login = async (req, res, next) => {
     if (!user || !(await user.comparePassword(password)))
       return res.status(401).json({ message: 'Credenciales incorrectas.' });
     if (!user.active) return res.status(401).json({ message: 'Cuenta desactivada.' });
+    // Un lector necesita que la finca a la que pertenece siga activa
+    if (user.farmOwner) {
+      const owner = await User.findById(user.farmOwner).select('active');
+      if (!owner || !owner.active) return res.status(401).json({ message: 'La finca ya no está disponible. Contacta al administrador.' });
+    }
     const token = signToken(user._id);
-    res.json({ token, user: userPayload(user) });
+    res.json({ token, user: await buildPayload(user) });
   } catch (error) { next(error); }
 };
 
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
-    res.json(user);
+    // req.actor = la persona que inició sesión (puede ser un lector); req.user = dueño de los datos
+    const user = await User.findById(req.actor._id);
+    res.json(await buildPayload(user));
   } catch (error) { next(error); }
 };
 
 exports.updateMe = async (req, res, next) => {
   try {
     const { name, farmName, location, phone, password } = req.body;
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.actor._id).select('+password');
     if (name) user.name = name;
-    if (farmName !== undefined) user.farmName = farmName;
-    if (location !== undefined) user.location = location;
+    // Los datos de la finca solo los cambia el administrador; un lector solo edita su perfil
+    if (!user.farmOwner) {
+      if (farmName !== undefined) user.farmName = farmName;
+      if (location !== undefined) user.location = location;
+    }
     if (phone !== undefined) user.phone = phone;
     if (password) user.password = password;
     await user.save();
-    res.json({ user: userPayload(user) });
+    res.json({ user: await buildPayload(user) });
   } catch (error) { next(error); }
 };
 
 exports.updateAvatar = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No se recibió ninguna imagen.' });
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.actor._id);
 
     if (user.avatar && user.avatar.startsWith('agrofinanzas/')) {
       await cloudinary.uploader.destroy(user.avatar, { resource_type: 'image' });
@@ -82,7 +81,7 @@ exports.updateAvatar = async (req, res, next) => {
     user.avatar = result.secure_url;
     await user.save();
 
-    res.json({ user: userPayload(user) });
+    res.json({ user: await buildPayload(user) });
   } catch (error) { next(error); }
 };
 
@@ -98,7 +97,7 @@ exports.updateLocation = async (req, res, next) => {
     user.lat = lat;
     user.lng = lng;
     await user.save();
-    res.json({ user: userPayload(user) });
+    res.json({ user: await buildPayload(user) });
   } catch (error) { next(error); }
 };
 
@@ -177,6 +176,6 @@ exports.resetPassword = async (req, res, next) => {
     await user.save();
 
     const authToken = signToken(user._id);
-    res.json({ token: authToken, user: userPayload(user), message: 'Contraseña actualizada correctamente.' });
+    res.json({ token: authToken, user: await buildPayload(user), message: 'Contraseña actualizada correctamente.' });
   } catch (error) { next(error); }
 };

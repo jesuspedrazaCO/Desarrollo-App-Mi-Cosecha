@@ -24,6 +24,7 @@ import reportRoutes from './routes/reportRoutes.js';
 import marketPriceRoutes from './routes/marketPriceRoutes.js';
 import contributorRoutes from './routes/contributorRoutes.js'
 import assistantRoutes from './routes/assistantRoutes.js';
+import memberRoutes from './routes/memberRoutes.js';
 
 
 // Middlewares locales (También con .js)
@@ -61,6 +62,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Invitar miembros envía correos: se limita para que no se use para spam
+const inviteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { message: 'Enviaste muchas invitaciones seguidas. Intenta de nuevo en un rato.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Límite por usuario para las funciones de IA (cada mensaje gasta cuota de Gemini).
 const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -90,13 +100,16 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(sanitizeInput);
-// El token de recuperación de contraseña viaja en la URL: no se guarda en los logs.
-morgan.token('safe-url', (req) => req.originalUrl.replace(/(reset-password\/)[^/?#]+/, '$1[oculto]'));
+// Los tokens de recuperación de contraseña e invitación viajan en la URL: no se guardan en los logs.
+morgan.token('safe-url', (req) => req.originalUrl.replace(/(reset-password\/|invitation\/|accept-invitation\/)[^/?#]+/, '$1[oculto]'));
 app.use(morgan(':method :safe-url :status :response-time ms'));
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/invitation', authLimiter);
+app.use('/api/auth/accept-invitation', authLimiter);
+app.use('/api/members/invite', inviteLimiter);
 app.use(['/api/ai', '/api/agro', '/api/assistant'], aiLimiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -118,6 +131,7 @@ app.use('/api/agro', agroRoutes);
 app.use('/api/planting-plots', plantingPlotRoutes);
 app.use('/api/contributors', contributorRoutes)
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/members', memberRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Servidor funcionando correctamente' }));
 

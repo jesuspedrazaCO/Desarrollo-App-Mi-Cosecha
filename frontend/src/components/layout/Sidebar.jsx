@@ -5,7 +5,7 @@ import {
   Map as MapIcon, Clock,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { Users } from 'lucide-react'
+import { Users, UserPlus, Eye } from 'lucide-react'
 
 
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
@@ -19,6 +19,7 @@ const navItems = [
   { to: '/reports', label: 'Reportes', icon: BarChart3 },
   { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
   { to: '/contributors', label: 'Aportantes', icon: Users },
+  { to: '/members', label: 'Miembros', icon: UserPlus, adminOnly: true },
   { to: '/household', label: 'Gastos del Hogar', icon: Home },
   { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
   { to: '/receipts', label: 'Comprobantes', icon: Receipt },
@@ -27,7 +28,14 @@ const navItems = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user } = useAuth()
+  const { user, isViewer, isAdmin } = useAuth()
+
+  // Scooby guarda conversaciones, así que los lectores no lo usan; "Miembros" es solo del administrador
+  const visibleItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false
+    if (item.to === '/asistente' && isViewer) return false
+    return true
+  })
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200
@@ -58,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
-        {navItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
             {item.isImage ? (
               <img
@@ -96,6 +104,11 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="min-w-0">
             <p className="text-[13px] font-bold text-white/90 truncate">{user?.name}</p>
             <p className="text-[11px] text-white/40 truncate">{user?.email}</p>
+            {isViewer && (
+              <p className="text-[10px] font-bold text-amber-300/90 mt-0.5 flex items-center gap-1">
+                <Eye size={10} /> Solo lectura
+              </p>
+            )}
           </div>
         </div>
       </div>
