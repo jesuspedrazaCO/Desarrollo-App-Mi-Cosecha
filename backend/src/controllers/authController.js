@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
-const resend = require('../config/resend');
+const { sendEmail } = require('../utils/sendEmail');
 const User = require('../models/User');
 const { signToken, buildPayload } = require('../utils/userPayload');
 
@@ -124,8 +124,7 @@ exports.forgotPassword = async (req, res, next) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
 
     try {
-      await resend.emails.send({
-        from: 'AgroFinanzas <onboarding@resend.dev>',
+      await sendEmail({
         to: user.email,
         subject: 'Recupera tu contraseña - AgroFinanzas',
         html: `
