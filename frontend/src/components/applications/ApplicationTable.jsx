@@ -52,10 +52,12 @@ export default function ApplicationTable({ applications, loading, onEdit, onDele
                   <p className="text-xs text-white/55 mt-1.5">🪣 <strong className="text-white/80">{a.tankCount} canecas</strong></p>
                 ) : null}
               </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => onEdit(a)}>✏️</Button>
-                <Button size="sm" variant="ghost" onClick={() => onDelete(a)}>🗑️</Button>
-              </div>
+              {(onEdit || onDelete) && (
+                <div className="flex gap-1 flex-shrink-0">
+                  {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit(a)}>✏️</Button>}
+                  {onDelete && <Button size="sm" variant="ghost" onClick={() => onDelete(a)}>🗑️</Button>}
+                </div>
+              )}
             </div>
 
             <ul className="mt-3 space-y-1.5">

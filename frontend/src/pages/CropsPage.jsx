@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCrops } from '../hooks/useCrops'
+import { useAuth } from '../hooks/useAuth'
 import CropCard from '../components/crops/CropCard'
 import CropForm from '../components/crops/CropForm'
 import Modal from '../components/common/Modal'
@@ -20,6 +21,7 @@ const STATUS_TABS = [
 
 export default function CropsPage() {
   const { crops, loading, params, setParams, create, update, remove } = useCrops()
+  const { canEdit } = useAuth() // los lectores solo ven
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -69,9 +71,11 @@ export default function CropsPage() {
           <h1 className="page-title">Mis cultivos 🌱</h1>
           <p className="text-stone-500 text-sm mt-1">{crops.length} cultivo{crops.length !== 1 ? 's' : ''} registrados</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true) }}>
-          + Registrar cultivo
-        </Button>
+        {canEdit && (
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>
+            + Registrar cultivo
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -96,8 +100,10 @@ export default function CropsPage() {
         <EmptyState
           icon="🌱"
           title="Aún no tienes cultivos"
-          description="Registra tu primer cultivo para empezar a llevar el control de gastos, ingresos y ganancias."
-          action={<Button onClick={() => setShowForm(true)}>+ Registrar primer cultivo</Button>}
+          description={canEdit
+            ? 'Registra tu primer cultivo para empezar a llevar el control de gastos, ingresos y ganancias.'
+            : 'Cuando el administrador registre cultivos, aparecerán aquí.'}
+          action={canEdit ? <Button onClick={() => setShowForm(true)}>+ Registrar primer cultivo</Button> : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -105,14 +111,15 @@ export default function CropsPage() {
             <CropCard
               key={crop._id}
               crop={crop}
-              onEdit={(c) => { setEditing(c); setShowForm(true) }}
-              onDelete={(c) => setDeleting(c)}
+              onEdit={canEdit ? (c) => { setEditing(c); setShowForm(true) } : undefined}
+              onDelete={canEdit ? (c) => setDeleting(c) : undefined}
             />
           ))}
         </div>
       )}
 
       {/* Modal formulario */}
+      {canEdit && <>
       <Modal
         isOpen={showForm}
         onClose={() => { setShowForm(false); setEditing(null) }}
@@ -135,6 +142,7 @@ export default function CropsPage() {
         message={`¿Eliminar "${deleting?.name}"? También se borrarán todos sus gastos e ingresos. Esta acción no se puede deshacer.`}
         loading={formLoading}
       />
+      </>}
     </div>
   )
 }

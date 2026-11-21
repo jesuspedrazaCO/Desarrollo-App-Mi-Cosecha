@@ -13,11 +13,13 @@ import Badge from '../components/common/Badge'
 import { formatDate } from '../utils/formatDate'
 import { formatCurrency } from '../utils/formatCurrency'
 import toast from 'react-hot-toast'
+import { useAuth } from '../hooks/useAuth'
 import { SkeletonDetail } from '../components/common/Skeleton'
 
 export default function MarketListDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { canEdit } = useAuth() // los lectores solo ven
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showItemForm, setShowItemForm] = useState(false)
@@ -138,7 +140,7 @@ export default function MarketListDetailPage() {
               <p className="text-xs text-white/45 mt-1">{formatDate(list?.date)}</p>
             </div>
           </div>
-          {list?.status !== 'completada' && (
+          {canEdit && list?.status !== 'completada' && (
             <Button variant="secondary" size="sm" onClick={handleMarkComplete}>
               ✅ Marcar completada
             </Button>
@@ -187,17 +189,19 @@ export default function MarketListDetailPage() {
         <div className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
           <h3 className="text-[15px] font-bold text-white">Productos ({items.length})</h3>
-          <Button size="sm" onClick={() => { setEditingItem(null); setShowItemForm(true) }}>
-            + Agregar
-          </Button>
+          {canEdit && (
+            <Button size="sm" onClick={() => { setEditingItem(null); setShowItemForm(true) }}>
+              + Agregar
+            </Button>
+          )}
         </div>
 
         {items.length === 0 ? (
           <EmptyState
             icon="📦"
             title="Lista vacía"
-            description="Agrega los productos que necesitas comprar"
-            action={<Button size="sm" onClick={() => setShowItemForm(true)}>+ Agregar producto</Button>}
+            description={canEdit ? 'Agrega los productos que necesitas comprar' : 'Esta lista todavía no tiene productos.'}
+            action={canEdit ? <Button size="sm" onClick={() => setShowItemForm(true)}>+ Agregar producto</Button> : undefined}
           />
         ) : (
           <div>
@@ -212,9 +216,11 @@ export default function MarketListDetailPage() {
               >
                 {/* Checkbox */}
                 <button
-                  onClick={() => handleToggle(item._id, !item.purchased)}
+                  onClick={() => canEdit && handleToggle(item._id, !item.purchased)}
+                  disabled={!canEdit}
                   className="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200"
                   style={{
+                    cursor: canEdit ? 'pointer' : 'default',
                     borderColor: item.purchased ? '#16a34a' : 'rgba(255,255,255,0.40)',
                     background: item.purchased ? '#16a34a' : 'transparent',
                   }}
@@ -250,7 +256,7 @@ export default function MarketListDetailPage() {
                 )}
 
                 {/* Acciones */}
-                <div className="flex gap-1">
+                {canEdit && <div className="flex gap-1">
                   <button onClick={() => { setEditingItem(item); setShowItemForm(true) }}
                     className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all"
                     style={{ color: 'rgba(255,255,255,0.50)' }}
@@ -261,13 +267,14 @@ export default function MarketListDetailPage() {
                     style={{ color: 'rgba(255,255,255,0.50)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,113,113,0.15)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>🗑️</button>
-                </div>
+                </div>}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {canEdit && <>
       <Modal isOpen={showItemForm} onClose={() => { setShowItemForm(false); setEditingItem(null) }}
         title={editingItem ? 'Editar producto' : 'Agregar producto'}>
         <MarketItemForm
@@ -281,6 +288,7 @@ export default function MarketListDetailPage() {
       <ConfirmDialog isOpen={!!deletingItem} onClose={() => setDeletingItem(null)}
         onConfirm={handleDeleteItem} title="Eliminar producto"
         message={`¿Eliminar "${deletingItem?.name}" de la lista?`} loading={formLoading} />
+      </>}
     </div>
   )
 }

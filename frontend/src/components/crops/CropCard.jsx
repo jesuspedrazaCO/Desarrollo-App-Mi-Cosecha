@@ -53,14 +53,22 @@ export default function CropCard({ crop, onEdit, onDelete }) {
         ))}
 
         {/* Matas sembradas (si no se ha registrado, invita a agregarlas) */}
-        <button type="button" onClick={() => onEdit(crop)} title="Editar número de matas"
-          className="col-span-2 rounded-2xl px-3 py-2 flex items-center justify-between text-left"
-          style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
-          <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">🌱 Matas sembradas</span>
-          {crop.plantCount > 0
-            ? <span className="text-[13px] font-bold text-white/90">{crop.plantCount.toLocaleString('es-CO')}</span>
-            : <span className="text-[11px] font-semibold text-primary-300">+ Agregar</span>}
-        </button>
+        {/* Los lectores (sin onEdit) ven el dato pero no pueden editarlo */}
+        {(() => {
+          const Tag = onEdit ? 'button' : 'div'
+          return (
+            <Tag {...(onEdit ? { type: 'button', onClick: () => onEdit(crop), title: 'Editar número de matas' } : {})}
+              className="col-span-2 rounded-2xl px-3 py-2 flex items-center justify-between text-left"
+              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+              <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">🌱 Matas sembradas</span>
+              {crop.plantCount > 0
+                ? <span className="text-[13px] font-bold text-white/90">{crop.plantCount.toLocaleString('es-CO')}</span>
+                : onEdit
+                  ? <span className="text-[11px] font-semibold text-primary-300">+ Agregar</span>
+                  : <span className="text-[11px] text-white/40">—</span>}
+            </Tag>
+          )
+        })()}
       </div>
 
       {/* Ganancia */}
@@ -82,14 +90,18 @@ export default function CropCard({ crop, onEdit, onDelete }) {
         <Link to={`/crops/${crop._id}`} className="flex-1">
           <Button variant="secondary" className="w-full" size="sm">Ver detalle</Button>
         </Link>
-        <button onClick={() => onEdit(crop)}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-all duration-150">
-          ✏️
-        </button>
-        <button onClick={() => onDelete(crop)}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-red-400 hover:bg-red-400/15 transition-all duration-150">
-          🗑️
-        </button>
+        {onEdit && (
+          <button onClick={() => onEdit(crop)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-all duration-150">
+            ✏️
+          </button>
+        )}
+        {onDelete && (
+          <button onClick={() => onDelete(crop)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-red-400 hover:bg-red-400/15 transition-all duration-150">
+            🗑️
+          </button>
+        )}
       </div>
     </div>
   )

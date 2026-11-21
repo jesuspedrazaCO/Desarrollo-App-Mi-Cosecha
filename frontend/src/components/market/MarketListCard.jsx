@@ -66,8 +66,8 @@ export default function MarketListCard({ list, onEdit, onDelete }) {
         <Link to={`/market/${list._id}`} className="flex-1">
           <Button variant="secondary" className="w-full" size="sm">Ver lista</Button>
         </Link>
-        <Button size="sm" variant="ghost" onClick={() => onEdit(list)}>✏️</Button>
-        <Button size="sm" variant="ghost" onClick={() => onDelete(list)}>🗑️</Button>
+        {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit(list)}>✏️</Button>}
+        {onDelete && <Button size="sm" variant="ghost" onClick={() => onDelete(list)}>🗑️</Button>}
       </div>
     </div>
   )

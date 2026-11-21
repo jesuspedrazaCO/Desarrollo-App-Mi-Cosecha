@@ -39,7 +39,7 @@ const TABS = [
 export default function CropDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, canEdit } = useAuth() // los lectores solo ven y descargan PDF
   const [cropData, setCropData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('summary')
@@ -259,12 +259,12 @@ export default function CropDetailPage() {
               <h3 className="text-[15px] font-bold text-white/90">Gastos del cultivo</h3>
               <p className="text-xs text-white/40 mt-0.5">Total: <strong className="text-orange-300">${totalExpenses?.toLocaleString('es-CO')}</strong></p>
             </div>
-            <Button size="sm" onClick={() => { setEditingExpense(null); setShowExpenseForm(true) }}>+ Registrar gasto</Button>
+            {canEdit && <Button size="sm" onClick={() => { setEditingExpense(null); setShowExpenseForm(true) }}>+ Registrar gasto</Button>}
           </div>
           <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
             <ExpenseTable expenses={expenses} loading={loadingExpenses}
-              onEdit={(e) => { setEditingExpense(e); setShowExpenseForm(true) }}
-              onDelete={(e) => setDeletingExpense(e)} />
+              onEdit={canEdit ? (e) => { setEditingExpense(e); setShowExpenseForm(true) } : undefined}
+              onDelete={canEdit ? (e) => setDeletingExpense(e) : undefined} />
           </div>
         </div>
       )}
@@ -276,13 +276,13 @@ export default function CropDetailPage() {
               <h3 className="text-[15px] font-bold text-white/90">Ingresos del cultivo</h3>
               <p className="text-xs text-white/40 mt-0.5">Total: <strong className="text-emerald-400">${totalIncomes?.toLocaleString('es-CO')}</strong></p>
             </div>
-            <Button size="sm" onClick={() => { setEditingIncome(null); setShowIncomeForm(true) }}>+ Registrar ingreso</Button>
+            {canEdit && <Button size="sm" onClick={() => { setEditingIncome(null); setShowIncomeForm(true) }}>+ Registrar ingreso</Button>}
           </div>
           <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
             <IncomeTable incomes={incomes} loading={loadingIncomes}
-              onEdit={(i) => { setEditingIncome(i); setShowIncomeForm(true) }}
-              onDelete={(i) => setDeletingIncome(i)}
-              onMergeSelected={(selected) => setMergeSelection(selected)} />
+              onEdit={canEdit ? (i) => { setEditingIncome(i); setShowIncomeForm(true) } : undefined}
+              onDelete={canEdit ? (i) => setDeletingIncome(i) : undefined}
+              onMergeSelected={canEdit ? (selected) => setMergeSelection(selected) : undefined} />
           </div>
         </div>
       )}
@@ -294,7 +294,7 @@ export default function CropDetailPage() {
               <h3 className="text-[15px] font-bold text-white/90">Insumos y aplicaciones</h3>
               <p className="text-xs text-white/40 mt-0.5">Abonos, fumigaciones y dosis aplicadas a este cultivo</p>
             </div>
-            <Button size="sm" onClick={() => { setEditingApplication(null); setShowApplicationForm(true) }}>+ Registrar aplicación</Button>
+            {canEdit && <Button size="sm" onClick={() => { setEditingApplication(null); setShowApplicationForm(true) }}>+ Registrar aplicación</Button>}
           </div>
 
           <div className="space-y-2">
@@ -306,13 +306,14 @@ export default function CropDetailPage() {
             <h4 className="text-[13px] font-semibold text-white/70">Historial de aplicaciones</h4>
             <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
               <ApplicationTable applications={applications} loading={loadingApplications}
-                onEdit={(a) => { setEditingApplication(a); setShowApplicationForm(true) }}
-                onDelete={(a) => setDeletingApplication(a)} />
+                onEdit={canEdit ? (a) => { setEditingApplication(a); setShowApplicationForm(true) } : undefined}
+                onDelete={canEdit ? (a) => setDeletingApplication(a) : undefined} />
             </div>
           </div>
         </div>
       )}
 
+      {canEdit && <>
       <Modal isOpen={showApplicationForm} onClose={() => { setShowApplicationForm(false); setEditingApplication(null) }}
         title={editingApplication ? 'Editar aplicación' : 'Registrar aplicación'} size="lg">
         <ApplicationForm defaultValues={editingApplication} cropId={id} onSubmit={handleApplicationSubmit}
@@ -352,6 +353,7 @@ export default function CropDetailPage() {
 
       <ConfirmDialog isOpen={!!deletingApplication} onClose={() => setDeletingApplication(null)}
         onConfirm={handleDeleteApplication} title="Eliminar aplicación" message="¿Seguro que deseas eliminar esta aplicación y todos sus productos?" loading={formLoading} />
+      </>}
     </div>
   )
 }

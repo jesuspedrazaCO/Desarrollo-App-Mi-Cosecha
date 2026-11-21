@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useContributors } from '../hooks/useContributors'
+import { useAuth } from '../hooks/useAuth'
 import { getFarmWideContributorSummary } from '../services/contributorService'
 import ContributorSummary from '../components/contributors/ContributorSummary'
 import ConfirmDialog from '../components/common/ConfirmDialog'
@@ -10,6 +11,7 @@ import { SkeletonList } from '../components/common/Skeleton'
 
 export default function ContributorsPage() {
   const { contributors, loading: loadingList, create, remove } = useContributors()
+  const { canEdit } = useAuth() // los lectores solo ven
   const [summary, setSummary] = useState([])
   const [loadingSummary, setLoadingSummary] = useState(true)
   const [newName, setNewName] = useState('')
@@ -69,7 +71,7 @@ export default function ContributorsPage() {
       <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
         <h3 className="text-[15px] font-bold text-white/90 mb-3">Personas registradas</h3>
 
-        <form onSubmit={handleAdd} className="flex items-center gap-2 mb-4">
+        {canEdit && <form onSubmit={handleAdd} className="flex items-center gap-2 mb-4">
           <input
             type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
             placeholder="Ej: Fabio, Diego, Papá..."
@@ -79,36 +81,38 @@ export default function ContributorsPage() {
           <Button type="submit" loading={adding} size="sm">
             <Plus size={15} className="mr-1" /> Agregar
           </Button>
-        </form>
+        </form>}
 
         {loadingList ? (
           <SkeletonList rows={3} />
         ) : contributors.length === 0 ? (
-          <p className="text-white/40 text-sm">Aún no has agregado a nadie.</p>
+          <p className="text-white/40 text-sm">{canEdit ? 'Aún no has agregado a nadie.' : 'Aún no hay personas registradas.'}</p>
         ) : (
           <div className="space-y-1">
             {contributors.map((c) => (
               <div key={c._id} className="flex items-center justify-between px-3 py-2.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
                 <span className="text-sm text-white/80 font-medium">{c.name}</span>
-                <button
-                  onClick={() => setDeleting(c)}
-                  className="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => setDeleting(c)}
+                    className="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <ConfirmDialog
+      {canEdit && <ConfirmDialog
         isOpen={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={handleDelete}
         title="Eliminar aportante"
         message={`¿Eliminar a "${deleting?.name}"? Los gastos donde ya se marcó que pagó no se borran, pero dejarán de mostrarlo en los resúmenes.`}
-      />
+      />}
     </div>
   )
 }

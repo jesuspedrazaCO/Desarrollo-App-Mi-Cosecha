@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMarketLists } from '../hooks/useMarketLists'
+import { useAuth } from '../hooks/useAuth'
 import MarketListCard from '../components/market/MarketListCard'
 import MarketListForm from '../components/market/MarketListForm'
 import Modal from '../components/common/Modal'
@@ -11,6 +12,7 @@ import { SkeletonCards } from '../components/common/Skeleton'
 
 export default function MarketListsPage() {
   const { lists, loading, createList, updateList, removeList } = useMarketLists()
+  const { canEdit } = useAuth() // los lectores solo ven
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -49,9 +51,11 @@ export default function MarketListsPage() {
           <h1 className="page-title">Lista de mercado 🛒</h1>
           <p className="text-stone-500 text-sm mt-1">{lists.length} lista{lists.length !== 1 ? 's' : ''} guardadas</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true) }}>
-          + Nueva lista
-        </Button>
+        {canEdit && (
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>
+            + Nueva lista
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -60,8 +64,8 @@ export default function MarketListsPage() {
         <EmptyState
           icon="🛒"
           title="No tienes listas de mercado"
-          description="Crea una lista para organizar tus compras y llevar el control del presupuesto"
-          action={<Button onClick={() => setShowForm(true)}>+ Crear primera lista</Button>}
+          description={canEdit ? 'Crea una lista para organizar tus compras y llevar el control del presupuesto' : 'Aún no hay listas de mercado.'}
+          action={canEdit ? <Button onClick={() => setShowForm(true)}>+ Crear primera lista</Button> : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -69,13 +73,14 @@ export default function MarketListsPage() {
             <MarketListCard
               key={list._id}
               list={list}
-              onEdit={(l) => { setEditing(l); setShowForm(true) }}
-              onDelete={(l) => setDeleting(l)}
+              onEdit={canEdit ? (l) => { setEditing(l); setShowForm(true) } : undefined}
+              onDelete={canEdit ? (l) => setDeleting(l) : undefined}
             />
           ))}
         </div>
       )}
 
+      {canEdit && <>
       <Modal
         isOpen={showForm}
         onClose={() => { setShowForm(false); setEditing(null) }}
@@ -97,6 +102,7 @@ export default function MarketListsPage() {
         message={`¿Eliminar "${deleting?.name}" y todos sus productos?`}
         loading={formLoading}
       />
+      </>}
     </div>
   )
 }

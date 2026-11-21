@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useReceipts } from '../hooks/useReceipts'
+import { useAuth } from '../hooks/useAuth'
 import { getCrops } from '../services/cropService'
 import ReceiptUploadForm from '../components/receipts/ReceiptUploadForm'
 import ReceiptGallery from '../components/receipts/ReceiptGallery'
@@ -11,6 +12,7 @@ import toast from 'react-hot-toast'
 
 export default function ReceiptsPage() {
   const { receipts, total, totalPages, loading, params, setParams, upload, remove } = useReceipts()
+  const { canEdit } = useAuth() // los lectores solo ven
   const [crops, setCrops] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [deleting, setDeleting] = useState(null)
@@ -59,14 +61,14 @@ export default function ReceiptsPage() {
             <option value="">Todos los cultivos</option>
             {crops.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
-          <Button onClick={() => setShowForm(true)}>+ Subir comprobante</Button>
+          {canEdit && <Button onClick={() => setShowForm(true)}>+ Subir comprobante</Button>}
         </div>
       </div>
 
       <ReceiptGallery
         receipts={receipts}
         loading={loading}
-        onDelete={(r) => setDeleting(r)}
+        onDelete={canEdit ? (r) => setDeleting(r) : undefined}
       />
 
       <Pagination
@@ -75,6 +77,7 @@ export default function ReceiptsPage() {
         onPageChange={(p) => setParams(prev => ({ ...prev, page: p }))}
       />
 
+      {canEdit && <>
       <Modal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
@@ -97,6 +100,7 @@ export default function ReceiptsPage() {
         message="¿Seguro que deseas eliminar este comprobante? También se borrará el archivo."
         loading={formLoading}
       />
+      </>}
     </div>
   )
 }

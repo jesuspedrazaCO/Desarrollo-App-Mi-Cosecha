@@ -22,7 +22,7 @@ const TABS = [
 
 export default function HouseholdPage() {
   const { items, total, totalAmount, totalPages, byCategory, byMonth, loading, params, setParams, create, update, remove } = useHousehold()
-  const { user } = useAuth()
+  const { user, canEdit } = useAuth() // los lectores solo ven y descargan PDF
   const [activeTab, setActiveTab] = useState('list')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -80,7 +80,7 @@ export default function HouseholdPage() {
             ))}
           </select>
           <ExportPDFButton onExport={handleExportPDF} label="Exportar" size="sm" />
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Registrar gasto</Button>
+          {canEdit && <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Registrar gasto</Button>}
         </div>
       </div>
 
@@ -90,8 +90,8 @@ export default function HouseholdPage() {
         <>
           <div className="rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
             <HouseholdExpenseTable items={items} loading={loading}
-              onEdit={(e) => { setEditing(e); setShowForm(true) }}
-              onDelete={(e) => setDeleting(e)} />
+              onEdit={canEdit ? (e) => { setEditing(e); setShowForm(true) } : undefined}
+              onDelete={canEdit ? (e) => setDeleting(e) : undefined} />
           </div>
           <Pagination page={params.page || 1} totalPages={totalPages} onPageChange={(p) => setParams(prev => ({ ...prev, page: p }))} />
         </>
@@ -101,6 +101,7 @@ export default function HouseholdPage() {
         <HouseholdSummary byCategory={byCategory} byMonth={byMonth} totalAmount={totalAmount} />
       )}
 
+      {canEdit && <>
       <Modal isOpen={showForm} onClose={() => { setShowForm(false); setEditing(null) }}
         title={editing ? 'Editar gasto' : 'Registrar gasto del hogar'} size="lg">
         <HouseholdExpenseForm defaultValues={editing} onSubmit={handleSubmit}
@@ -110,6 +111,7 @@ export default function HouseholdPage() {
       <ConfirmDialog isOpen={!!deleting} onClose={() => setDeleting(null)}
         onConfirm={handleDelete} title="Eliminar gasto"
         message={`¿Seguro que deseas eliminar "${deleting?.description}"?`} loading={formLoading} />
+      </>}
     </div>
   )
 }

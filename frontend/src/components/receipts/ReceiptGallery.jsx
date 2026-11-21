@@ -85,13 +85,15 @@ export default function ReceiptGallery({ receipts, loading, onDelete }) {
                     Ver
                   </button>
                   )}
-                  <button onClick={() => onDelete(receipt)}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all"
-                    style={{ color: 'rgba(255,255,255,0.45)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.18)'; e.currentTarget.style.color = '#f87171' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}>
-                    🗑️
-                  </button>
+                  {onDelete && (
+                    <button onClick={() => onDelete(receipt)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all"
+                      style={{ color: 'rgba(255,255,255,0.45)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.18)'; e.currentTarget.style.color = '#f87171' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}>
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -15,6 +15,7 @@ import Button from '../components/common/Button'
 import Badge from '../components/common/Badge'
 import EmptyState from '../components/common/EmptyState'
 import { SkeletonCards } from '../components/common/Skeleton'
+import { useAuth } from '../hooks/useAuth'
 
 const fieldStyle = {
   backgroundColor: 'rgba(255,255,255,0.88)', color: '#1c1917',
@@ -105,6 +106,7 @@ const groupOrders = (expenses) => {
 }
 
 export default function PendingPaymentsPage() {
+  const { canEdit } = useAuth()
   const [data, setData] = useState({ expenses: [], totalAmount: 0, overdueCount: 0 })
   const [crops, setCrops] = useState([])
   const [loading, setLoading] = useState(true)
@@ -140,7 +142,7 @@ export default function PendingPaymentsPage() {
           <h1 className="text-xl font-bold text-white font-display">Pendientes por pagar</h1>
           <p className="text-xs text-white/45 mt-0.5">Lo que ya compraste y todavía no pagas. Cuenta como gasto desde ya; al pagar queda un recibo en Comprobantes.</p>
         </div>
-        <Button onClick={() => setShowForm(true)}><Plus size={16} /> Registrar compra</Button>
+        {canEdit && <Button onClick={() => setShowForm(true)}><Plus size={16} /> Registrar compra</Button>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -155,12 +157,12 @@ export default function PendingPaymentsPage() {
       </div>
 
       {orders.length === 0 ? (
-        <EmptyState icon="✅" title="No debes nada" description="Cuando compres algo sin pagarlo, regístralo aquí para no olvidarlo." />
+        <EmptyState icon="✅" title="No debes nada" description={canEdit ? "Cuando compres algo sin pagarlo, regístralo aquí para no olvidarlo." : "Por ahora no hay compras pendientes por pagar."} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 items-start">
           {orders.map((o) => (
             <OrderCard
-              key={o.key} o={o} late={isOverdue(o.dueDate)}
+              key={o.key} o={o} late={isOverdue(o.dueDate)} canEdit={canEdit}
               onPay={setPaying}
               onAddItem={() => setItemModal({ order: o })}
               onEditItem={(line) => setItemModal({ order: o, line })}
@@ -172,6 +174,8 @@ export default function PendingPaymentsPage() {
         </div>
       )}
 
+      {canEdit && (
+        <>
       <OrderModal isOpen={showForm} onClose={() => setShowForm(false)} crops={crops}
         onSaved={() => { setShowForm(false); load() }} />
       <ItemModal state={itemModal} crops={crops} onClose={() => setItemModal(null)}
@@ -181,6 +185,8 @@ export default function PendingPaymentsPage() {
       <ConfirmDeleteModal state={confirmDel} onClose={() => setConfirmDel(null)}
         onDone={() => { setConfirmDel(null); load() }} />
       <PayModal paying={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); load() }} />
+        </>
+      )}
     </div>
   )
 }
@@ -189,7 +195,7 @@ const COLLAPSED = 2
 
 const iconBtn = 'w-7 h-7 rounded-full flex items-center justify-center text-white/55 hover:bg-white/10 hover:text-white transition-colors'
 
-function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEditOrder, onDeleteOrder }) {
+function OrderCard({ o, late, canEdit, onPay, onAddItem, onEditItem, onDeleteItem, onEditOrder, onDeleteOrder }) {
   const [open, setOpen] = useState(false)
   const total = o.lines.reduce((s, l) => s + l.amount, 0)
   const visible = open ? o.lines : o.lines.slice(0, COLLAPSED)
@@ -203,8 +209,8 @@ function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEdit
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <p className="text-base font-bold text-orange-300 mr-1">{formatCurrency(total)}</p>
-          <button type="button" aria-label="Editar datos de la compra" title="Editar datos de la compra" className={iconBtn} onClick={onEditOrder}><Pencil size={14} /></button>
-          <button type="button" aria-label="Eliminar compra" title="Eliminar compra" className={`${iconBtn} hover:!text-red-300`} onClick={onDeleteOrder}><Trash2 size={14} /></button>
+          {canEdit && <button type="button" aria-label="Editar datos de la compra" title="Editar datos de la compra" className={iconBtn} onClick={onEditOrder}><Pencil size={14} /></button>}
+          {canEdit && <button type="button" aria-label="Eliminar compra" title="Eliminar compra" className={`${iconBtn} hover:!text-red-300`} onClick={onDeleteOrder}><Trash2 size={14} /></button>}
         </div>
       </div>
       <Badge color={late ? 'red' : 'amber'}>
@@ -234,12 +240,12 @@ function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEdit
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-[13px] font-semibold text-white/80 mr-1">{formatCurrency(l.amount)}</span>
-                {o.lines.length > 1 && (
+                {canEdit && o.lines.length > 1 && (
                   <button type="button" className="text-[11px] font-semibold text-primary-300 hover:text-primary-200 mr-1"
                     onClick={() => onPay({ lineKey: l.key, total: l.amount, label: first.description })}>Pagar</button>
                 )}
-                <button type="button" aria-label="Editar producto" title="Editar producto" className={iconBtn} onClick={() => onEditItem(l)}><Pencil size={13} /></button>
-                <button type="button" aria-label="Eliminar producto" title="Eliminar producto" className={`${iconBtn} hover:!text-red-300`} onClick={() => onDeleteItem(l)}><Trash2 size={13} /></button>
+                {canEdit && <button type="button" aria-label="Editar producto" title="Editar producto" className={iconBtn} onClick={() => onEditItem(l)}><Pencil size={13} /></button>}
+                {canEdit && <button type="button" aria-label="Eliminar producto" title="Eliminar producto" className={`${iconBtn} hover:!text-red-300`} onClick={() => onDeleteItem(l)}><Trash2 size={13} /></button>}
               </div>
             </li>
           )
@@ -251,15 +257,15 @@ function OrderCard({ o, late, onPay, onAddItem, onEditItem, onDeleteItem, onEdit
         </button>
       )}
 
-      <Button type="button" size="sm" variant="secondary" className="w-full" onClick={onAddItem}>
+      {canEdit && <Button type="button" size="sm" variant="secondary" className="w-full" onClick={onAddItem}>
         <Plus size={14} /> Agregar producto a esta compra
-      </Button>
-      <Button size="sm" className="w-full"
+      </Button>}
+      {canEdit && <Button size="sm" className="w-full"
         onClick={() => onPay(o.orderId
           ? { orderId: o.orderId, total, label: o.supplier || 'esta compra' }
           : { lineKey: o.lines[0].key, total, label: o.lines[0].items[0].description })}>
         <CheckCircle2 size={14} /> Marcar {o.lines.length > 1 ? 'toda la compra ' : ''}como pagada
-      </Button>
+      </Button>}
     </div>
   )
 }

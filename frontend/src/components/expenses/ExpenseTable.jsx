@@ -66,15 +66,16 @@ export default function ExpenseTable({ expenses, loading, onEdit, onDelete }) {
       key: 'paymentMethod', label: 'Pago',
       render: (e) => <Badge color="gray">{e.paymentStatus === 'pendiente' ? 'pendiente' : e.paymentMethod}</Badge>,
     },
-    {
+    // Editar y borrar solo aparecen si la página los permite (los lectores no los reciben)
+    ...(onEdit || onDelete ? [{
       key: 'actions', label: '',
       render: (e) => (
         <div className="flex gap-1 justify-end">
-          <Button size="sm" variant="ghost" onClick={() => onEdit(e)}>✏️</Button>
-          <Button size="sm" variant="ghost" onClick={() => onDelete(e)}>🗑️</Button>
+          {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit(e)}>✏️</Button>}
+          {onDelete && <Button size="sm" variant="ghost" onClick={() => onDelete(e)}>🗑️</Button>}
         </div>
       ),
-    },
+    }] : []),
   ]
 
   return (

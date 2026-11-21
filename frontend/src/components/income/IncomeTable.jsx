@@ -84,19 +84,22 @@ export default function IncomeTable({ incomes, loading, onEdit, onDelete, onMerg
       key: 'totalAmount', label: 'Total',
       render: (i) => <span className="text-sm font-bold text-emerald-300">{formatCurrency(i.totalAmount)}</span>,
     },
-    {
+    // Editar y borrar solo aparecen si la página los permite (los lectores no los reciben)
+    ...(onEdit || onDelete ? [{
       key: 'actions', label: '',
       render: (i) => (
         <div className="flex gap-1 justify-end">
-          <Button size="sm" variant="ghost" onClick={() => onEdit(i)}>✏️</Button>
-          <Button size="sm" variant="ghost" onClick={() => onDelete(i)}>🗑️</Button>
+          {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit(i)}>✏️</Button>}
+          {onDelete && <Button size="sm" variant="ghost" onClick={() => onDelete(i)}>🗑️</Button>}
         </div>
       ),
-    },
+    }] : []),
   ]
 
   return (
     <>
+      {/* Agrupar ventas modifica datos: solo si la página pasa onMergeSelected */}
+      {onMergeSelected && (
       <div className="flex items-center justify-between mb-3">
         {!selectMode ? (
           <Button size="sm" variant="secondary" onClick={() => setSelectMode(true)}>
@@ -113,6 +116,7 @@ export default function IncomeTable({ incomes, loading, onEdit, onDelete, onMerg
           </div>
         )}
       </div>
+      )}
 
       <Table
         columns={columns}
