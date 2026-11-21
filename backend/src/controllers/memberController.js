@@ -58,7 +58,7 @@ exports.inviteMember = async (req, res, next) => {
 
     const link = `${frontendUrl()}/invitacion/${rawToken}`;
     try {
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: process.env.MAIL_FROM || 'AgroFinanzas <onboarding@resend.dev>',
         to: email,
         subject: `${owner.name} te invitó a ver ${owner.farmName || 'su finca'} en AgroFinanzas`,
@@ -78,10 +78,17 @@ exports.inviteMember = async (req, res, next) => {
           </div>
         `,
       });
+      // El SDK de Resend no lanza excepción cuando falla: devuelve { error }
+      if (sendError) throw sendError;
     } catch (emailError) {
       await Invitation.deleteOne({ _id: invitation._id });
       console.error('Error enviando invitación:', emailError);
-      return res.status(500).json({ message: 'No se pudo enviar el correo. Intenta de nuevo más tarde.' });
+      const testMode = /only send testing emails|verify a domain|own email/i.test(emailError?.message || '');
+      return res.status(500).json({
+        message: testMode
+          ? 'El servicio de correo está en modo de prueba y solo envía a la cuenta del dueño. Hay que verificar un dominio en Resend para invitar a otras personas.'
+          : 'No se pudo enviar el correo. Intenta de nuevo más tarde.',
+      });
     }
 
     res.status(201).json({ message: 'Invitación enviada.', invitation: { _id: invitation._id, name, email, expiresAt } });
