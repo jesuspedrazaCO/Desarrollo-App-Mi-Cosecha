@@ -1,2 +1,3 @@
 import api from './api'
-export const getDashboardStats = () => api.get('/dashboard/stats')
+// scope: 'all' (todos los cultivos) | 'active' (solo los cultivos activos)
+export const getDashboardStats = (scope = 'all') => api.get('/dashboard/stats', { params: { scope } })

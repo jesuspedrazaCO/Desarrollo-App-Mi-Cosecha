@@ -10,6 +10,8 @@ const { calculateCropSummary } = require('../utils/financialCalculations');
 const getDashboardStats = async (req, res, next) => {
   try {
     const ownerId = req.user._id;
+    // scope=active → totales solo de los cultivos activos; cualquier otro valor → todos los cultivos
+    const scope = req.query.scope === 'active' ? 'active' : 'all';
 
     // ── Cultivos activos ──
     const activeCrops = await Crop.find({ owner: ownerId, status: 'activo' });
@@ -18,8 +20,17 @@ const getDashboardStats = async (req, res, next) => {
     const allExpenses = await Expense.find({ owner: ownerId });
     const allIncomes = await Income.find({ owner: ownerId });
 
-    const totalInvested = allExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const totalIncome = allIncomes.reduce((sum, i) => sum + i.totalAmount, 0);
+    // Todo gasto e ingreso pertenece a un cultivo (el modelo lo exige), así que filtrar por cultivo es exacto
+    const activeIds = new Set(activeCrops.map((c) => c._id.toString()));
+    const totalExpenses = scope === 'active'
+      ? allExpenses.filter((e) => e.crop && activeIds.has(e.crop.toString()))
+      : allExpenses;
+    const totalIncomes = scope === 'active'
+      ? allIncomes.filter((i) => i.crop && activeIds.has(i.crop.toString()))
+      : allIncomes;
+
+    const totalInvested = totalExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalIncome = totalIncomes.reduce((sum, i) => sum + i.totalAmount, 0);
     const totalProfit = totalIncome - totalInvested;
 
     // ── Resumen por cultivo activo ──
@@ -111,6 +122,7 @@ const getDashboardStats = async (req, res, next) => {
 
     res.json({
       summary: {
+        scope,
         totalInvested,
         totalIncome,
         totalProfit,

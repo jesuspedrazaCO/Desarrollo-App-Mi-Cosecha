@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Wallet, TrendingUp, CheckCircle2, AlertTriangle, Home } from 'lucide-react'
 import { useDashboard } from '../hooks/useDashboard'
 import StatsCard from '../components/dashboard/StatsCard'
@@ -11,8 +12,18 @@ import { formatDateLong } from '../utils/formatDate'
 import { useAuth } from '../hooks/useAuth'
 import { SkeletonDashboard } from '../components/common/Skeleton'
 
+const SCOPE_KEY = 'dashboardScope'
+const readScope = () => {
+  try { return localStorage.getItem(SCOPE_KEY) === 'all' ? 'all' : 'active' } catch { return 'active' }
+}
+
 export default function DashboardPage() {
-  const { data, loading } = useDashboard()
+  const [scope, setScope] = useState(readScope)
+  const { data, loading, switching } = useDashboard(scope)
+  const changeScope = (value) => {
+    setScope(value)
+    try { localStorage.setItem(SCOPE_KEY, value) } catch { /* sin almacenamiento: no pasa nada */ }
+  }
   const { user } = useAuth()
 
   if (loading) return <SkeletonDashboard />
@@ -26,7 +37,7 @@ export default function DashboardPage() {
       value={summary?.totalInvested}
       icon={<Wallet size={20} strokeWidth={2} />}
       color="accent"
-      subtitle="En todos tus cultivos"
+      subtitle={scope === 'active' ? 'En cultivos activos' : 'En todos tus cultivos'}
     />,
     <StatsCard
       title="Total vendido"
@@ -71,14 +82,43 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Estadísticas — carrusel en móvil, grid en escritorio */}
-      <div className="lg:hidden">
-        <StatsCarousel>{statsCards}</StatsCarousel>
+      {/* Interruptor: totales de todos los cultivos o solo de los activos (gastos del hogar no cambian) */}
+      <div className="flex items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Qué cultivos se cuentan en los totales"
+          className="inline-flex rounded-full p-1"
+          style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}
+        >
+          {[{ value: 'active', label: 'Solo activos' }, { value: 'all', label: 'Todo' }].map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={scope === o.value}
+              onClick={() => changeScope(o.value)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                scope === o.value ? 'bg-primary-600 text-white' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-white/40 text-right">
+          {scope === 'active' ? 'Sin cultivos finalizados ni suspendidos' : 'Incluye cultivos finalizados y suspendidos'}
+        </p>
       </div>
-      <div className="hidden lg:grid lg:grid-cols-4 gap-4">
-        {statsCards.map((card, i) => (
-          <div key={i}>{card}</div>
-        ))}
+
+      {/* Estadísticas — carrusel en móvil, grid en escritorio */}
+      <div className={`space-y-6 transition-opacity ${switching ? 'opacity-60' : ''}`}>
+        <div className="lg:hidden">
+          <StatsCarousel>{statsCards}</StatsCarousel>
+        </div>
+        <div className="hidden lg:grid lg:grid-cols-4 gap-4">
+          {statsCards.map((card, i) => (
+            <div key={i}>{card}</div>
+          ))}
+        </div>
       </div>
 
       {/* Gráfico + cultivos activos */}
