@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { UserPlus, Mail, Trash2, RefreshCw, UserX, UserCheck, Eye } from 'lucide-react'
-import { getMembers, inviteMember, revokeInvitation, setMemberActive, removeMember } from '../services/memberService'
+import { UserPlus, Mail, Trash2, RefreshCw, UserX, UserCheck, Eye, Copy } from 'lucide-react'
+import { getMembers, inviteMember, revokeInvitation, setMemberActive, setMemberRole, removeMember } from '../services/memberService'
 import { useAuth } from '../hooks/useAuth'
 import { formatDate } from '../utils/formatDate'
 import Modal from '../components/common/Modal'
@@ -31,10 +31,12 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState('viewer') // rol de la persona que se invita
   const [sending, setSending] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [confirmRemove, setConfirmRemove] = useState(null) // miembro a eliminar
   const [removing, setRemoving] = useState(false)
+  const [shareLink, setShareLink] = useState(null) // { name, link } cuando el correo no se pudo enviar
 
   const load = useCallback(async () => {
     try {
@@ -59,8 +61,9 @@ export default function MembersPage() {
     if (!EMAIL_RE.test(email.trim())) return toast.error('Escribe un correo válido')
     setSending(true)
     try {
-      await inviteMember({ name: name.trim(), email: email.trim() })
-      toast.success('Invitación enviada por correo')
+      const res = await inviteMember({ name: name.trim(), email: email.trim(), role })
+      if (res.data.emailSent) toast.success('Invitación enviada por correo')
+      else setShareLink({ name: name.trim(), link: res.data.link })
       setName(''); setEmail('')
       load()
     } catch (err) {
@@ -73,8 +76,9 @@ export default function MembersPage() {
   const resend = async (inv) => {
     setBusyId(inv._id)
     try {
-      await inviteMember({ name: inv.name, email: inv.email })
-      toast.success('Invitación reenviada')
+      const res = await inviteMember({ name: inv.name, email: inv.email, role: inv.role || 'viewer' })
+      if (res.data.emailSent) toast.success('Invitación reenviada')
+      else setShareLink({ name: inv.name, link: res.data.link })
       load()
     } catch (err) {
       toast.error(err.response?.data?.message || 'No se pudo reenviar')
@@ -109,6 +113,20 @@ export default function MembersPage() {
     }
   }
 
+  const changeRole = async (m, newRole) => {
+    if (newRole === (m.role || 'viewer')) return
+    setBusyId(m._id)
+    try {
+      await setMemberRole(m._id, newRole)
+      toast.success(newRole === 'editor' ? `${m.name} ahora puede registrar y editar datos` : `${m.name} ahora es solo lectura`)
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No se pudo cambiar el rol')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const doRemove = async () => {
     setRemoving(true)
     try {
@@ -123,6 +141,15 @@ export default function MembersPage() {
     }
   }
 
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink.link)
+      toast.success('Enlace copiado')
+    } catch {
+      toast.error('No se pudo copiar, selecciónalo y cópialo a mano')
+    }
+  }
+
   const total = data.members.length + data.invitations.length
   const isEmpty = total === 0
 
@@ -131,7 +158,7 @@ export default function MembersPage() {
       <div>
         <h1 className="text-xl font-bold text-white font-display">Miembros de la finca</h1>
         <p className="text-xs text-white/45 mt-0.5">
-          Invita a tu familia o socios para que vean cultivos, gastos e ingresos y descarguen PDF. No podrán registrar, editar ni borrar nada.
+          Invita a tu familia o socios. Tú eliges si solo ven los datos y descargan PDF (Lector) o si también pueden registrar y editar (Editor). Nadie más que tú puede invitar o quitar miembros.
         </p>
       </div>
 
@@ -147,8 +174,32 @@ export default function MembersPage() {
             <input type="email" style={fieldStyle} value={email} maxLength={120} placeholder="correo@ejemplo.com" onChange={(e) => setEmail(e.target.value)} />
           </div>
         </div>
+        <div>
+          <label style={labelStyle}>Qué podrá hacer</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { value: 'viewer', title: 'Lector', desc: 'Solo ve todo y descarga PDF' },
+              { value: 'editor', title: 'Editor', desc: 'Además registra, edita y borra datos' },
+            ].map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={role === o.value}
+                onClick={() => setRole(o.value)}
+                className="text-left rounded-2xl px-3.5 py-2.5 transition-colors"
+                style={{
+                  background: role === o.value ? 'rgba(37,138,78,0.30)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${role === o.value ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.14)'}`,
+                }}
+              >
+                <p className="text-sm font-bold text-white/90">{o.title}</p>
+                <p className="text-[11px] text-white/55">{o.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] text-white/40 flex items-center gap-1.5"><Eye size={12} /> Rol: Lector · el enlace dura 7 días</p>
+          <p className="text-[11px] text-white/40 flex items-center gap-1.5"><Eye size={12} /> El enlace dura 7 días</p>
           <Button type="submit" loading={sending} disabled={total >= data.max}><Mail size={15} /> Enviar invitación</Button>
         </div>
         {total >= data.max && <p className="text-xs text-orange-300">Llegaste al máximo de {data.max} miembros e invitaciones.</p>}
@@ -165,7 +216,20 @@ export default function MembersPage() {
                 <p className="text-[11px] text-white/45 truncate">{m.email} · desde {formatDate(m.createdAt)}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Badge color={m.active ? 'green' : 'gray'}>{m.active ? 'Lector' : 'Desactivado'}</Badge>
+                <Badge color={m.active ? 'green' : 'gray'}>
+                  {m.active ? (m.role === 'editor' ? 'Editor' : 'Lector') : 'Desactivado'}
+                </Badge>
+                <select
+                  aria-label={`Rol de ${m.name}`}
+                  value={m.role === 'editor' ? 'editor' : 'viewer'}
+                  disabled={busyId === m._id}
+                  onChange={(e) => changeRole(m, e.target.value)}
+                  className="rounded-full text-[11px] font-semibold px-2 py-1 outline-none disabled:opacity-40"
+                  style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+                >
+                  <option value="viewer" style={{ color: '#1c1917' }}>Lector</option>
+                  <option value="editor" style={{ color: '#1c1917' }}>Editor</option>
+                </select>
                 <button type="button" className={iconBtn} disabled={busyId === m._id}
                   aria-label={m.active ? 'Desactivar acceso' : 'Reactivar acceso'} title={m.active ? 'Desactivar acceso' : 'Reactivar acceso'}
                   onClick={() => toggleActive(m)}>
@@ -184,9 +248,9 @@ export default function MembersPage() {
                 <p className="text-[11px] text-white/45 truncate">{inv.email} · vence {formatDate(inv.expiresAt)}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Badge color="amber">Invitación pendiente</Badge>
+                <Badge color="amber">Pendiente · {inv.role === 'editor' ? 'Editor' : 'Lector'}</Badge>
                 <button type="button" className={iconBtn} disabled={busyId === inv._id}
-                  aria-label="Reenviar invitación" title="Reenviar invitación" onClick={() => resend(inv)}><RefreshCw size={15} /></button>
+                  aria-label="Reenviar o generar nuevo enlace" title="Reenviar o generar nuevo enlace" onClick={() => resend(inv)}><RefreshCw size={15} /></button>
                 <button type="button" className={`${iconBtn} hover:!text-red-300`} disabled={busyId === inv._id}
                   aria-label="Cancelar invitación" title="Cancelar invitación" onClick={() => revoke(inv)}><Trash2 size={16} /></button>
               </div>
@@ -194,6 +258,22 @@ export default function MembersPage() {
           ))}
         </div>
       )}
+
+      <Modal isOpen={!!shareLink} onClose={() => setShareLink(null)} title="Comparte el enlace" size="sm">
+        {shareLink && (
+          <div className="space-y-3">
+            <p className="text-sm text-white/75">
+              El correo no se pudo enviar, pero la invitación para <strong>{shareLink.name}</strong> quedó creada.
+              Mándale este enlace por WhatsApp. Es personal y dura 7 días: no lo publiques.
+            </p>
+            <input readOnly style={fieldStyle} value={shareLink.link} onFocus={(e) => e.target.select()} />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShareLink(null)}>Cerrar</Button>
+              <Button type="button" onClick={copyLink}><Copy size={15} /> Copiar enlace</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={!!confirmRemove} onClose={() => setConfirmRemove(null)} title="Eliminar miembro" size="sm">
         {confirmRemove && (

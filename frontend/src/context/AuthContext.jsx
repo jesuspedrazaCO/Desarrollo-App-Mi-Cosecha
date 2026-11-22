@@ -58,13 +58,15 @@ export function AuthProvider({ children }) {
   }
 
   // Las sesiones anteriores no traen "role": se tratan como administrador.
-  // isViewer = lector (solo ve datos y descarga PDF). canEdit = puede registrar/editar/borrar.
+  // isViewer = lector (solo ve datos y descarga PDF). isEditor = además registra/edita/borra datos.
+  // isAdmin = dueño de la finca (también gestiona miembros). canEdit = puede registrar/editar/borrar.
   const isViewer = user?.role === 'viewer'
-  const isAdmin = !!user && !isViewer
-  const canEdit = isAdmin
+  const isEditor = user?.role === 'editor'
+  const isAdmin = !!user && !isViewer && !isEditor
+  const canEdit = isAdmin || isEditor
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, acceptInvitation, logout, updateUser, isViewer, isAdmin, canEdit }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvitation, logout, updateUser, isViewer, isEditor, isAdmin, canEdit }}>
       {children}
     </AuthContext.Provider>
   )

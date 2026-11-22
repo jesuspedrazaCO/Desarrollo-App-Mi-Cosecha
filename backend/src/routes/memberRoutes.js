@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body, param } = require('express-validator');
 const {
-  listMembers, inviteMember, revokeInvitation, setMemberActive, removeMember,
+  listMembers, inviteMember, revokeInvitation, updateMember, removeMember,
 } = require('../controllers/memberController');
 const { protect, adminOnly } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validate');
@@ -15,14 +15,16 @@ router.get('/', listMembers);
 router.post('/invite', [
   body('name').trim().notEmpty().withMessage('El nombre es obligatorio').isLength({ min: 2, max: 80 }).withMessage('El nombre debe tener entre 2 y 80 caracteres'),
   body('email').isEmail().withMessage('Correo inválido').normalizeEmail(),
+  body('role').optional().isIn(['viewer', 'editor']).withMessage('Rol inválido'),
 ], validate, inviteMember);
 
 router.delete('/invitations/:id', param('id').isMongoId().withMessage('Invitación inválida'), validate, revokeInvitation);
 
 router.patch('/:id', [
   param('id').isMongoId().withMessage('Miembro inválido'),
-  body('active').isBoolean().withMessage('Valor inválido'),
-], validate, setMemberActive);
+  body('active').optional().isBoolean().withMessage('Valor inválido'),
+  body('role').optional().isIn(['viewer', 'editor']).withMessage('Rol inválido'),
+], validate, updateMember);
 
 router.delete('/:id', param('id').isMongoId().withMessage('Miembro inválido'), validate, removeMember);
 

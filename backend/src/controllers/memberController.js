@@ -19,8 +19,8 @@ const frontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:5173').
 exports.listMembers = async (req, res, next) => {
   try {
     const [members, invitations] = await Promise.all([
-      User.find({ farmOwner: req.user._id }).select('name email active avatar createdAt').sort({ createdAt: 1 }),
-      Invitation.find({ owner: req.user._id }).select('name email expiresAt createdAt').sort({ createdAt: -1 }),
+      User.find({ farmOwner: req.user._id }).select('name email active avatar role createdAt').sort({ createdAt: 1 }),
+      Invitation.find({ owner: req.user._id }).select('name email role expiresAt createdAt').sort({ createdAt: -1 }),
     ]);
     res.json({ members, invitations, max: MAX_MEMBERS });
   } catch (error) { next(error); }
@@ -30,6 +30,7 @@ exports.listMembers = async (req, res, next) => {
 exports.inviteMember = async (req, res, next) => {
   try {
     const { name, email } = req.body;
+    const role = req.body.role === 'editor' ? 'editor' : 'viewer';
     const owner = req.user;
 
     if (email === owner.email) return res.status(400).json({ message: 'Ese es tu propio correo.' });
@@ -52,7 +53,7 @@ exports.inviteMember = async (req, res, next) => {
     const expiresAt = new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000);
     const invitation = await Invitation.findOneAndUpdate(
       { owner: owner._id, email },
-      { name, role: 'viewer', tokenHash: hashToken(rawToken), expiresAt },
+      { name, role, tokenHash: hashToken(rawToken), expiresAt },
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
     );
 
@@ -61,14 +62,16 @@ exports.inviteMember = async (req, res, next) => {
     try {
       await sendEmail({
         to: email,
-        subject: `${owner.name} te invitó a ver ${owner.farmName || 'su finca'} en AgroFinanzas`,
+        subject: `${owner.name} te invitó a ${role === 'editor' ? 'colaborar en' : 'ver'} ${owner.farmName || 'su finca'} en AgroFinanzas`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
             <h2 style="color: #258a4e;">Te invitaron a AgroFinanzas</h2>
             <p>Hola ${escapeHtml(name)},</p>
             <p><strong>${escapeHtml(owner.name)}</strong> te invitó a ver los cultivos, gastos e ingresos de
-            <strong>${escapeHtml(owner.farmName || 'su finca')}</strong>. Podrás consultar todo y descargar los PDF
-            (no podrás registrar ni cambiar datos). Este enlace es válido por ${INVITE_DAYS} días:</p>
+            <strong>${escapeHtml(owner.farmName || 'su finca')}</strong>. ${role === 'editor'
+              ? 'Podrás consultar todo, descargar los PDF y también registrar y editar datos (no podrás invitar ni quitar miembros).'
+              : 'Podrás consultar todo y descargar los PDF (no podrás registrar ni cambiar datos).'}
+            Este enlace es válido por ${INVITE_DAYS} días:</p>
             <p style="margin: 24px 0;">
               <a href="${link}" style="background: #258a4e; color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: bold;">
                 Aceptar invitación
@@ -89,7 +92,7 @@ exports.inviteMember = async (req, res, next) => {
       message: emailSent ? 'Invitación enviada.' : 'No se pudo enviar el correo, comparte el enlace.',
       emailSent,
       link,
-      invitation: { _id: invitation._id, name, email, expiresAt },
+      invitation: { _id: invitation._id, name, email, role, expiresAt },
     });
   } catch (error) { next(error); }
 };
@@ -103,14 +106,18 @@ exports.revokeInvitation = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// @route PATCH /api/members/:id   { active: boolean }
-exports.setMemberActive = async (req, res, next) => {
+// @route PATCH /api/members/:id   { active?: boolean, role?: 'viewer' | 'editor' }
+exports.updateMember = async (req, res, next) => {
   try {
+    const set = {};
+    if (req.body.active !== undefined) set.active = !!req.body.active;
+    if (req.body.role !== undefined) set.role = req.body.role === 'editor' ? 'editor' : 'viewer';
+    if (!Object.keys(set).length) return res.status(400).json({ message: 'No hay nada que actualizar.' });
     const member = await User.findOneAndUpdate(
       { _id: req.params.id, farmOwner: req.user._id },
-      { $set: { active: !!req.body.active } },
+      { $set: set },
       { new: true }
-    ).select('name email active createdAt');
+    ).select('name email active role createdAt');
     if (!member) return res.status(404).json({ message: 'Miembro no encontrado.' });
     res.json(member);
   } catch (error) { next(error); }
@@ -140,6 +147,7 @@ exports.getInvitation = async (req, res, next) => {
       email: invitation.email,
       farmName: invitation.owner.farmName,
       inviterName: invitation.owner.name,
+      role: invitation.role,
     });
   } catch (error) { next(error); }
 };
@@ -165,7 +173,7 @@ exports.acceptInvitation = async (req, res, next) => {
       name: invitation.name,
       email: invitation.email,
       password: req.body.password,
-      role: 'viewer',
+      role: invitation.role === 'editor' ? 'editor' : 'viewer',
       farmOwner: owner._id,
     });
 

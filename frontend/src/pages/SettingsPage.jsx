@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import api from '../services/api'
 
 export default function SettingsPage() {
-  const { user, updateUser, isViewer } = useAuth()
+  const { user, updateUser, isAdmin } = useAuth()
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null)
@@ -62,7 +62,7 @@ export default function SettingsPage() {
     setLoading(true)
     try {
       // Los datos de la finca (nombre, ubicación) solo los cambia el administrador
-      const payload = isViewer
+      const payload = !isAdmin
         ? { name: data.name, phone: data.phone }
         : { name: data.name, farmName: data.farmName, location: data.location, phone: data.phone }
       if (data.password) payload.password = data.password
@@ -118,12 +118,12 @@ export default function SettingsPage() {
       {/* Formulario */}
       <div className="rounded-3xl p-6"
         style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.13)' }}>
-        <h3 className="text-[15px] font-bold text-white/90 mb-5">{isViewer ? 'Datos personales' : 'Datos personales y de la finca'}</h3>
+        <h3 className="text-[15px] font-bold text-white/90 mb-5">{!isAdmin ? 'Datos personales' : 'Datos personales y de la finca'}</h3>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nombre completo" required error={errors.name?.message} {...register('name')} />
-            {!isViewer && <Input label="Nombre de la finca" placeholder="Ej: Finca La Esperanza" {...register('farmName')} />}
-            {!isViewer && <Input label="Ubicación" placeholder="Vereda, municipio, departamento" {...register('location')} />}
+            {isAdmin && <Input label="Nombre de la finca" placeholder="Ej: Finca La Esperanza" {...register('farmName')} />}
+            {isAdmin && <Input label="Ubicación" placeholder="Vereda, municipio, departamento" {...register('location')} />}
             <Input label="Teléfono" placeholder="300 123 4567" {...register('phone')} />
           </div>
           <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -144,7 +144,7 @@ export default function SettingsPage() {
           {[
             { label: 'Correo electrónico', value: user?.email },
             { label: 'Versión', value: 'AgroFinanzas v1.0' },
-            { label: 'Rol', value: isViewer ? 'Lector (solo lectura)' : 'Administrador' },
+            { label: 'Rol', value: user?.role === 'viewer' ? 'Lector (solo lectura)' : user?.role === 'editor' ? 'Editor (registra y edita datos)' : 'Administrador' },
             { label: 'Estado', value: '✅ Cuenta activa', green: true },
           ].map(item => (
             <div key={item.label} className="flex items-center justify-between py-2 last:border-0"

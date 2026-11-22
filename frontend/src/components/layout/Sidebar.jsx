@@ -28,7 +28,7 @@ const navItems = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user, isViewer, isAdmin } = useAuth()
+  const { user, isViewer, isEditor, isAdmin } = useAuth()
 
   // Scooby guarda conversaciones, así que los lectores no lo usan; "Miembros" es solo del administrador
   const visibleItems = navItems.filter((item) => {
@@ -108,6 +108,9 @@ export default function Sidebar({ isOpen, onClose }) {
               <p className="text-[10px] font-bold text-amber-300/90 mt-0.5 flex items-center gap-1">
                 <Eye size={10} /> Solo lectura
               </p>
+            )}
+            {isEditor && (
+              <p className="text-[10px] font-bold text-sky-300/90 mt-0.5">Editor</p>
             )}
           </div>
         </div>

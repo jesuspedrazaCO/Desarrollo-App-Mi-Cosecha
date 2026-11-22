@@ -33,7 +33,7 @@ export default function AcceptInvitationPage() {
     setSaving(true)
     try {
       await acceptInvitation(token, password)
-      toast.success('¡Bienvenido! Ya puedes ver la finca.')
+      toast.success('¡Bienvenido a la finca!')
       navigate('/', { replace: true })
     } catch (err) {
       const details = err.response?.data?.errors
@@ -65,9 +65,12 @@ export default function AcceptInvitationPage() {
             </div>
             <h1 className="font-fraunces text-xl text-white mb-2">Hola, {invite.name}</h1>
             <p className="text-white/55 text-sm mb-5">
-              <strong className="text-white/80">{invite.inviterName}</strong> te invitó a ver{' '}
+              <strong className="text-white/80">{invite.inviterName}</strong> te invitó a {invite.role === 'editor' ? 'colaborar en' : 'ver'}{' '}
               <strong className="text-white/80">{invite.farmName || 'su finca'}</strong> en AgroFinanzas.
-              Podrás consultar todo y descargar PDF, sin modificar datos. Crea tu contraseña para entrar con{' '}
+              {invite.role === 'editor'
+                ? ' Podrás consultar todo, descargar PDF y registrar o editar datos (no podrás invitar ni quitar miembros).'
+                : ' Podrás consultar todo y descargar PDF, sin modificar datos.'}
+              {' '}Crea tu contraseña para entrar con{' '}
               <strong className="text-white/80">{invite.email}</strong>.
             </p>
 

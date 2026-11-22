@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-// Invitación pendiente para que alguien entre a la finca como lector.
+// Invitación pendiente para que alguien entre a la finca como lector o editor.
 // Solo se guarda el hash del token (el token real viaja únicamente en el correo).
 const invitationSchema = new mongoose.Schema(
   {
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
     email: { type: String, required: true, lowercase: true, trim: true },
-    role: { type: String, enum: ['viewer'], default: 'viewer' },
+    role: { type: String, enum: ['viewer', 'editor'], default: 'viewer' },
     tokenHash: { type: String, required: true, unique: true },
     expiresAt: { type: Date, required: true },
   },
