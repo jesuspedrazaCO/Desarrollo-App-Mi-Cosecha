@@ -5,6 +5,7 @@ import { updateMe } from '../services/authService'
 import Input from '../components/common/Input'
 import { compressImage } from '../utils/imageCompress'
 import Button from '../components/common/Button'
+import InstallAppCard from '../components/common/InstallAppCard'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 
@@ -114,6 +115,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <InstallAppCard />
 
       {/* Formulario */}
       <div className="rounded-3xl p-6"

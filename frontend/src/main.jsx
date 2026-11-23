@@ -1,7 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
+import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import './index.css'
@@ -33,3 +34,24 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 )
+
+// App instalable y disponible sin internet. Cuando sale una versión nueva se avisa y la persona decide.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    toast(
+      (t) => (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          Hay una versión nueva
+          <button
+            type="button"
+            onClick={() => { toast.dismiss(t.id); updateSW(true) }}
+            style={{ background: '#2d6f43', color: '#fff', borderRadius: 10, padding: '4px 12px', fontWeight: 700 }}
+          >
+            Actualizar
+          </button>
+        </span>
+      ),
+      { id: 'pwa-update', duration: Infinity }
+    )
+  },
+})
