@@ -30,6 +30,7 @@ import memberRoutes from './routes/memberRoutes.js';
 // Middlewares locales (También con .js)
 import { errorHandler, notFound } from './middlewares/errorMiddleware.js';
 import { sanitizeInput } from './middlewares/sanitizeMiddleware.js';
+import idempotency from './middlewares/idempotencyMiddleware.js';
 import { verifyToken } from './config/jwt.js';
 
 // Configuración para simular __dirname en ES Modules
@@ -111,6 +112,8 @@ app.use('/api/auth/invitation', authLimiter);
 app.use('/api/auth/accept-invitation', authLimiter);
 app.use('/api/members/invite', inviteLimiter);
 app.use(['/api/ai', '/api/agro', '/api/assistant'], aiLimiter);
+// Reintentos seguros de los registros guardados sin internet (no duplica lo que ya se recibió)
+app.use('/api', idempotency);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
 import BottomNav from './BottomNav'
+import OfflineBanner from '../common/OfflineBanner'
 
 // Rutas que ya tienen su propio acceso directo en la barra inferior
 const BOTTOM_NAV_ROUTES = ['/', '/crops', '/reports']
@@ -31,6 +32,7 @@ export default function MainLayout() {
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 md:py-8 pb-24 lg:pb-8">
           <div className="max-w-7xl mx-auto">
+            <OfflineBanner />
             {isViewer && (
               <div className="mb-5 flex items-start gap-2.5 rounded-2xl px-4 py-3 text-xs"
                 style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.30)', color: 'rgba(253,230,138,0.95)' }}>

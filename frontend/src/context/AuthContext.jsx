@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from 'react'
+import { clearCache } from '../lib/offlineQueue'
 import {
   login as loginService, register as registerService, acceptInvitation as acceptInvitationService,
 } from '../services/authService'
@@ -52,6 +53,8 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    // Se borran los datos guardados para leer sin internet; los registros pendientes de subir se conservan
+    clearCache()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
