@@ -25,12 +25,24 @@ export async function warmCache(force = false) {
       quiet(api.get('/dashboard/stats', { params: { scope: 'all' } })),
       quiet(api.get('/reports/crops-comparison')),
       quiet(api.get('/reports/agro-expenses')),
+      quiet(api.get('/contributors')),
+      quiet(api.get('/contributors/summary/farm')),
     ])
-    // Detalle de cada cultivo (hasta 30, de uno en uno para no saturar el celular)
+    // Detalle de cada cultivo (hasta 30, uno a la vez para no saturar el celular)
     const list = Array.isArray(cropsRes?.data) ? cropsRes.data : (cropsRes?.data?.crops || [])
     for (const crop of list.slice(0, 30)) {
       if (!navigator.onLine) break
-      if (crop?._id) await quiet(api.get(`/crops/${crop._id}`))
+      if (!crop?._id) continue
+      const id = crop._id
+      // Lo mismo que pide la pantalla de detalle del cultivo, con sus mismos filtros
+      await Promise.all([
+        quiet(api.get(`/crops/${id}`)),
+        quiet(api.get('/expenses', { params: { crop: id, limit: 50 } })),
+        quiet(api.get('/income', { params: { crop: id, limit: 50 } })),
+        quiet(api.get('/applications', { params: { crop: id, limit: 50 } })),
+        quiet(api.get('/applications/summary', { params: { crop: id } })),
+        quiet(api.get(`/contributors/summary/crop/${id}`)),
+      ])
     }
     lastRun = Date.now()
   } finally {

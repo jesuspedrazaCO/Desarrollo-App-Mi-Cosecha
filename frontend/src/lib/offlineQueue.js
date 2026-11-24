@@ -6,7 +6,9 @@ const QUEUEABLE_PATHS = ['/expenses', '/income', '/applications', '/household']
 // sin internet, MENOS lo que nunca debe quedar guardado: sesión, miembros, asistentes de IA y archivos.
 const NEVER_CACHE_PREFIXES = ['/auth', '/members', '/ai', '/agro', '/asesor', '/agronomo', '/uploads', '/chat']
 const MAX_CACHE_BYTES = 1.5 * 1024 * 1024
-const MAX_CACHE_ENTRIES = 200
+const MAX_CACHE_ENTRIES = 400
+// Si no hay una copia con exactamente los mismos filtros, se usa la que tenga el mismo contenido sin paginación
+const PAGING_KEYS = ['page', 'limit', 'skip', 'offset', 'sort', 'order', 'sortBy']
 
 export const QUEUE_TIMEOUT_MS = 20000
 
@@ -75,7 +77,7 @@ export const updateQueueItem = async (id, patch) => {
 export const removeQueueItem = async (id) => { await dbDelete('queue', id); notify() }
 
 // ── Caché de lecturas ────────────────────────────────────────────────────────
-const cacheKeyOf = (config) => {
+const cacheKeyOf = (config, loose = false) => {
   // Los filtros pueden venir en "params" o escritos en la propia dirección (?scope=active): ambos cuentan
   const entries = []
   const q = String(config?.url || '').split('?')[1]
@@ -83,9 +85,9 @@ const cacheKeyOf = (config) => {
   if (config.params && typeof config.params === 'object') {
     Object.entries(config.params).forEach(([k, v]) => { if (v !== undefined && v !== null) entries.push([k, String(v)]) })
   }
-  const clean = entries.filter(([, v]) => v !== '').sort(([a], [b]) => a.localeCompare(b))
+  const clean = entries.filter(([k, v]) => v !== '' && !(loose && PAGING_KEYS.includes(k))).sort(([a], [b]) => a.localeCompare(b))
   const params = clean.length ? JSON.stringify(clean) : ''
-  return `${currentUserId()}|${pathOf(config)}|${params}`
+  return `${currentUserId()}|${pathOf(config)}|${params}${loose ? '|loose' : ''}`
 }
 
 export const saveCache = async (config, data) => {
@@ -94,6 +96,7 @@ export const saveCache = async (config, data) => {
     const json = JSON.stringify(data)
     if (json.length > MAX_CACHE_BYTES) return
     await dbPut('cache', { key: cacheKeyOf(config), data, savedAt: Date.now() })
+    await dbPut('cache', { key: cacheKeyOf(config, true), data, savedAt: Date.now() })
     // De vez en cuando se borran las entradas más viejas para que no crezca sin límite
     if (Math.random() < 0.05) {
       const all = await dbGetAll('cache')
@@ -108,7 +111,7 @@ export const saveCache = async (config, data) => {
 export const readCache = async (config) => {
   try {
     if (!currentUserId()) return null
-    const entry = await dbGet('cache', cacheKeyOf(config))
+    const entry = (await dbGet('cache', cacheKeyOf(config))) || (await dbGet('cache', cacheKeyOf(config, true)))
     return entry ? entry.data : null
   } catch { return null }
 }
