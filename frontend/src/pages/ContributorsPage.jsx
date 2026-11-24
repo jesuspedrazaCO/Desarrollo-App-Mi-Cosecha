@@ -62,50 +62,52 @@ export default function ContributorsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-float-up max-w-3xl">
+    <div className="space-y-6 animate-float-up max-w-5xl">
       <div>
         <h1 className="page-title flex items-center gap-2"><Users size={22} /> Aportantes</h1>
         <p className="text-white/50 text-sm mt-1">Quién ha puesto plata en la finca, y cuánto — para repartir ganancias con claridad</p>
       </div>
 
-      <ContributorSummary data={summary} loading={loadingSummary} title="Resumen general de la finca" onSelect={setSelected} />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <ContributorSummary data={summary} loading={loadingSummary} title="Resumen general de la finca" onSelect={setSelected} />
 
-      <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
-        <h3 className="text-[15px] font-bold text-white/90 mb-3">Personas registradas</h3>
+        <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
+          <h3 className="text-[15px] font-bold text-white/90 mb-3">Personas registradas</h3>
 
-        {canEdit && <form onSubmit={handleAdd} className="flex items-center gap-2 mb-4">
-          <input
-            type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="Ej: Fabio, Diego, Papá..."
-            style={{ background: 'rgba(255,255,255,0.85)', color: '#1c1917' }}
-            className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none"
-          />
-          <Button type="submit" loading={adding} size="sm">
-            <Plus size={15} className="mr-1" /> Agregar
-          </Button>
-        </form>}
+          {canEdit && <form onSubmit={handleAdd} className="flex items-center gap-2 mb-4">
+            <input
+              type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ej: Fabio, Diego, Papá..."
+              style={{ background: 'rgba(255,255,255,0.85)', color: '#1c1917' }}
+              className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none"
+            />
+            <Button type="submit" loading={adding} size="sm">
+              <Plus size={15} className="mr-1" /> Agregar
+            </Button>
+          </form>}
 
-        {loadingList ? (
-          <SkeletonList rows={3} />
-        ) : contributors.length === 0 ? (
-          <p className="text-white/40 text-sm">{canEdit ? 'Aún no has agregado a nadie.' : 'Aún no hay personas registradas.'}</p>
-        ) : (
-          <div className="space-y-1">
-            {contributors.map((c) => (
-              <div key={c._id} className="flex items-center justify-between px-3 py-2.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                <span className="text-sm text-white/80 font-medium">{c.name}</span>
-                {canEdit && (
-                  <button
-                    onClick={() => setDeleting(c)}
-                    className="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+          {loadingList ? (
+            <SkeletonList rows={3} />
+          ) : contributors.length === 0 ? (
+            <p className="text-white/40 text-sm">{canEdit ? 'Aún no has agregado a nadie.' : 'Aún no hay personas registradas.'}</p>
+          ) : (
+            <div className="space-y-1">
+              {contributors.map((c) => (
+                <div key={c._id} className="flex items-center justify-between px-3 py-2.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="text-sm text-white/80 font-medium">{c.name}</span>
+                  {canEdit && (
+                    <button
+                      onClick={() => setDeleting(c)}
+                      className="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <ContributorDetailModal contributor={selected} onClose={() => setSelected(null)} />

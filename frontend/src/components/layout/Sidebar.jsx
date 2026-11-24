@@ -10,32 +10,62 @@ import { Users, UserPlus, Eye } from 'lucide-react'
 
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000'
 
-const navItems = [
-  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
-  { to: '/asistente', label: 'Scooby', isImage: true },
-  { to: '/crops', label: 'Cultivos', icon: Sprout },
-  { to: '/pendientes', label: 'Pendientes por pagar', icon: Clock },
-  { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
-  { to: '/reports', label: 'Reportes', icon: BarChart3 },
-  { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
-  { to: '/contributors', label: 'Aportantes', icon: Users },
-  { to: '/members', label: 'Miembros', icon: UserPlus, adminOnly: true },
-  { to: '/household', label: 'Gastos del Hogar', icon: Home },
-  { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
-  { to: '/receipts', label: 'Comprobantes', icon: Receipt },
-  { to: '/calendar', label: 'Calendario', icon: CalendarDays },
-  
+// El menú va en secciones para que sea fácil de recorrer
+const navGroups = [
+  {
+    label: 'Principal',
+    items: [
+      { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+      { to: '/asistente', label: 'Scooby', isImage: true },
+    ],
+  },
+  {
+    label: 'Finca',
+    items: [
+      { to: '/crops', label: 'Cultivos', icon: Sprout },
+      { to: '/calendar', label: 'Calendario', icon: CalendarDays },
+      { to: '/planting-calculator', label: 'Calculadora de Siembra', icon: MapIcon },
+    ],
+  },
+  {
+    label: 'Dinero',
+    items: [
+      { to: '/pendientes', label: 'Pendientes por pagar', icon: Clock },
+      { to: '/household', label: 'Gastos del Hogar', icon: Home },
+      { to: '/market', label: 'Lista de Mercado', icon: ShoppingCart },
+      { to: '/receipts', label: 'Comprobantes', icon: Receipt },
+    ],
+  },
+  {
+    label: 'Análisis',
+    items: [
+      { to: '/reports', label: 'Reportes', icon: BarChart3 },
+      { to: '/market-prices', label: 'Precios Mercado', icon: TrendingUp },
+    ],
+  },
+  {
+    label: 'Equipo',
+    items: [
+      { to: '/contributors', label: 'Aportantes', icon: Users },
+      { to: '/members', label: 'Miembros', icon: UserPlus, adminOnly: true },
+    ],
+  },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, isViewer, isEditor, isAdmin } = useAuth()
 
   // Scooby guarda conversaciones, así que los lectores no lo usan; "Miembros" es solo del administrador
-  const visibleItems = navItems.filter((item) => {
-    if (item.adminOnly && !isAdmin) return false
-    if (item.to === '/asistente' && isViewer) return false
-    return true
-  })
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.adminOnly && !isAdmin) return false
+        if (item.to === '/asistente' && isViewer) return false
+        return true
+      }),
+    }))
+    .filter((group) => group.items.length > 0)
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[13px] font-semibold transition-all duration-200
@@ -65,23 +95,31 @@ export default function Sidebar({ isOpen, onClose }) {
       <div className="h-px mx-4 mb-3" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-1">Navegación</p>
-        {visibleItems.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
-            {item.isImage ? (
-              <img
-                src="/scooby.jpeg"
-                alt="Scooby"
-                className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <item.icon size={17} className="flex-shrink-0" strokeWidth={2} />
-            )}
-            {item.label}
-          </NavLink>
+        {visibleGroups.map((group, i) => (
+          <div key={group.label}>
+            <p className={`text-[10px] font-bold text-white/45 uppercase tracking-widest px-3.5 mb-1.5 ${i === 0 ? 'mt-1' : 'mt-4'}`}>
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.exact} onClick={onClose} className={linkClass}>
+                  {item.isImage ? (
+                    <img
+                      src="/scooby.jpeg"
+                      alt="Scooby"
+                      className="w-[17px] h-[17px] rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <item.icon size={17} className="flex-shrink-0" strokeWidth={2} />
+                  )}
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
 
-        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-3.5 mb-2 mt-5">Cuenta</p>
+        <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest px-3.5 mb-1.5 mt-4">Cuenta</p>
         <NavLink to="/settings" onClick={onClose} className={linkClass}>
           <Settings size={17} className="flex-shrink-0" strokeWidth={2} />
           Configuración
