@@ -10,6 +10,11 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
 import { SkeletonList } from '../components/common/Skeleton'
 
+const SCOPE_KEY = 'contributorsScope'
+const readScope = () => {
+  try { return localStorage.getItem(SCOPE_KEY) === 'all' ? 'all' : 'active' } catch { return 'active' }
+}
+
 export default function ContributorsPage() {
   const { contributors, loading: loadingList, create, remove } = useContributors()
   const { canEdit } = useAuth() // los lectores solo ven
@@ -19,11 +24,16 @@ export default function ContributorsPage() {
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState(null)
   const [selected, setSelected] = useState(null)
+  const [scope, setScope] = useState(readScope)
+  const changeScope = (value) => {
+    setScope(value)
+    try { localStorage.setItem(SCOPE_KEY, value) } catch { /* sin almacenamiento: no pasa nada */ }
+  }
 
   const loadSummary = async () => {
     setLoadingSummary(true)
     try {
-      const res = await getFarmWideContributorSummary()
+      const res = await getFarmWideContributorSummary(scope)
       setSummary(res.data.data)
     } catch {
       toast.error('Error al cargar el resumen')
@@ -32,7 +42,7 @@ export default function ContributorsPage() {
     }
   }
 
-  useEffect(() => { loadSummary() }, [])
+  useEffect(() => { loadSummary() }, [scope])
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -66,6 +76,33 @@ export default function ContributorsPage() {
       <div>
         <h1 className="page-title flex items-center gap-2"><Users size={22} /> Aportantes</h1>
         <p className="text-white/50 text-sm mt-1">Quién ha puesto plata en la finca, y cuánto — para repartir ganancias con claridad</p>
+      </div>
+
+      {/* Interruptor: lo aportado en todos los cultivos o solo en los activos */}
+      <div className="flex items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Qué cultivos se cuentan en los aportes"
+          className="inline-flex rounded-full p-1"
+          style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}
+        >
+          {[{ value: 'active', label: 'Solo activos' }, { value: 'all', label: 'Todo' }].map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={scope === o.value}
+              onClick={() => changeScope(o.value)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                scope === o.value ? 'bg-primary-600 text-white' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-white/40 text-right">
+          {scope === 'active' ? 'Sin cultivos finalizados ni suspendidos' : 'Incluye cultivos finalizados y suspendidos'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
@@ -110,7 +147,7 @@ export default function ContributorsPage() {
         </div>
       </div>
 
-      <ContributorDetailModal contributor={selected} onClose={() => setSelected(null)} />
+      <ContributorDetailModal contributor={selected} onClose={() => setSelected(null)} scope={scope} />
 
       {canEdit && <ConfirmDialog
         isOpen={!!deleting}
