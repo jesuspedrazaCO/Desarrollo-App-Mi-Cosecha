@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import Contributor from '../models/Contributor.js'
 import Expense from '../models/Expense.js'
 
@@ -82,6 +83,62 @@ export const getCropSummary = async (req, res, next) => {
     }))
 
     res.json({ success: true, data: summary })
+  } catch (err) {
+    next(err)
+  }
+}
+
+// En qué cultivos ha puesto plata una persona, con fecha y monto de cada aporte
+export const getContributorDetail = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ success: false, message: 'Aportante no encontrado' })
+    }
+
+    const contributor = await Contributor.findOne({ _id: id, owner: req.user.id })
+    if (!contributor) {
+      return res.status(404).json({ success: false, message: 'Aportante no encontrado' })
+    }
+
+    const expenses = await Expense.find({ owner: req.user.id, 'payers.contributor': id })
+      .populate('crop', 'name')
+      .sort({ date: -1 })
+
+    const byCrop = {}
+    let totalPaid = 0
+
+    expenses.forEach((e) => {
+      const paid = (e.payers || [])
+        .filter((p) => String(p.contributor) === String(id))
+        .reduce((sum, p) => sum + p.amount, 0)
+      if (paid <= 0) return
+
+      const key = e.crop ? String(e.crop._id) : 'general'
+      if (!byCrop[key]) {
+        byCrop[key] = {
+          cropId: e.crop ? e.crop._id : null,
+          cropName: e.crop ? e.crop.name : 'Gastos generales (sin cultivo)',
+          total: 0,
+          items: [],
+        }
+      }
+      byCrop[key].total += paid
+      byCrop[key].items.push({
+        expenseId: e._id,
+        date: e.date,
+        description: e.description,
+        amount: paid,
+      })
+      totalPaid += paid
+    })
+
+    const crops = Object.values(byCrop).sort((a, b) => b.total - a.total)
+
+    res.json({
+      success: true,
+      data: { contributorId: contributor._id, name: contributor.name, totalPaid, crops },
+    })
   } catch (err) {
     next(err)
   }

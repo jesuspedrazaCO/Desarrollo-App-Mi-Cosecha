@@ -5,6 +5,7 @@ import { useContributors } from '../hooks/useContributors'
 import { useAuth } from '../hooks/useAuth'
 import { getFarmWideContributorSummary } from '../services/contributorService'
 import ContributorSummary from '../components/contributors/ContributorSummary'
+import ContributorDetailModal from '../components/contributors/ContributorDetailModal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Button from '../components/common/Button'
 import { SkeletonList } from '../components/common/Skeleton'
@@ -17,6 +18,7 @@ export default function ContributorsPage() {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState(null)
+  const [selected, setSelected] = useState(null)
 
   const loadSummary = async () => {
     setLoadingSummary(true)
@@ -66,7 +68,7 @@ export default function ContributorsPage() {
         <p className="text-white/50 text-sm mt-1">Quién ha puesto plata en la finca, y cuánto — para repartir ganancias con claridad</p>
       </div>
 
-      <ContributorSummary data={summary} loading={loadingSummary} title="Resumen general de la finca" />
+      <ContributorSummary data={summary} loading={loadingSummary} title="Resumen general de la finca" onSelect={setSelected} />
 
       <div className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)' }}>
         <h3 className="text-[15px] font-bold text-white/90 mb-3">Personas registradas</h3>
@@ -105,6 +107,8 @@ export default function ContributorsPage() {
           </div>
         )}
       </div>
+
+      <ContributorDetailModal contributor={selected} onClose={() => setSelected(null)} />
 
       {canEdit && <ConfirmDialog
         isOpen={!!deleting}

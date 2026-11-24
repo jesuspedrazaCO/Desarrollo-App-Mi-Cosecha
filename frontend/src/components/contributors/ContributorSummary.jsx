@@ -3,7 +3,7 @@ import { formatCurrency } from '../../utils/formatCurrency'
 import EmptyState from '../common/EmptyState'
 import { SkeletonList } from '../common/Skeleton'
 
-export default function ContributorSummary({ data = [], loading, title = 'Aportantes' }) {
+export default function ContributorSummary({ data = [], loading, title = 'Aportantes', onSelect }) {
   const withPayments = data.filter((d) => d.totalPaid > 0)
   const maxAmount = Math.max(...withPayments.map((d) => d.totalPaid), 1)
   const total = withPayments.reduce((sum, d) => sum + d.totalPaid, 0)
@@ -37,7 +37,16 @@ export default function ContributorSummary({ data = [], loading, title = 'Aporta
               const pct = Math.round((c.totalPaid / maxAmount) * 100)
               const pctOfTotal = total > 0 ? Math.round((c.totalPaid / total) * 100) : 0
               return (
-                <div key={c.contributorId}>
+                <div
+                  key={c.contributorId}
+                  {...(onSelect ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    onClick: () => onSelect(c),
+                    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c) } },
+                    className: 'cursor-pointer rounded-2xl px-3 py-2 -mx-3 transition-colors hover:bg-white/5',
+                  } : {})}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-semibold text-white/85">{c.name}</span>
                     <span className="text-sm font-bold text-emerald-300">{formatCurrency(c.totalPaid)}</span>
