@@ -2,8 +2,9 @@ import { dbGetAll, dbGet, dbPut, dbDelete, dbClear } from './offlineDb'
 
 // Solo estos registros se pueden guardar sin internet (crear). Editar y borrar necesitan conexión.
 const QUEUEABLE_PATHS = ['/expenses', '/income', '/applications', '/household']
-// Listas que se guardan para poder consultarlas sin internet
-const CACHEABLE_PREFIXES = ['/crops', '/expenses', '/income', '/applications', '/household', '/dashboard']
+// Todo lo que se consulta (cultivos, gastos, ventas, reportes, calendario, mercado...) se guarda para verlo
+// sin internet, MENOS lo que nunca debe quedar guardado: sesión, miembros, asistentes de IA y archivos.
+const NEVER_CACHE_PREFIXES = ['/auth', '/members', '/ai', '/agro', '/asesor', '/agronomo', '/uploads', '/chat']
 const MAX_CACHE_BYTES = 1.5 * 1024 * 1024
 const MAX_CACHE_ENTRIES = 200
 
@@ -17,7 +18,8 @@ export const isQueueable = (config) =>
 export const isCacheable = (config) => {
   if (String(config?.method || 'get').toLowerCase() !== 'get') return false
   const p = pathOf(config)
-  return CACHEABLE_PREFIXES.some((prefix) => p === prefix || p.startsWith(`${prefix}/`))
+  if (!p) return false
+  return !NEVER_CACHE_PREFIXES.some((prefix) => p === prefix || p.startsWith(`${prefix}/`))
 }
 
 export const newKey = () => {
@@ -74,9 +76,15 @@ export const removeQueueItem = async (id) => { await dbDelete('queue', id); noti
 
 // ── Caché de lecturas ────────────────────────────────────────────────────────
 const cacheKeyOf = (config) => {
-  const params = config.params && typeof config.params === 'object'
-    ? JSON.stringify(Object.entries(config.params).filter(([, v]) => v !== undefined && v !== '').sort(([a], [b]) => a.localeCompare(b)))
-    : ''
+  // Los filtros pueden venir en "params" o escritos en la propia dirección (?scope=active): ambos cuentan
+  const entries = []
+  const q = String(config?.url || '').split('?')[1]
+  if (q) new URLSearchParams(q).forEach((v, k) => entries.push([k, v]))
+  if (config.params && typeof config.params === 'object') {
+    Object.entries(config.params).forEach(([k, v]) => { if (v !== undefined && v !== null) entries.push([k, String(v)]) })
+  }
+  const clean = entries.filter(([, v]) => v !== '').sort(([a], [b]) => a.localeCompare(b))
+  const params = clean.length ? JSON.stringify(clean) : ''
   return `${currentUserId()}|${pathOf(config)}|${params}`
 }
 

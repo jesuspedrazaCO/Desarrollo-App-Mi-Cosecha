@@ -6,6 +6,19 @@ import {
 
 export const AuthContext = createContext(null)
 
+// Sin internet no se puede comprobar la contraseña (el servidor es quien la valida): se explica con claridad
+const NEEDS_INTERNET = 'Para iniciar sesión por primera vez en este celular necesitas internet. Después podrás abrir la app sin conexión. Si ya habías entrado, no cierres sesión.'
+const withOfflineMessage = async (fn) => {
+  try {
+    return await fn()
+  } catch (err) {
+    if (!err?.response && (err?.code === 'ERR_NETWORK' || err?.code === 'ECONNABORTED' || !navigator.onLine)) {
+      err.response = { status: 0, data: { message: NEEDS_INTERNET } }
+    }
+    throw err
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -20,7 +33,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (email, password) => {
-    const res = await loginService({ email, password })
+    const res = await withOfflineMessage(() => loginService({ email, password }))
     const { token, user: userData } = res.data
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(userData))
@@ -29,7 +42,7 @@ export function AuthProvider({ children }) {
   }
 
   const register = async (data) => {
-    const res = await registerService(data)
+    const res = await withOfflineMessage(() => registerService(data))
     const { token, user: userData } = res.data
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(userData))
@@ -39,7 +52,7 @@ export function AuthProvider({ children }) {
 
   // El invitado elige su contraseña con el enlace del correo y entra directo
   const acceptInvitation = async (invitationToken, password) => {
-    const res = await acceptInvitationService(invitationToken, password)
+    const res = await withOfflineMessage(() => acceptInvitationService(invitationToken, password))
     const { token, user: userData } = res.data
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(userData))

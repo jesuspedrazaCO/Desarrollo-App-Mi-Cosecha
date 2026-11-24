@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { WifiOff, UploadCloud, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
 import { listQueue, removeQueueItem, subscribe } from '../../lib/offlineQueue'
+import { warmCache } from '../../lib/offlineWarm'
 import { syncQueue, retryItem, onSyncingChange, isSyncing } from '../../lib/offlineSync'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { formatDate } from '../../utils/formatDate'
@@ -42,13 +43,15 @@ export default function OfflineBanner() {
     // Se pide al navegador no borrar estos datos por falta de espacio
     try { navigator.storage?.persist?.() } catch { /* no es obligatorio */ }
 
-    const goOnline = () => { setOnline(true); syncQueue() }
+    const goOnline = () => { setOnline(true); syncQueue().finally(() => warmCache()) }
     const goOffline = () => setOnline(false)
-    const onVisible = () => { if (document.visibilityState === 'visible') syncQueue() }
+    const onVisible = () => { if (document.visibilityState === 'visible') { syncQueue(); warmCache() } }
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
     document.addEventListener('visibilitychange', onVisible)
     syncQueue()
+    // Con internet, se descargan los datos principales para poder verlos después sin conexión
+    warmCache()
     // Mientras haya algo pendiente se reintenta cada 30 segundos
     const timer = setInterval(() => { if (navigator.onLine) syncQueue() }, 30000)
 
