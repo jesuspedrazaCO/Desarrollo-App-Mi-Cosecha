@@ -6,7 +6,7 @@ import { getContributorDetail } from '../../services/contributorService'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { formatDate } from '../../utils/formatDate'
 
-export default function ContributorDetailModal({ contributor, onClose }) {
+export default function ContributorDetailModal({ contributor, onClose, scope = 'all' }) {
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -15,23 +15,27 @@ export default function ContributorDetailModal({ contributor, onClose }) {
     let cancelled = false
     setDetail(null)
     setLoading(true)
-    getContributorDetail(contributor.contributorId)
+    getContributorDetail(contributor.contributorId, scope)
       .then((res) => { if (!cancelled) setDetail(res.data.data) })
       .catch(() => { if (!cancelled) toast.error('Error al cargar el detalle') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [contributor])
+  }, [contributor, scope])
 
   return (
     <Modal isOpen={!!contributor} onClose={onClose} title={contributor ? `Aportes de ${contributor.name}` : ''} size="md">
       {loading || !detail ? (
         <SkeletonList rows={3} />
       ) : detail.crops.length === 0 ? (
-        <p className="text-white/40 text-sm">Esta persona aún no tiene aportes registrados.</p>
+        <p className="text-white/40 text-sm">
+          {scope === 'active' ? 'Esta persona no tiene aportes en cultivos activos.' : 'Esta persona aún no tiene aportes registrados.'}
+        </p>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/50">Total aportado</span>
+            <span className="text-sm text-white/50">
+              Total aportado · {scope === 'active' ? 'cultivos activos' : 'todos los cultivos'}
+            </span>
             <span className="text-base font-bold text-emerald-300">{formatCurrency(detail.totalPaid)}</span>
           </div>
 

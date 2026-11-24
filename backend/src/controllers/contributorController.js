@@ -1,6 +1,14 @@
 import mongoose from 'mongoose'
 import Contributor from '../models/Contributor.js'
 import Expense from '../models/Expense.js'
+import Crop from '../models/Crop.js'
+
+// scope=active → solo gastos de cultivos activos (igual que el dashboard); cualquier otro valor → todos
+const withScope = async (ownerId, scope, filter) => {
+  if (scope !== 'active') return filter
+  const activeCrops = await Crop.find({ owner: ownerId, status: 'activo' }).select('_id')
+  return { ...filter, crop: { $in: activeCrops.map((crop) => crop._id) } }
+}
 
 export const getContributors = async (req, res, next) => {
   try {
@@ -36,7 +44,8 @@ export const deleteContributor = async (req, res, next) => {
 // Cuánto ha puesto cada persona en total, en toda la finca (todos los cultivos)
 export const getFarmWideSummary = async (req, res, next) => {
   try {
-    const expenses = await Expense.find({ owner: req.user.id, 'payers.0': { $exists: true } })
+    const scope = req.query.scope === 'active' ? 'active' : 'all'
+    const expenses = await Expense.find(await withScope(req.user.id, scope, { owner: req.user.id, 'payers.0': { $exists: true } }))
     const totals = {}
 
     expenses.forEach((e) => {
@@ -101,7 +110,8 @@ export const getContributorDetail = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Aportante no encontrado' })
     }
 
-    const expenses = await Expense.find({ owner: req.user.id, 'payers.contributor': id })
+    const scope = req.query.scope === 'active' ? 'active' : 'all'
+    const expenses = await Expense.find(await withScope(req.user.id, scope, { owner: req.user.id, 'payers.contributor': id }))
       .populate('crop', 'name')
       .sort({ date: -1 })
 
